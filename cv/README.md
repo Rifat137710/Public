@@ -204,8 +204,8 @@ tailored to you, but these are the real alternatives:
 
 | Template | Link | Verdict |
 | --- | --- | --- |
-| **Awesome-CV** | [posquit0/Awesome-CV](https://github.com/posquit0/Awesome-CV) | The most widely used academic/professional LaTeX CV. Excellent typography, modular sections, BibTeX publication support. Needs **XeLaTeX** and bundled fonts. The natural upgrade once you have publications to list. |
-| **Awesome-PhD-CV** | [LimHyungTae/Awesome-PhD-CV](https://github.com/LimHyungTae/Awesome-PhD-CV) | A curated collection specifically for PhD applicants, with three formats and genuinely good commentary on what to emphasize. Worth reading even if you don't use the files. |
+| **Awesome-CV** | [posquit0/Awesome-CV](https://github.com/posquit0/Awesome-CV) | The most widely used academic/professional LaTeX CV (28k+ stars). Excellent typography, modular sections. Needs **XeLaTeX** and bundled fonts (Roboto, Source Sans Pro). Publication lists are hand-written, not BibTeX-driven, unless you use the fork below. |
+| **Awesome-PhD-CV** | [LimHyungTae/Awesome-PhD-CV](https://github.com/LimHyungTae/Awesome-PhD-CV) | A curated collection specifically for PhD applicants, with three formats and genuinely good commentary on what to emphasize. Its `research-cv/` variant adapts Awesome-CV with BibTeX-driven publication lists — the natural upgrade once you have papers. Worth reading even if you don't use the files. |
 | **moderncv** | [CTAN](https://ctan.org/pkg/moderncv) | The old standard. Extremely safe, slightly dated look, on every TeX installation. Fine choice; nobody will hold it against you. |
 | **Overleaf CV gallery** | [overleaf.com/gallery/tagged/cv](https://www.overleaf.com/gallery/tagged/cv) | Hundreds of templates. Filter hard — most are industry résumés, not academic CVs. |
 
