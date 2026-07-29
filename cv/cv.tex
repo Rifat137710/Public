@@ -1,0 +1,325 @@
+%==============================================================================
+%  ACADEMIC CV  —  U.S. PhD APPLICATIONS
+%  Tailored for a fresh B.Sc. graduate (BUET, EEE) with active research,
+%  manuscripts in preparation, and research-grade competition work.
+%
+%  COMPILE:  pdflatex cv.tex   (run twice so page totals resolve)
+%  OVERLEAF: New Project -> Upload Project -> drop this file in. Nothing else needed.
+%
+%  ------------------------------------------------------------------------
+%  READ THIS BEFORE YOU SUBMIT ANYTHING
+%  ------------------------------------------------------------------------
+%  Every FACT below is a blank: XX, [Month Year], [Title], 3.XX/4.00, etc.
+%  The structure and the sentence patterns are real and ready to use; the
+%  numbers are deliberately not. Fill in your own or delete the line.
+%  Never send a CV that still contains an XX. See README.md for what belongs
+%  in each section and which sections to delete.
+%==============================================================================
+
+\documentclass[11pt,letterpaper]{article}   % letterpaper: U.S. standard, not A4
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{charter}            % Body font. Warm, readable, not overused.
+\usepackage{microtype}          % Subtle spacing polish
+\usepackage[
+  top=0.8in, bottom=0.8in, left=0.85in, right=0.85in, footskip=0.35in
+]{geometry}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{tabularx}
+\usepackage{fancyhdr}
+\usepackage{lastpage}
+\usepackage{needspace}          % Stops a section heading stranding at a page bottom
+\usepackage[colorlinks=true,urlcolor=accent,linkcolor=accent]{hyperref}
+
+%------------------------------------------------------------------------------
+%  IDENTITY — edit these three lines and they propagate everywhere
+%------------------------------------------------------------------------------
+\newcommand{\myname}{Rifat Arafat}          % EXACTLY as printed in your passport
+\newcommand{\myemail}{rifatarafat1020@gmail.com}
+\newcommand{\myphone}{+880 1XXX-XXXXXX}
+
+\definecolor{accent}{HTML}{1F3A5F}          % Deep navy. Restrained on purpose.
+\definecolor{subtle}{HTML}{555555}
+
+\hypersetup{pdftitle={\myname{} — Curriculum Vitae}, pdfauthor={\myname}}
+
+%------------------------------------------------------------------------------
+%  SECTION + ENTRY STYLING
+%------------------------------------------------------------------------------
+\titleformat{\section}
+  {\needspace{4.5\baselineskip}\normalfont\normalsize\bfseries\scshape\color{accent}}
+  {}{0em}{}
+  [\vspace{-7pt}{\color{accent}\rule{\textwidth}{0.7pt}}]
+\titlespacing*{\section}{0pt}{11pt}{5pt}
+
+\setlist[itemize]{
+  leftmargin=1.3em, itemsep=1.2pt, parsep=0pt, topsep=3pt,
+  label=\textcolor{accent}{\small$\bullet$}
+}
+
+% \entry{Role or Degree}{Dates}{Organization}{Location}
+\newcommand{\entry}[4]{%
+  \vspace{3pt}%
+  \noindent\begin{tabularx}{\textwidth}{@{}X r@{}}
+    \textbf{#1} & \textbf{#2}\\
+    \textit{\textcolor{subtle}{#3}} & \textit{\textcolor{subtle}{#4}}\\
+  \end{tabularx}%
+  \vspace{-4pt}%
+}
+
+% \line{Left text}{Right text} — one-line rows (awards, service, talks)
+\newcommand{\lineentry}[2]{%
+  \noindent\begin{tabularx}{\textwidth}{@{}X r@{}}
+    #1 & #2\\
+  \end{tabularx}%
+}
+
+\newcommand{\me}[1]{\underline{#1}}          % Underline your own name in citations
+\newcommand{\skillrow}[2]{%
+  \noindent\parbox[t]{0.21\textwidth}{\textbf{#1}}%
+  \parbox[t]{0.78\textwidth}{#2}\par\vspace{2.5pt}%
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\fancyfoot[C]{\footnotesize\textcolor{subtle}{\myname{} \quad$\cdot$\quad Curriculum Vitae \quad$\cdot$\quad Page \thepage{} of \pageref{LastPage}}}
+
+\setlength{\parindent}{0pt}
+
+%==============================================================================
+\begin{document}
+%==============================================================================
+
+%------------------------------------------------------------------------------
+%  HEADER
+%  No photo. No date of birth. No marital status, religion, father's name, or
+%  national ID. These are normal on a Bangladeshi CV and are a liability on a
+%  U.S. academic one — committees read them as a signal you don't know the norms.
+%------------------------------------------------------------------------------
+\begin{center}
+  {\LARGE\bfseries\color{accent}\myname}\\[5pt]
+  {\small
+    Dhaka, Bangladesh \quad$\cdot$\quad
+    \href{mailto:\myemail}{\myemail} \quad$\cdot$\quad
+    \myphone
+  }\\[3pt]
+  {\small
+    % Delete any link you don't have. An empty Scholar profile is worse than none.
+    \href{https://yourusername.github.io}{Website} \quad$\cdot$\quad
+    \href{https://scholar.google.com/citations?user=XXXX}{Google Scholar} \quad$\cdot$\quad
+    \href{https://github.com/yourusername}{GitHub} \quad$\cdot$\quad
+    \href{https://linkedin.com/in/yourusername}{LinkedIn}
+  }
+\end{center}
+\vspace{2pt}
+
+%------------------------------------------------------------------------------
+%  RESEARCH INTERESTS
+%  The single most-read block on the page. A faculty member skims this to decide
+%  whether you belong in their lab. Make it specific enough that a wrong-fit
+%  professor self-selects out. Rewrite it per school (see README).
+%------------------------------------------------------------------------------
+\section{Research Interests}
+[Primary area, e.g.\ analog/mixed-signal IC design] \,$\cdot$\, [Second area] \,$\cdot$\, [Third area]
+
+\smallskip
+\noindent Specifically: [one or two sentences naming the actual problem you want to work on
+— the physics, the circuit, the algorithm. ``Machine learning'' is not a research
+interest; ``learned digital pre-distortion for mmWave power amplifiers'' is.]
+
+%------------------------------------------------------------------------------
+%  EDUCATION
+%------------------------------------------------------------------------------
+\section{Education}
+
+\entry{B.Sc.\ in Electrical and Electronic Engineering}{[Month Year] -- [Month Year]}
+      {Bangladesh University of Engineering and Technology (BUET)}{Dhaka, Bangladesh}
+\begin{itemize}
+  \item \textbf{CGPA:} 3.XX\,/\,4.00 \quad$\cdot$\quad \textbf{Class Rank:} XX of XXX
+        % Rank carries real weight from BUET — U.S. committees know the school is
+        % highly selective but not how your GPA maps. Delete if not in the top ~15%.
+  \item \textbf{Undergraduate Thesis:} ``[Full thesis title]''\\
+        Supervisor: [Prof.\ Full Name], [Title], Dept.\ of EEE, BUET.
+  \item \textbf{Selected Coursework:} Digital Signal Processing; Semiconductor Devices;
+        VLSI Design; Random Signals and Noise; Control Systems; Electromagnetic Fields
+        and Waves; Power Electronics; Communication Systems.
+        % List only courses that support your stated research interest.
+  \item \textbf{Relevant Graduate-Level / Self-Study:} [e.g.\ Convex Optimization
+        (Stanford EE364A, audited); Analog IC Design (Razavi lecture series)].
+        % Delete unless you genuinely completed it and can discuss it in an interview.
+\end{itemize}
+
+%------------------------------------------------------------------------------
+%  RESEARCH EXPERIENCE
+%  Your strongest section. With no publications yet, this is what convinces a
+%  committee you can do research. Depth over breadth: three entries described
+%  concretely beat eight one-liners.
+%
+%  Bullet formula:  ACTION VERB + technical specifics + method/tool + measured outcome
+%  Weak:   "Worked on machine learning for signal processing."
+%  Strong: "Built a 1-D CNN classifier for XX-channel EMG, reaching XX% accuracy
+%           on XX subjects — XX points above the wavelet-feature baseline."
+%------------------------------------------------------------------------------
+\section{Research Experience}
+
+\entry{Research Assistant}{[Month Year] -- Present}
+      {[Lab / Group Name], Dept.\ of EEE, BUET \quad$\cdot$\quad Advisor: [Prof.\ Name]}{Dhaka, Bangladesh}
+\begin{itemize}
+  \item Designed / derived / implemented [the specific artifact], achieving [measured
+        result] against [the baseline or ground truth you compared to].
+  \item Second concrete contribution: [the hard technical problem you personally solved,
+        not what the lab does in general].
+  \item Validated results against [COMSOL / Cadence Spectre / measured hardware /
+        published dataset]; [state the agreement, e.g.\ within X\% across N cases].
+  \item \textit{Manuscript in preparation for [target venue]; expected submission [Month Year].}
+        % Only if a draft genuinely exists. See README — this line is checkable.
+\end{itemize}
+
+\entry{Undergraduate Thesis Researcher}{[Month Year] -- [Month Year]}
+      {Dept.\ of EEE, BUET \quad$\cdot$\quad Supervisor: [Prof.\ Name]}{Dhaka, Bangladesh}
+\begin{itemize}
+  \item Investigated [the research question] using [method], addressing [the specific
+        gap in prior work — name the limitation you were attacking].
+  \item Key result: [what you found, quantified].
+  \item Presented findings to [thesis committee / departmental seminar] of [XX] faculty and students.
+\end{itemize}
+
+% Optional third entry: summer research, remote collaboration, or a professor's
+% project you joined. Delete if you have none — a short honest section is fine.
+\entry{[Research Intern / Project Collaborator]}{[Month Year] -- [Month Year]}
+      {[Institution or Group] \quad$\cdot$\quad Advisor: [Name]}{[City, Country]}
+\begin{itemize}
+  \item Contribution: [what you did and what it produced, quantified].
+\end{itemize}
+
+%------------------------------------------------------------------------------
+%  PUBLICATIONS AND MANUSCRIPTS
+%
+%  You have no published papers yet. That is completely normal for a U.S. PhD
+%  applicant from a B.Sc. — publications are a bonus, not a requirement, and
+%  engineering committees expect fewer of them than the life sciences do.
+%
+%  Keep this section ONLY if you have at least one genuine draft. If everything
+%  is still an idea, delete the whole section and let the "manuscript in
+%  preparation" line inside Research Experience carry it. An empty or padded
+%  publication section reads worse than no section at all.
+%------------------------------------------------------------------------------
+\section{Manuscripts in Preparation}
+{\small\textcolor{subtle}{Applicant's name underlined.}}
+\begin{enumerate}[leftmargin=2.2em,label={[M\arabic*]},itemsep=3pt,topsep=4pt]
+  \item \me{R.~Arafat}, [Co-author], and [Advisor]. ``[Working title].''
+        \textit{In preparation for [IEEE Transactions on XXX / conference];
+        targeted submission [Month Year].}
+  \item \me{R.~Arafat} and [Advisor]. ``[Working title].'' \textit{In preparation.}
+\end{enumerate}
+
+% When a paper is actually submitted, move it into a "Under Review" list and
+% cite it properly. When it is accepted, it graduates to "Publications" at the
+% very top of this section. Never list an idea as if it were a submission.
+
+%------------------------------------------------------------------------------
+%  RESEARCH COMPETITIONS AND TECHNICAL PROJECTS
+%  This is where your competition work belongs — and it is a real asset, because
+%  it shows independent problem-selection under time pressure. Describe it the
+%  way you would describe research: what was novel, what you measured, where you
+%  placed. Placement matters; so does the size of the field you beat.
+%------------------------------------------------------------------------------
+\section{Research Competitions and Technical Projects}
+
+\entry{[Competition Name] --- [Placement, e.g.\ 1st of XXX teams]}{[Month Year]}
+      {[Organizer, e.g.\ IEEE Region 10 / national round]}{[Location]}
+\begin{itemize}
+  \item \textbf{Novel contribution:} [State plainly what had not been done before —
+        the new topology, the new formulation, the constraint you removed.]
+  \item Built [the system] using [stack/tools]; demonstrated [measured performance]
+        under [the competition's constraints].
+  \item Led a team of [X]; personally owned [your specific subsystem].
+\end{itemize}
+
+\entry{[Project Title]}{[Month Year]}
+      {[Course project / independent work] \quad$\cdot$\quad \href{https://github.com/yourusername/repo}{Code}}{}
+\begin{itemize}
+  \item What it does, what was technically hard, and the result: [quantified].
+\end{itemize}
+
+%------------------------------------------------------------------------------
+%  HONORS AND AWARDS
+%------------------------------------------------------------------------------
+\section{Honors and Awards}
+\lineentry{[University Merit Scholarship / Dean's List], BUET \hfill}{[Year]}
+\lineentry{[Award name], [awarding body] --- [selectivity, e.g.\ XX of XXX recipients nationally] \hfill}{[Year]}
+\lineentry{[Competition award, if not already listed above] \hfill}{[Year]}
+\lineentry{[Board Scholarship, HSC/SSC — Talentpool or General] \hfill}{[Year]}
+% Keep national-level and university-level honors. Drop school club certificates.
+
+%------------------------------------------------------------------------------
+%  TECHNICAL SKILLS
+%  Tools you could be handed in an interview and asked to use. Nothing aspirational.
+%  Skip self-ratings ("Python: 8/10") — U.S. committees find them odd.
+%------------------------------------------------------------------------------
+\section{Technical Skills}
+\skillrow{Programming}{Python, MATLAB, C/C++, Verilog/SystemVerilog, [VHDL], [Bash]}
+\skillrow{Frameworks}{PyTorch, NumPy/SciPy, scikit-learn, [Simulink]}
+\skillrow{EDA \& Simulation}{Cadence Virtuoso/Spectre, LTspice, [Synopsys], [COMSOL], [HFSS/ADS]}
+\skillrow{Hardware}{[FPGA: Xilinx Vivado], [STM32/Arduino], oscilloscope and VNA measurement, PCB design [Altium/KiCad]}
+\skillrow{Other}{\LaTeX, Git, Linux, [Origin/Excel]}
+
+%------------------------------------------------------------------------------
+%  TEACHING AND MENTORING
+%  Keep this if you have it — U.S. PhD funding is usually a TA-ship, so evidence
+%  that you can teach in English is directly relevant. Delete if you have none.
+%------------------------------------------------------------------------------
+\section{Teaching and Mentoring}
+\entry{[Undergraduate Teaching Assistant / Tutor]}{[Month Year] -- [Month Year]}
+      {[Course name and code], Dept.\ of EEE, BUET}{Dhaka, Bangladesh}
+\begin{itemize}
+  \item Led [weekly lab sessions / tutorials] for [XX] students; graded [assignments/labs].
+  \item Mentored [X] junior students on [topic]; [outcome, if any].
+\end{itemize}
+
+%------------------------------------------------------------------------------
+%  TEST SCORES
+%  Include only what is strong. Many U.S. programs have dropped the GRE entirely
+%  — check each one. TOEFL/IELTS is still required of most international
+%  applicants. A weak score is better left off the CV (the portal gets it anyway).
+%------------------------------------------------------------------------------
+\section{Test Scores}
+\lineentry{\textbf{IELTS Academic:} X.X overall (L X.X, R X.X, W X.X, S X.X) \hfill}{[Month Year]}
+\lineentry{\textbf{TOEFL iBT:} XXX (R XX, L XX, S XX, W XX) \hfill}{[Month Year]}
+\lineentry{\textbf{GRE General:} Q XXX (XX\%), V XXX (XX\%), AW X.X \hfill}{[Month Year]}
+% Delete the rows you did not take. Do not list a planned test date.
+
+%------------------------------------------------------------------------------
+%  PROFESSIONAL SERVICE AND MEMBERSHIPS  (optional — delete if thin)
+%------------------------------------------------------------------------------
+\section{Professional Service and Memberships}
+\lineentry{Student Member, IEEE [and IEEE XXX Society] \hfill}{[Year] -- Present}
+\lineentry{[Role], [IEEE BUET Student Branch / departmental society] \hfill}{[Year] -- [Year]}
+\lineentry{[Reviewer / volunteer role for a conference, if any] \hfill}{[Year]}
+
+%------------------------------------------------------------------------------
+%  REFERENCES
+%  Three is standard. Ask permission first, and give each of them this CV plus
+%  your statement of purpose. Your thesis supervisor should be first.
+%------------------------------------------------------------------------------
+\section{References}
+\vspace{2pt}
+\noindent
+\begin{tabularx}{\textwidth}{@{}XX@{}}
+\textbf{[Prof.\ Full Name]} & \textbf{[Prof.\ Full Name]}\\
+{[Professor]}, Dept.\ of EEE & {[Associate Professor]}, Dept.\ of EEE\\
+Bangladesh University of Engineering \& Technology & Bangladesh University of Engineering \& Technology\\
+\href{mailto:email@eee.buet.ac.bd}{email@eee.buet.ac.bd} & \href{mailto:email@eee.buet.ac.bd}{email@eee.buet.ac.bd}\\
+\textit{Undergraduate thesis supervisor} & \textit{Course instructor and project advisor}\\[10pt]
+\textbf{[Prof.\ Full Name]} & \\
+{[Title]}, {[Department]} & \\
+{[Institution]} & \\
+\href{mailto:email@example.edu}{email@example.edu} & \\
+\textit{[Relationship to you]} & \\
+\end{tabularx}
+
+\end{document}
