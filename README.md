@@ -4,6 +4,9 @@ Undergraduate course projects from the Department of Electrical and Electronic E
 Bangladesh University of Engineering and Technology (BUET). Each folder holds the **full project
 report (PDF)** and a **README** summarising what was built, how it works, and what came out of it.
 
+Nine projects spanning robotics, machine learning, embedded systems, power systems, control,
+signal processing, and digital logic.
+
 ---
 
 ## Projects
@@ -32,6 +35,42 @@ and ANN baselines failed because they ignore time.
 
 ---
 
+### 🛠️ [Versatile CNC Machine: Pen Plotter, Cutter & Engraver](EEE318-Versatile-CNC-Machine/)
+`EEE 318 — Control System 1 Laboratory` · Group 01
+
+One CoreXY machine that plots with a pen, engraves with a laser, and cuts — swap the toolhead
+instead of buying three machines. Runs GRBL on an Arduino UNO with a CNC Shield V3, driven by
+G-code from Inkscape/UGS for plotting and LaserGRBL for laser work. Engraves cleanly on wood;
+fabric cutting, the original target, still leaves rough edges.
+
+**Stack:** Arduino UNO · CNC Shield V3 · GRBL (v0.9 servo fork + v1.1h laser) · A4988 drivers · CoreXY kinematics · Inkscape, UGS, LaserGRBL
+
+---
+
+### ⚙️ [Rewinding of a Single-Phase Induction Motor](EEE206-Single-Phase-Induction-Motor-Rewinding/)
+`EEE 206 — Energy Conversion Laboratory` · Group 02
+
+A full teardown and hand-rewind of a 550 W, 4-pole capacitor-start induction motor — 24 slots,
+8 main and 4 auxiliary coils wound on a home-made forma of nails and wood. The rebuilt motor was
+then characterised through no-load and locked-rotor tests to extract its equivalent circuit
+(R₁ = 21.0 Ω, R₂ = 10.67 Ω, X₁ = X₂ = 7.17 Ω, X_M = 140.98 Ω) and torque-speed curve. Total cost ৳5,805.
+
+**Stack:** Squirrel-cage single-phase induction motor · SWG 24 copper · no-load & locked-rotor testing · equivalent circuit modelling
+
+---
+
+### 🔍 [Resistor Detection & Value Calculation via Image Processing](EEE312-Resistor-Detection-Image-Processing/)
+`EEE 312 — Digital Signal Processing Laboratory` · Group 06
+
+Finds every resistor in a photo of a mixed component board, reads its colour bands, and computes
+its resistance — at any orientation, flipped or not, with multiple resistors in frame. Isolates
+resistors by their unique yellowish-brown body colour, then applies per-colour masks to locate
+bands. Notably useful for people with colour-vision deficiency.
+
+**Stack:** MATLAB · global thresholding · morphological operations (erosion, dilation, opening, closing) · HSV-adaptive structuring elements · region properties
+
+---
+
 ### 📟 [IoT-Based Bangla Smart Notice Board with Clock & Calendar](EEE416-IoT-Bangla-Smart-Notice-Board/)
 `EEE 416` · Group 02
 
@@ -41,6 +80,18 @@ every character, digit, month, and weekday was bitmapped by hand. Time syncs ove
 pushed from a password-protected web page. Total build cost: **৳2,755**.
 
 **Stack:** ESP8266 NodeMCU · MAX7219 LED matrices · Arduino IDE · NTP · ESP8266WebServer · custom HTML control page
+
+---
+
+### 🔌 [Droop Control in Decentralized AC, Islanded & DC Microgrids](EEE306-Droop-Control-Microgrids/)
+`EEE 306 — Power System I Laboratory` · Group 05
+
+Models and compares droop control — decentralized regulation using only local measurements —
+across three microgrid architectures in Simulink. The AC model runs cascaded droop → voltage →
+current control in the dq0 frame; the islanded model shares load across 500/300/200 kW inverters;
+the DC model splits a battery-supercapacitor HESS by frequency using LPF/HPF virtual impedance.
+
+**Stack:** MATLAB/Simulink · dq0 transform · PI control by pole placement · LCL filters · PV + battery + supercapacitor HESS
 
 ---
 
@@ -72,10 +123,14 @@ four failed retries. Simulated in Proteus, then built on breadboard.
 
 ```
 .
-├── EEE404-Assistive-Mobile-Manipulator/
+├── EEE206-Single-Phase-Induction-Motor-Rewinding/
+├── EEE306-Droop-Control-Microgrids/
+├── EEE312-Resistor-Detection-Image-Processing/
+├── EEE318-Versatile-CNC-Machine/
 ├── EEE402-Stock-Market-Prediction-Sentiment-Analysis/
-├── EEE416-IoT-Bangla-Smart-Notice-Board/
+├── EEE404-Assistive-Mobile-Manipulator/
 ├── EEE414-Electrical-Service-Design-Residential-Building/
+├── EEE416-IoT-Bangla-Smart-Notice-Board/
 └── DLD-Password-Based-Gate-Locking-System/
 ```
 
@@ -87,7 +142,11 @@ Every folder contains `README.md` (the summary) and the original project report 
 | --- | --- | --- | --- |
 | Assistive Mobile Manipulator | EEE 404 | Robotics, computer vision, embedded | Autonomous pick-and-place for visually impaired users |
 | Stock Market Prediction | EEE 402 | Machine learning, NLP | GRU model at R² ≈ 0.95 with sentiment features |
+| Versatile CNC Machine | EEE 318 | Control systems, mechatronics | One machine plotting, engraving, and cutting |
+| Induction Motor Rewinding | EEE 206 | Energy conversion, machines | Motor rewound by hand and fully characterised |
+| Resistor Detection | EEE 312 | Digital signal & image processing | Automated colour-band reading at any orientation |
 | Bangla Smart Notice Board | EEE 416 | IoT, embedded systems | Bangla-script LED display, NTP-synced, web-controlled |
+| Droop Control in Microgrids | EEE 306 | Power systems, control | Equal power sharing across AC, islanded, and DC models |
 | Electrical Service Design | EEE 414 | Power systems, building services | BNBC-compliant design for a 10-floor building |
 | Password Gate Lock | DLD | Digital logic | 4-digit lock from discrete ICs with timed lockout |
 
