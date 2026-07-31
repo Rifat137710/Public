@@ -4,8 +4,8 @@ Undergraduate course projects from the Department of Electrical and Electronic E
 Bangladesh University of Engineering and Technology (BUET). Each folder holds the **full project
 report (PDF)** and a **README** summarising what was built, how it works, and what came out of it.
 
-Nine projects spanning robotics, machine learning, embedded systems, power systems, control,
-signal processing, and digital logic.
+Ten projects spanning robotics, machine learning, embedded systems, power systems, power
+electronics, control, signal processing, and digital logic.
 
 ---
 
@@ -44,6 +44,19 @@ G-code from Inkscape/UGS for plotting and LaserGRBL for laser work. Engraves cle
 fabric cutting, the original target, still leaves rough edges.
 
 **Stack:** Arduino UNO · CNC Shield V3 · GRBL (v0.9 servo fork + v1.1h laser) · A4988 drivers · CoreXY kinematics · Inkscape, UGS, LaserGRBL
+
+---
+
+### 🔋 [Battery Charge Controller using a Buck Converter with Auto Cut-off](EEE316-Battery-Charge-Controller-Buck-Converter/)
+`EEE 316 — Power Electronics Laboratory` · Group 01
+
+A mains-powered charger with adjustable DC output, so one unit charges Li-ion, LiPo, or lead-acid
+batteries instead of needing a charger each. An SG3524 sets the buck converter's duty cycle via a
+potentiometer, while an Arduino watches the reference-to-battery voltage ratio and trips a relay
+when the battery is full — using two different thresholds for hysteresis so the relay doesn't
+chatter. Built for ৳1,110.
+
+**Stack:** SG3524 PWM controller · IRF250N MOSFET · bridge rectifier + LC filter · Arduino auto cut-off · LM3914 level indicator · Proteus
 
 ---
 
@@ -126,6 +139,7 @@ four failed retries. Simulated in Proteus, then built on breadboard.
 ├── EEE206-Single-Phase-Induction-Motor-Rewinding/
 ├── EEE306-Droop-Control-Microgrids/
 ├── EEE312-Resistor-Detection-Image-Processing/
+├── EEE316-Battery-Charge-Controller-Buck-Converter/
 ├── EEE318-Versatile-CNC-Machine/
 ├── EEE402-Stock-Market-Prediction-Sentiment-Analysis/
 ├── EEE404-Assistive-Mobile-Manipulator/
@@ -143,6 +157,7 @@ Every folder contains `README.md` (the summary) and the original project report 
 | Assistive Mobile Manipulator | EEE 404 | Robotics, computer vision, embedded | Autonomous pick-and-place for visually impaired users |
 | Stock Market Prediction | EEE 402 | Machine learning, NLP | GRU model at R² ≈ 0.95 with sentiment features |
 | Versatile CNC Machine | EEE 318 | Control systems, mechatronics | One machine plotting, engraving, and cutting |
+| Battery Charge Controller | EEE 316 | Power electronics | Variable-output charger with hysteretic auto cut-off |
 | Induction Motor Rewinding | EEE 206 | Energy conversion, machines | Motor rewound by hand and fully characterised |
 | Resistor Detection | EEE 312 | Digital signal & image processing | Automated colour-band reading at any orientation |
 | Bangla Smart Notice Board | EEE 416 | IoT, embedded systems | Bangla-script LED display, NTP-synced, web-controlled |
