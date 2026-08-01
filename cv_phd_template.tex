@@ -1,0 +1,249 @@
+% =====================================================================
+%  ACADEMIC CV — TEMPLATE FOR US PhD APPLICATIONS
+%  Compile on Overleaf with pdfLaTeX. Uses only the same packages as the
+%  reference CV, so it will build without extra setup.
+%
+%  HOW TO USE
+%  1. Replace every <<PLACEHOLDER>> with your own information.
+%  2. Delete any section you cannot fill honestly. An absent section is
+%     invisible; an empty or padded one is not.
+%  3. Keep the total to 2 pages. If you overflow, cut projects first,
+%     then coursework, then the References section.
+%  4. Retarget the Research Interests block for each professor you write
+%     to. It is the only part that should change between applications.
+% =====================================================================
+
+\documentclass[a4paper,10pt]{article}
+
+\usepackage[left=1.6cm, right=1.6cm, top=1.5cm, bottom=1.5cm]{geometry}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{multicol}
+\usepackage{fontawesome5}
+\usepackage[hidelinks]{hyperref}
+
+% One link colour, used everywhere. Do not mix black and blue links.
+\definecolor{linkblue}{HTML}{1A4C8B}
+\hypersetup{colorlinks=true, urlcolor=linkblue, linkcolor=linkblue}
+
+\titleformat{\section}{\bfseries\large\scshape}{}{0pt}{}[\titlerule]
+\titlespacing{\section}{0pt}{9pt}{5pt}
+
+\setlength{\parindent}{0pt}
+\setlist[itemize]{noitemsep, topsep=1pt, leftmargin=1.2em, label=\textbullet}
+
+% Left-aligned entry title with a right-aligned date on the same line.
+\newcommand{\entry}[2]{\textbf{#1}\hfill{#2}\\}
+
+\begin{document}
+\pagestyle{empty}
+
+% ===================== HEADER =====================
+% City, Country format. No street address, no photo, no date of birth,
+% no marital status, no national ID. US committees do not want them and
+% in some cases are not permitted to consider them.
+\begin{center}
+    {\fontsize{18}{22}\selectfont\textbf{<<YOUR FULL NAME>>}}\\[4pt]
+    <<City>>, <<Country>>\\[3pt]
+    \faEnvelope\ \href{mailto:<<permanent.email@gmail.com>>}{<<permanent.email@gmail.com>>} \quad
+    \faPhone\ +<<country code>><<phone>> \quad
+    \faLinkedin\ \href{https://linkedin.com/in/<<handle>>}{linkedin.com/in/<<handle>>} \quad
+    \faGithub\ \href{https://github.com/<<handle>>}{github.com/<<handle>>}
+    % Add if you have them:
+    % \quad \faGraduationCap\ \href{<<scholar url>>}{Google Scholar}
+    % \quad \faGlobe\ \href{<<site url>>}{<<yoursite.github.io>>}
+\end{center}
+\vspace{4pt}
+
+% ===================== RESEARCH INTERESTS =====================
+% 2-3 lines. Name the SUBFIELD and the METHODS, not your personality.
+% Rewrite this for every professor: the words here should overlap with
+% the words on their lab page. Delete adjectives like "passionate",
+% "highly motivated", "deep passion" - they carry no information.
+\section{Research Interests}
+<<Subfield 1>>; <<Subfield 2>>; <<Method or technique 1>>; <<Method or technique 2>>.
+Specific interest in <<the one concrete problem you want to work on, in one clause>>.
+
+% ===================== EDUCATION =====================
+\section{Education}
+\entry{<<University Name, Spelled Out>>}{<<Mon Year>> -- <<Mon Year / Expected Mon Year>>}
+B.Sc. in <<Full Official Degree Name>>\\
+<<City>>, <<Country>>\\
+CGPA: <<X.XX>> / 4.00 \quad|\quad <<Rank if strong: e.g. Rank 5 of 180>>\\
+Thesis: \textit{<<Thesis Title>>} \quad|\quad Advisor: <<Prof. Name>>
+
+% Add earlier degrees only if they are degrees. Do not list high school.
+
+% ===================== RESEARCH EXPERIENCE =====================
+% This is the section a PhD advisor reads first. Give it the most space.
+% Every bullet: ACTION VERB + WHAT/HOW + RESULT.
+% Present tense for ongoing work, past tense for finished work.
+% Put a NUMBER in at least half the bullets.
+\section{Research Experience}
+
+\entry{<<Position: e.g. Undergraduate Thesis Researcher>>}{<<Mon Year>> -- <<Present>>}
+<<Lab or Group Name>>, <<University>> \quad|\quad Advisor: \href{<<faculty page url>>}{<<Prof. Name>>}
+\begin{itemize}
+  \item <<Verb>> <<what you built or modelled, with the specific method/tool>>, <<result: accuracy, speedup, error, agreement with theory>>
+  \item <<Verb>> <<the dataset or simulation campaign>>, <<size: N samples, M sweeps, parameter range>>
+  \item <<Verb>> <<the comparison or validation you ran>>, <<what it showed vs. the baseline>>
+  \item <<Verb>> <<a concrete artefact: codebase, tool, measurement rig>>, \href{<<repo url>>}{code available}
+  \item <<Verb>> <<what you are doing now / what is next>>, targeting submission to <<venue>>
+\end{itemize}
+
+\vspace{4pt}
+\entry{<<Position: e.g. Research Assistant>>}{<<Mon Year>> -- <<Mon Year>>}
+<<Lab or Group Name>>, <<University>> \quad|\quad Supervisor: <<Prof. Name>>
+\begin{itemize}
+  \item <<Verb>> <<context>>, <<result>>
+  \item <<Verb>> <<context>>, <<result>>
+\end{itemize}
+
+% ===================== PUBLICATIONS =====================
+% Bold your own name. Number the entries so a reader can count them.
+% State status honestly. Never list "in preparation" work you have not
+% actually started writing.
+\section{Publications}
+\textbf{Peer-Reviewed Conference Papers}
+\begin{enumerate}[leftmargin=1.4em, itemsep=3pt]
+  \item \textbf{<<Y. Z. Yourname>>}, <<Co-author>>, and <<Co-author>>,
+        ``<<Paper Title>>,'' in \textit{<<Full Conference Name (Acronym)>>},
+        <<City, Country>>, <<Year>>, pp.~<<xx--yy>>.
+        \href{<<doi url>>}{doi:<<10.xxxx/yyyy>>}
+\end{enumerate}
+
+\vspace{4pt}
+\textbf{Under Review}
+\begin{enumerate}[leftmargin=1.4em, itemsep=3pt, resume]
+  \item \textbf{<<Y. Z. Yourname>>} and <<Co-author>>,
+        ``<<Paper Title>>,'' submitted to \textit{<<Journal Name>>}, <<Mon Year>>.
+\end{enumerate}
+
+% Delete either sub-block if empty. If you have zero publications,
+% delete this whole section - an empty Publications heading is worse
+% than none, and plenty of admitted PhD students had none.
+
+% ===================== CONFERENCE PRESENTATIONS =====================
+% Only if you personally presented. Delete otherwise.
+\section{Conference Presentations}
+\textbf{<<Yourname, Y. Z.>>} ``<<Talk or Poster Title>>.'' <<Conference Name>>,
+<<City, Country>>, <<Day Mon Year>>. <<Oral Presentation / Poster>>.
+
+% ===================== SELECTED PROJECTS =====================
+% THREE to FIVE only, chosen to support the research story above.
+% A course lab is not a project unless you went beyond the handout.
+% If a project has no result worth stating, it does not belong here.
+\section{Selected Projects}
+
+\entry{<<Project Name>>}{<<Mon Year>>}
+<<One line: what it is and which course/lab, if any>>
+\begin{itemize}
+  \item <<Verb>> <<what you implemented, with the tool>>, <<measured result>>
+  \item <<Verb>> <<what you verified or optimised>>, <<number>>
+\end{itemize}
+\href{<<repo url>>}{\faGithub\ Repository}
+
+\vspace{5pt}
+\entry{<<Project Name>>}{<<Mon Year>>}
+<<One line description>>
+\begin{itemize}
+  \item <<Verb>> <<context>>, <<result>>
+  \item <<Verb>> <<context>>, <<result>>
+\end{itemize}
+\href{<<repo url>>}{\faGithub\ Repository}
+
+\vspace{5pt}
+\entry{<<Project Name>>}{<<Mon Year>>}
+<<One line description>>
+\begin{itemize}
+  \item <<Verb>> <<context>>, <<result>>
+\end{itemize}
+\href{<<repo url>>}{\faGithub\ Repository}
+
+% ===================== TECHNICAL SKILLS =====================
+% Subcategorise. Add proficiency levels only if they genuinely vary.
+% Do not list soft skills. Do not list Microsoft Word.
+% Only list a tool you could be questioned about in an interview.
+\section{Technical Skills}
+\textbf{Programming:} <<Advanced -- Python, MATLAB; Intermediate -- C/C++, SystemVerilog>>\\
+\textbf{Simulation \& Design:} <<Tool, Tool, Tool>>\\
+\textbf{Experimental / Lab:} <<Instrument, technique, fabrication step>>\\
+\textbf{Frameworks \& Libraries:} <<PyTorch, NumPy, SciPy, ...>>\\
+\textbf{Languages:} English (<<IELTS X.X / TOEFL XXX>>), <<Native language>> (Native)
+
+% ===================== TEST SCORES =====================
+% US committees look for these. Put real numbers or delete the section.
+% Do not write "to be taken" - that reads as not taken.
+\section{Test Scores}
+\textbf{IELTS / TOEFL iBT:} <<Overall X.X>> \quad (L <<x>>, R <<x>>, W <<x>>, S <<x>>) \hfill <<Mon Year>>\\
+\textbf{GRE General:} Quantitative <<xxx>>, Verbal <<xxx>>, Analytical Writing <<x.x>> \hfill <<Mon Year>>
+
+% ===================== TEACHING EXPERIENCE =====================
+% Matters because most US PhD funding runs through TA-ships. Include
+% tutoring and grading if that is what you have.
+\section{Teaching Experience}
+\entry{<<Teaching Assistant, Course Name>>}{<<Mon Year>> -- <<Mon Year>>}
+<<Department>>, <<University>>
+\begin{itemize}
+  \item <<Verb>> <<lab sections / recitations>> for <<N>> students, covering <<topics>>
+  \item <<Verb>> <<graded, designed problem sets, held office hours>>, <<outcome>>
+\end{itemize}
+
+% ===================== HONORS AND AWARDS =====================
+% Reverse chronological. Add one clause of context for anything a US
+% reader cannot calibrate ("top 1% of 20,000 candidates nationally").
+% Nothing from high school except a truly national-level distinction.
+\section{Honors and Awards}
+\begin{itemize}
+  \item \textbf{<<Award Name>>}, <<Awarding Body>> \hfill <<Mon Year>>\\
+        <<One clause of scale/selectivity, e.g. 1 of 12 teams selected from 140 entries worldwide>>
+  \item \textbf{<<Award Name>>}, <<Awarding Body>> \hfill <<Year>>
+  \item \textbf{<<Scholarship Name>>}, <<Awarding Body>> -- <<selection basis>> \hfill <<Year>>
+\end{itemize}
+
+% ===================== LEADERSHIP AND SERVICE =====================
+% Keep short. Departmental, professional-society, or peer-review service.
+\section{Leadership and Service}
+\begin{itemize}
+  \item <<Role>>, <<Organisation>> \hfill <<Mon Year>> -- <<Mon Year>>
+  \item <<Role>>, <<Organisation>> \hfill <<Mon Year>> -- <<Mon Year>>
+\end{itemize}
+
+% ===================== RELEVANT COURSEWORK =====================
+% SIX at most, all pointed at the lab you are applying to. Include the
+% grade only if it is uniformly strong. Put this last: it is the least
+% informative section on the page. Delete it if you are over 2 pages.
+\section{Relevant Coursework}
+\begin{multicols}{2}
+\begin{itemize}
+  \item <<Course>> (<<A / 4.00>>)
+  \item <<Course>> (<<A / 4.00>>)
+  \item <<Course>> (<<A / 4.00>>)
+  \item <<Course>> (<<A / 4.00>>)
+  \item <<Course>> (<<A / 4.00>>)
+  \item <<Course>> (<<A / 4.00>>)
+\end{itemize}
+\end{multicols}
+
+% ===================== REFERENCES =====================
+% OPTIONAL, and the first thing to cut for space. Your recommenders are
+% submitted through the application portal, so this is usually redundant
+% for a formal application. It IS worth keeping in the version you email
+% directly to a professor, because it shows who can vouch for you.
+% If you keep it: ask permission first, and use their institutional email.
+\section{References}
+\begin{minipage}[t]{0.48\textwidth}
+\href{<<faculty page url>>}{<<Prof. Full Name>>}\\
+<<Title>>, <<Department>>\\
+<<University>>\\
+\href{mailto:<<email>>}{<<email>>}
+\end{minipage}
+\begin{minipage}[t]{0.48\textwidth}
+\href{<<faculty page url>>}{<<Prof. Full Name>>}\\
+<<Title>>, <<Department>>\\
+<<University>>\\
+\href{mailto:<<email>>}{<<email>>}
+\end{minipage}
+
+\end{document}
