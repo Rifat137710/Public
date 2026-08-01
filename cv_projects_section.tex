@@ -1,0 +1,123 @@
+% =====================================================================
+%  PROJECTS SECTION — standalone preview file.
+%  Compile on Overleaf with pdfLaTeX to see the rendered section, then
+%  paste the block between the two ==== markers into your main CV.
+%
+%  Bullets are written from the documented results in your own GitHub
+%  READMEs. Anything I could not source is marked <<LIKE THIS>>.
+% =====================================================================
+
+\documentclass[a4paper,10pt]{article}
+
+\usepackage[left=1.6cm, right=1.6cm, top=1.5cm, bottom=1.5cm]{geometry}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage{fontawesome5}
+\usepackage[hidelinks]{hyperref}
+
+\definecolor{linkblue}{HTML}{1A4C8B}
+\hypersetup{colorlinks=true, urlcolor=linkblue, linkcolor=linkblue}
+
+\titleformat{\section}{\bfseries\large\scshape}{}{0pt}{}[\titlerule]
+\titlespacing{\section}{0pt}{9pt}{5pt}
+
+\setlength{\parindent}{0pt}
+\setlist[itemize]{noitemsep, topsep=1pt, leftmargin=1.2em, label=\textbullet}
+
+\newcommand{\entry}[2]{\textbf{#1}\hfill{#2}\\}
+\newcommand{\repo}[1]{\href{#1}{\faGithub\ \small Repository}}
+
+\begin{document}
+\pagestyle{empty}
+
+% ==================== PASTE FROM HERE ====================
+\section{Selected Projects}
+
+\entry{Droop Control in Decentralized Inverter-Based AC, Islanded, and DC Microgrids}{July 2023}
+Power Systems Laboratory (EEE 306), Bangladesh University of Engineering and Technology \quad|\quad Team of 5
+\begin{itemize}
+  \item Modeled decentralized droop control across three microgrid architectures --- grid-connected AC, islanded AC, and DC with hybrid battery/supercapacitor storage --- in MATLAB/Simulink, driving three-phase two-level VSCs through cascaded voltage and current loops at 10~kHz SPWM
+  \item Achieved equal active and reactive power sharing across three parallel inverters rated 500~kW, 300~kW, and 200~kW from local measurements alone, with no inter-unit communication link
+  \item Held bus frequency within 59.7--60.3~Hz under 1\% P/f droop and regulated voltage under 4\% Q/V droop on a 600~V\textsubscript{rms}, 60~Hz islanded network
+\end{itemize}
+\repo{https://github.com/Rifat137710/Droop-Control-in-Decentralized-Inverter-based-AC-Islanded-DC-Microgrid-}
+
+\vspace{5pt}
+\entry{Intelligent Mobile Manipulation System for Daily Assistance of Visually Impaired Individuals}{July 2025}
+Robotics and Automation Laboratory (EEE 404), Bangladesh University of Engineering and Technology \quad|\quad Team of 6
+\begin{itemize}
+  \item Built an autonomous assistive robot on a Raspberry Pi 4B executing a full retrieve-and-deliver loop: workspace mapping, target localization, navigation, grasping with a 6-DOF arm, and delivery
+  \item Designed a two-layer perception stack pairing an overhead camera with ArUco fiducials for global localization against a front-facing Pi Camera running on-device classification for close-range object verification
+  \item Closed the approach loop with HC-SR04 ultrasonic feedback to a 32~cm standoff, characterizing $\pm$1--2~cm ranging error across surface textures
+\end{itemize}
+\repo{https://github.com/Rifat137710/Development-of-an-Intelligent-Mobile-Manipulation-System-}
+
+\vspace{5pt}
+\entry{Versatile CNC Machine: Pen Plotter, Laser Cutter, and Engraver}{July 2024}
+Control Systems Laboratory, Bangladesh University of Engineering and Technology \quad|\quad Team of 5
+\begin{itemize}
+  \item Built a CoreXY three-in-one CNC platform supporting interchangeable pen, laser, and cutting toolheads, driven by an Arduino UNO running GRBL with A4988 micro-stepping drivers on dual stepper motors
+  \item Ported two GRBL builds to cover the toolchange --- v0.9 with servo support for Z-axis pen lift, v1.1h in laser mode for engraving --- and integrated an Inkscape to LaserGRBL to UGS toolpath workflow
+  \item Validated across materials, achieving clean vector plotting and wood engraving, and characterizing edge-quality limits on paper, cardboard, and cloth
+\end{itemize}
+\repo{https://github.com/Rifat137710/Versatile-CNC-Machine-Pen-plotter-Cutter-Engraver-}
+
+\vspace{5pt}
+\entry{Stock Market Prediction with Sentiment Analysis}{January 2025}
+<<Course Name>> (EEE 402), Bangladesh University of Engineering and Technology \quad|\quad Team of <<N>>
+\begin{itemize}
+  \item Built an end-to-end forecasting pipeline fusing daily financial-news sentiment with price history and ten technical indicators (MACD, RSI-14, Bollinger Bands, EMA, log momentum) to predict GOOG closing prices over a six-year window
+  \item Trained LSTM and GRU sequence models against Random Forest, XGBoost, linear regression, and ANN baselines; the GRU reached $R^2 = 0.95$ (MAE 0.077), outperforming every non-temporal baseline
+  \item Isolated the contribution of sentiment by ablation, showing that TextBlob polarity features lifted windowed LSTM performance from $R^2 = 0.63$ to $0.89$
+\end{itemize}
+\repo{https://github.com/Rifat137710/Stock-Market-Prediction-with-Sentiment-Analysis}
+
+\vspace{5pt}
+\entry{Battery Charge Controller using Buck Converter with Auto Cut-Off}{July 2024}
+Power Electronics Laboratory (EEE 316), Bangladesh University of Engineering and Technology \quad|\quad Team of 5
+\begin{itemize}
+  \item Designed and built a mains-to-battery charger with adjustable output, implementing the full power chain from 230~V AC through a step-down transformer, bridge rectifier, 100~mH/1000~$\mu$F LC filter, and IRF250N buck stage
+  \item Verified buck regulation on an oscilloscope at 25\%, 50\%, and 90\% duty cycle, confirming $V_o = k \cdot V_{in}$ tracking across the operating range
+  \item Implemented Arduino-based auto cut-off using five-sample averaged ADC sensing with dual hysteresis thresholds, eliminating relay chatter at the switching boundary
+\end{itemize}
+\repo{https://github.com/Rifat137710/Battery-Charge-Controller-using-Buck-Converter-with-Auto-Cut-off-Feature-}
+
+\vspace{5pt}
+\entry{Resistor Detection and Value Calculation by Color-Band Recognition}{<<Mon Year>>}
+<<Course Name and Code>>, Bangladesh University of Engineering and Technology \quad|\quad Team of <<N>>
+\begin{itemize}
+  \item Developed a MATLAB image-processing pipeline that segments resistors from a board photograph and computes resistance from color-band decoding, invariant to component orientation and to multiple resistors per frame
+  \item Combined HSV thresholding, morphological opening and closing with adaptive structuring elements, and region-property filtering on eccentricity and area to isolate bodies before band extraction
+\end{itemize}
+\repo{https://github.com/Rifat137710/Detection-Of-Resistor-and-Calculate-Its-Value-by-Detecting-color-band-using-Image-Processing-}
+
+\vspace{5pt}
+\entry{Rewinding of a Single-Phase Induction Motor}{<<Mon Year>>}
+<<Course Name and Code>>, Bangladesh University of Engineering and Technology \quad|\quad Team of <<N>>
+\begin{itemize}
+  \item Rewound a 550~W, 220~V, 4-pole capacitor-start induction motor end to end: documented the original 24-slot layout during teardown, hand-wound the main and auxiliary coils in SWG~24 copper, varnished, and reassembled
+  \item Characterized the rebuilt machine through no-load and locked-rotor tests, extracting the equivalent circuit ($R_1 = 21.0~\Omega$, $R_2 = 10.67~\Omega$, $X_1 = X_2 = 7.17~\Omega$, $X_M = 140.98~\Omega$) and a computed starting current of 11.37~A
+\end{itemize}
+\repo{https://github.com/Rifat137710/Rewinding-of-a-Single-Phase-Induction-Motor-}
+
+\vspace{5pt}
+\entry{Password-Based Gate Locking System}{<<Mon Year>>}
+Digital Logic Design Laboratory, Bangladesh University of Engineering and Technology \quad|\quad Team of 4
+\begin{itemize}
+  \item Built a 4-digit (16-bit) electronic gate lock entirely from discrete logic --- 74194 shift registers for password and attempt storage, 7485 comparators for digit-wise matching, 4013 flip-flops for bank selection --- with no microcontroller
+  \item Added a 555-timer lockout disabling the keypad after four failed attempts; verified the design in Proteus before breadboard implementation and hardware testing
+\end{itemize}
+\repo{https://github.com/Rifat137710/Password-Based-Gate-Locking-System}
+
+\vspace{5pt}
+\entry{IoT-Based Smart Bangla Notice Board with Real-Time Calendar and Clock}{<<Mon Year>>}
+Microprocessors and Embedded Systems Laboratory (EEE 416), Bangladesh University of Engineering and Technology \quad|\quad Team of 4
+\begin{itemize}
+  \item Built an ESP8266-based notice board driving three chained 32$\times$8 MAX7219 LED matrices as independent display zones for clock, Bangla calendar, and scrolling notices, updatable remotely through a password-protected web interface
+  \item Hand-bitmapped the full Bangla character, digit, month, and weekday set to render a script unsupported by existing dot-matrix libraries, and eliminated manual clock setting via NTP synchronization with a $+6$~h BST offset
+\end{itemize}
+\repo{https://github.com/Rifat137710/IoT-Based-Smart-Bangla-Notice-Board-with-Real-time-Calendar-Clock}
+% ==================== TO HERE ====================
+
+\end{document}
