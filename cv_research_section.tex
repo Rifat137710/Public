@@ -1,0 +1,85 @@
+% =====================================================================
+%  RESEARCH EXPERIENCE — CV section
+%
+%  Format follows the reference CV: bold title with right-aligned date,
+%  supervisor line, a two-to-three line description, then contribution
+%  bullets.
+%
+%  Everything not marked <<LIKE THIS>> is sourced — thesis numbers come
+%  from the SafeSAC report, competition facts from IEEE SPS, ESA Phi-lab
+%  and the BUET EEE co-curricular record.
+%
+%  TENSE: past for the thesis and VIP Cup, present for ClearSAR while it
+%  is still live. Fix the tense if ClearSAR has concluded.
+% =====================================================================
+
+\section{Research Experience}
+
+% ---------------------------------------------------------------- 1
+\textbf{Undergraduate Thesis --- Safe Deep Reinforcement Learning for Vehicle-to-Grid Voltage
+Support in Weak Distribution Feeders} \hfill <<Mon Year>> -- Jun 2026\\
+Supervisor: <<Prof. Full Name>>, <<Title>>, Department of EEE, BUET
+
+Developed \textbf{SafeSAC}, a physics-aware safe reinforcement learning controller for
+bidirectional EV charging on weak radial feeders, coupling an augmented-Lagrangian Soft
+Actor-Critic agent with a second-order cone safety projection rebuilt at every control step from
+voltage sensitivities measured on the live network.
+
+\begin{itemize}
+  \item Formulated real-time bidirectional charging as a \textbf{constrained Markov decision process} on a modified IEEE 33-bus Baran--Wu feeder --- 95-dimensional observation, 8-dimensional continuous action, 288 five-minute steps per episode --- with explicit voltage-band and transformer-thermal constraints
+  \item Designed a per-step \textbf{SOCP safety projection} (CVXPY/CLARABEL, solved in milliseconds) whose feasible set is rebuilt each step from live power-flow sensitivities, so the controller adapts to the deployment grid's R/X structure instead of assuming a nominal model
+  \item Demonstrated grid-awareness quantitatively: an identical $-80$~kW V2G request is curtailed to $-54$~kW at the most sensitive station on the weak feeder while passing unaltered on a strong grid
+  \item Matched the SAC-Lag baseline on voltage safety (violation rate 0.091 vs.\ 0.090, paired $t$-test $p = 0.86$) while \textbf{doubling service quality} (state-of-charge targets met 0.569 vs.\ 0.277; $+29$ percentage points, Cohen's $d = 2.04$, $p \ll 0.001$) across 25 shared-seed episodes
+  \item Established robustness to train/deploy grid shift --- the unprojected baseline collapses to a non-charging policy (SoC met $= 0.000$) when moved from a strong to a weak feeder, whereas SafeSAC remains operational and delivers $+45$ percentage points more service
+  \item Evaluated under a \textbf{pre-registered five-gate acceptance protocol} with paired $t$-tests, Wilcoxon signed-rank tests, bootstrap confidence intervals and Pareto analysis; released SHA-256-fingerprinted checkpoints and a complete artifact set for reproducibility
+\end{itemize}
+
+\vspace{6pt}
+
+% ---------------------------------------------------------------- 2
+\textbf{IEEE Signal Processing Society Video \& Image Processing (VIP) Cup 2025 --- Team EyeQ}
+\hfill <<Mon>> -- Sep 2025\\
+Supervisor: Dr.\ Shaikh Anowarul Fattah, Professor, Department of EEE, BUET \quad|\quad
+Tutor: Anjan Kumar Bagchi
+
+\textbf{Second Runner-Up} among four international finalist teams. Infrared--visual sensor fusion
+for drone detection, tracking and payload identification in surveillance video, presented at
+IEEE ICIP 2025.
+
+\begin{itemize}
+  \item Built detection and tracking models across \textbf{three modalities} --- visible (RGB), infrared, and a fused RGB--IR stream --- over roughly 45,000 pixel-registered training pairs, 6,500 validation and 13,000 test images
+  \item Addressed the failure modes that motivate fusion: RGB degrades under low light, fog and glare, while thermal signatures remain detectable at night and under partial occlusion
+  \item Formulated payload identification as \textbf{two-class detection} (harmful vs.\ benign) on both visible and thermal imagery, and drone--bird discrimination as a paired-modality classification problem
+  \item <<YOUR SPECIFIC CONTRIBUTION --- which modality, which model, which sub-task did you personally own? A ten-person team makes this essential>>
+  \item <<Any metric you can quote: mAP, precision/recall, inference latency, leaderboard position>>
+\end{itemize}
+
+\vspace{6pt}
+
+% ---------------------------------------------------------------- 3
+\textbf{ClearSAR Challenge 2026 --- European Space Agency $\Phi$-lab} \hfill <<Mon Year>> -- Present\\
+<<Supervisor / Team affiliation, if any>>
+
+Operational detection of \textbf{radio-frequency interference in Sentinel-1 synthetic aperture
+radar imagery} --- an ESA $\Phi$-lab grand challenge benchmarking methods robust and scalable
+enough to integrate into the mission's live processing chain. Results announced at IEEE ICIP 2026,
+Tampere, Finland.
+
+\begin{itemize}
+  \item Developing automated RFI detection over a curated Sentinel-1 dataset of <<3,940>> <<quicklook / GRD>> products with annotated interference events, spanning realistic mission conditions
+  \item Targeting a problem left unaddressed by standard Sentinel-1 processing, where unmitigated RFI produces false alarms and degrades every downstream Earth-observation analysis
+  \item <<YOUR METHOD --- architecture, preprocessing, loss, ensembling>>
+  \item <<YOUR RESULT --- leaderboard score, rank, metric>>
+  \item <<YOUR ROLE if this is a team entry>>
+\end{itemize}
+
+% =====================================================================
+%  STILL NEEDED
+%    1. Thesis supervisor's name  (the PDF carries "Supervisor Name" as
+%       a template placeholder, so I could not source it)
+%    2. Thesis start date, and your co-author's name + the split of work
+%       (the thesis has two authors; a reviewer will ask)
+%    3. Your personal contribution to VIP Cup - the roster lists ten
+%       students, so "Team EyeQ did X" is not a claim about you
+%    4. ClearSAR: which track, your role, and current status
+% =====================================================================
