@@ -17,8 +17,8 @@
 
 % ---------------------------------------------------------------- 1
 \textbf{Undergraduate Thesis --- Safe Deep Reinforcement Learning for Vehicle-to-Grid Voltage
-Support in Weak Distribution Feeders} \hfill <<Mon Year>> -- Jun 2026\\
-Supervisor: <<Prof. Full Name>>, <<Title>>, Department of EEE, BUET
+Support in Weak Distribution Feeders: A Physics-Aware Approach} \hfill Jul 2025 -- Jun 2026\\
+Supervisor: Dr.\ Md.\ Forkan Uddin, Professor, Department of EEE, BUET
 
 Developed \textbf{SafeSAC}, a physics-aware safe reinforcement learning controller for
 bidirectional EV charging on weak radial feeders, coupling an augmented-Lagrangian Soft
@@ -32,6 +32,7 @@ voltage sensitivities measured on the live network.
   \item Matched the SAC-Lag baseline on voltage safety (violation rate 0.091 vs.\ 0.090, paired $t$-test $p = 0.86$) while \textbf{doubling service quality} (state-of-charge targets met 0.569 vs.\ 0.277; $+29$ percentage points, Cohen's $d = 2.04$, $p \ll 0.001$) across 25 shared-seed episodes
   \item Established robustness to train/deploy grid shift --- the unprojected baseline collapses to a non-charging policy (SoC met $= 0.000$) when moved from a strong to a weak feeder, whereas SafeSAC remains operational and delivers $+45$ percentage points more service
   \item Evaluated under a \textbf{pre-registered five-gate acceptance protocol} with paired $t$-tests, Wilcoxon signed-rank tests, bootstrap confidence intervals and Pareto analysis; released SHA-256-fingerprinted checkpoints and a complete artifact set for reproducibility
+  \item Implemented the full stack in PyTorch, pandapower and CVXPY with a Gymnasium environment wrapping an in-the-loop AC power-flow solver; two-author project, <<state your half of the work in one clause>>
 \end{itemize}
 
 \vspace{6pt}
@@ -74,12 +75,24 @@ Tampere, Finland.
 \end{itemize}
 
 % =====================================================================
+%  RESOLVED from the final thesis (SafeSAC_Final.pdf)
+%    Supervisor : Dr. Md. Forkan Uddin, Professor, Dept. of EEE, BUET
+%    Co-author  : Sad Sami (ID 202006150)
+%    Course     : EEE 400, July 2025 term; submitted June 2026
+%    Every headline number is unchanged from the earlier draft, so the
+%    bullets above are accurate against the final.
+%
 %  STILL NEEDED
-%    1. Thesis supervisor's name  (the PDF carries "Supervisor Name" as
-%       a template placeholder, so I could not source it)
-%    2. Thesis start date, and your co-author's name + the split of work
-%       (the thesis has two authors; a reviewer will ask)
-%    3. Your personal contribution to VIP Cup - the roster lists ten
-%       students, so "Team EyeQ did X" is not a claim about you
-%    4. ClearSAR: which track, your role, and current status
+%    1. How the thesis work split between you and Sad Sami. The thesis
+%       has no per-author contribution table (unlike your nine course
+%       reports), so a reviewer has no way to tell - and will ask.
+%    2. Your personal contribution to VIP Cup. The EyeQ roster lists
+%       ten students, so "Team EyeQ did X" is not a claim about you.
+%    3. ClearSAR: which track, your role, and current status.
+%
+%  FIX IN THE THESIS BEFORE SENDING IT ANYWHERE
+%    a. The residential load figure caption still reads "placeholder
+%       parametric model (replace before publication)".
+%    b. Student IDs read 202006137 / 202006150 on the thesis but
+%       2006137 / 2006150 across all nine project reports.
 % =====================================================================
