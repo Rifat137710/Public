@@ -262,3 +262,52 @@ python tests/test_pipeline.py     # also runs under pytest
 speckle moments, spec-conformant composition, amplitude-vs-intensity
 identification, terrain suppression by the ratio channel, stripe-layer recovery,
 sub-quantiser detection, and stack integrity.
+
+---
+
+## Addendum: acquisition geometry (`clearsar_rfi.geometry`)
+
+Analysis of 12 annotated ClearSAR scenes turned up the most exploitable
+structure in the labels: **RFI boxes are quantised to Sentinel-1 IW sub-swath
+boundaries.** Column-profile seams sit at ~0.35 and ~0.69 of image width (found
+in 12/12 scenes), box widths cluster at 1/3 and 2/3, and ~70% of box x-edges
+land on a seam or the image edge.
+
+Measured consequences:
+
+| claim | result |
+|---|---|
+| box x-extent matches a sub-swath union | median 1-D IoU **0.80**; 70% ≥0.5 |
+| snapping a jittered detector's x-edges to seams | **+3%** mean IoU at 15–25 px jitter |
+| azimuth interval by thresholding a 1-D profile | **fails** — median y-IoU 0.26; 22% recall @IoU 0.25 |
+
+So: the x-half of the problem is close to solved by geometry, and the azimuth
+half is not solved at all by a hand-built statistic. `propose_boxes` is retained
+as a documented weak baseline, not a detector. Terrain varies along azimuth just
+as interference does, and thresholding an excursion structurally cannot emit a
+box covering most of a sub-swath — which is what the large annotations are.
+
+The implied architecture: a **1-D sequence model over azimuth, run per
+sub-swath**, taking the physics feature planes collapsed across range. That
+respects the label geometry exactly while learning the azimuth signature instead
+of guessing it.
+
+### Warning about annotated preview renderings
+
+Some ClearSAR previews circulate with the boxes drawn into the pixels. Files
+like that are re-renders, not the product, and measurably degraded:
+
+* annotation rectangles burned in as pure `(255,0,0)` (0.3–1.3% of pixels)
+* `B = (R+G)/2` **does not hold** — B is negatively correlated with R even after
+  masking the overlay, so the un-mixing in `clearsar_rfi.unmix` does not apply
+* local CV 0.013–0.07 where a 4-look quicklook should be ~0.26 — the speckle has
+  been smoothed away
+* 9–39% of horizontally adjacent pixels bit-identical (resampling)
+* the **cross-pol (G) channel is quantised to a 3-DN step**, using only 55–93 of
+  256 levels, versus 133–229 for R
+
+That last two points matter most: the sub-quantiser recovery demonstrated in
+`calibrate_sensitivity.py` depends on speckle dithering the quantiser. Smooth
+the speckle away and coarsen the step 3×, and faint interference is *erased*
+rather than merely hidden. Run `check_composition.py` on any copy of the data
+before trusting it, and work from the original dataset PNGs.
