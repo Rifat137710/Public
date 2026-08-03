@@ -1,0 +1,15 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Generated outputs
+demo/
+features/
+*.npz
+triage.csv
+sensitivity.csv
+demo_triage.csv
+panels/
+*.egg-info/

@@ -1,0 +1,216 @@
+# clearsar-rfi — physics-aware decomposition for RFI detection in Sentinel-1 quicklooks
+
+Tooling for the problem behind the [ESA Φ-lab **ClearSAR** Track-1](https://challenges.philab.esa.int/portfolio/clearsar-track-1/)
+dataset: some annotated radio-frequency-interference boxes in Sentinel-1
+quicklook RGBs are invisible to the eye *and* to a standard RGB object detector.
+
+The premise is that this is not primarily a model-capacity problem. It is that
+the input is being read as a natural RGB image when it is nothing of the kind,
+and that several of the channels interference actually perturbs are never
+computed at all.
+
+---
+
+## The one fact that reframes the problem
+
+Per the [Sentinel-1 product spec](https://sentinel.esa.int/en/web/sentinel/user-guides/sentinel-1-sar/data-formats/sar-formats),
+quicklooks are power-detected, averaged and decimated, scaled to 8 bit, and for
+**dual-polarisation** products composed as:
+
+| channel | contents |
+|---------|----------|
+| **R** | first polarisation (co-pol — VV, or HH in EW mode) |
+| **G** | second polarisation (cross-pol — VH / HV) |
+| **B** | average of the absolute values of the two polarisations |
+
+So **B ≈ (R+G)/2 carries no independent information.** The image has *two* real
+degrees of freedom, not three, and its two real planes are separate radar
+receive channels — a fact no RGB backbone is told.
+
+`scripts/check_composition.py` verifies this on your own copy in seconds. On the
+included synthetic data it recovers `B = 0.5000·R + 0.5000·G + 0.00`, R² = 0.9999.
+
+Two consequences drive the whole toolkit:
+
+1. **The polarimetric ratio is the RFI-sensitive channel.** Terrain drives both
+   polarisations in a strongly correlated way — scene structure is largely
+   common-mode — while interference enters the receiver in one polarisation
+   channel only. Differencing in the log domain cancels the scene and keeps the
+   interference. (This is the principle behind the published dual-pol
+   [RFI Index](https://ieeexplore.ieee.org/abstract/document/9335969).)
+2. **Cross-pol sits 8–13 dB lower**, much closer to the noise floor, so a given
+   interference power is a large relative bump there and a negligible one in
+   co-pol. In an RGB rendering that is a near-**isoluminant chromatic** change,
+   which human vision and ImageNet-pretrained CNNs are both poor at.
+
+Measured on the synthetic benchmark: the box-versus-surround z-score of an
+*interference-free* box is ~84 in a single polarisation (pure terrain response)
+but ~4.5 in the ratio channel. That ~18× terrain suppression is the sensitivity
+headroom the un-mixing buys.
+
+---
+
+## Why "ghost" boxes are invisible — five distinct mechanisms
+
+| # | mechanism | what to do about it |
+|---|-----------|---------------------|
+| a | **Contrast compression.** Interference adds power; visibility depends on interference-to-signal *ratio*, not brightness. The emitter that saturates dark water is 0.2 dB over bright forest. | Work on the background-normalised residual (`directional.detail_image`) |
+| b | **Quantisation.** Power detection + multilook + decimation + 8 bit. A sub-dB bump is under one digital number and is gone *per pixel*. | Not gone in aggregate — speckle dithers the quantiser, so integration recovers it |
+| c | **The IPF already partly removed it.** RFI mitigation since IPF 3.40 is [deliberately conservative](https://sar-mpc.eu/about/faq/); what survives is a *spectral hole* → altered bandwidth → altered texture at unchanged mean brightness. | Speckle-statistics and spectral features (`speckle`, `spectral`) — no brightness method can reach this |
+| d | **Polarisation masking.** | The ratio channel (`unmix`) |
+| e | **The label may not be image-derived.** Sentinel-1 carries RFI annotations from echo-domain detection, and MPC screening notes weak RFI of small extent is not always reported. | Some boxes are genuinely unrecoverable from a PNG. Quantify rather than chase — see `triage_boxes.py` |
+
+---
+
+## What survives into a quicklook, and what does not
+
+| information axis | available? |
+|---|---|
+| Polarisation diversity (2 channels) | ✅ the only signal diversity left |
+| Spatial anisotropy / orientation / periodicity | ✅ |
+| Local speckle statistics | ✅ degraded by multilook + 8 bit |
+| Acquisition geometry (subswath / burst) | ✅ inferable |
+| Temporal | ✅ if you fetch the stack |
+| Interferometric phase | ❌ gone at detection |
+| Range spectrum / sublooks | ❌ gone |
+| Doppler / azimuth spectrum | ❌ gone |
+| Absolute calibration, full dynamic range | ❌ gone |
+
+**Sublook and subband decomposition — the textbook answer to "decompose the SAR
+signal" — is therefore not available on quicklooks.** [Multi-chromatic
+analysis](https://www.semanticscholar.org/paper/dbeb38d8c5fabc0ab4a1031e42fec05a181d7120)
+and [spatial-spectral chromatic coding of interference](https://arxiv.org/abs/2509.08693)
+both need SLC data. If you want them, pull SLCs for a subset of your hardest
+scenes and use them to establish which boxes carry any quicklook signature at
+all.
+
+---
+
+## Install and run
+
+```bash
+pip install -r requirements.txt
+
+# 0. Verify what your channels actually contain, and fit the speckle model.
+python scripts/check_composition.py --images /path/to/clearsar/train/images -n 40
+
+# 1. Measure every annotated box against control boxes; find the ghosts.
+python scripts/triage_boxes.py \
+    --images /path/to/clearsar/train/images \
+    --annotations /path/to/clearsar/train/annotations.json \
+    --out triage.csv
+
+# 2. Calibrate the detectability floor of the product itself.
+python scripts/calibrate_sensitivity.py --out sensitivity.csv
+
+# 3. Export the multi-channel feature stack for detector training.
+python scripts/build_features.py --images .../images --out features/ --workers 4
+```
+
+No real data yet? `python scripts/make_demo_dataset.py --out demo/ -n 12`
+builds synthetic quicklooks composed exactly per the spec, with a COCO JSON.
+
+`scripts/triage_boxes.py` accepts COCO JSON, YOLO `.txt`, Pascal-VOC XML or CSV
+— the loader sniffs the layout.
+
+---
+
+## The triage output
+
+For every box it measures contrast in both polarimetric channels and their
+ratio, departure of local speckle statistics from the fitted model, Radon
+matched-filter SNR of any linear structure, and block-wise spectral anisotropy —
+then repeats all of it on **control boxes** of the same size distribution placed
+where nothing is annotated.
+
+The controls matter. They carry the null distribution of every metric *on this
+data*, so thresholds are empirical rather than asserted; whatever speckle
+correlation and terrain texture do to a z-score, they do to the controls too.
+
+Boxes are then attributed to the mechanism that makes them findable:
+`brightness` → `polarimetric` → `directional` → `statistical` → `spectral` →
+`none`. **The `none` bucket is a label-noise estimate for this product level**,
+and it belongs in your model card next to any recall number.
+
+On the 12-scene demo set with known injection levels, verdicts land exactly
+where they should:
+
+```
+injected_db  brightness  none  polarimetric
+0.2                   0     2             1
+0.5                   0     1             2
+1.0                   0     0             2
+3.0                   0     0             2
+8.0                   1     0             1
+```
+
+Everything ≥1 dB is recovered, almost entirely through the **polarimetric ratio
+rather than brightness** — only the 8 dB patch is visible as brightness at all.
+One 0.2 dB case was recovered despite the interference moving the 8-bit image by
+**zero digital numbers** across its footprint.
+
+---
+
+## Calibrating the floor
+
+`calibrate_sensitivity.py` injects interference at a known interference-to-signal
+ratio into synthetic quicklooks built with the same detection, multilooking,
+quantisation and B=(R+G)/2 composition as the real product.
+
+The measurement is **paired**: each scene is generated twice from one speckle
+realisation, with and without the interference, and every metric is compared to
+its own interference-free twin at the identical box. This is not a detail — raw
+box contrast is dominated by whatever terrain lies under the box, so an unpaired
+sweep measures terrain and not sensitivity. That mistake is easy to make and it
+silently inflates every number.
+
+It reports, per morphology, the median digital-number change the interference
+actually caused and the fraction of footprint pixels the quantiser left
+untouched, alongside the win rate of each metric. Rows where the image barely
+moved but a metric still fires are detections of signal absent from most pixels.
+
+---
+
+## Feature stack
+
+`features.FEATURE_NAMES` defines 17 planes: raw R/G/B, the un-mixed dB channels
+and their ratio, blue-channel residual, PC2, background-removed details, speckle
+CV/kurtosis departures, oriented-filter responses, and spectral anisotropy /
+peak-z.
+
+**Planes 0–2 are the untouched R/G/B**, so an RGB-pretrained backbone can be
+fine-tuned by inflating its stem convolution and seeding the extra input
+channels at zero — training then starts from exactly the pretrained behaviour.
+
+Two-stage detection is worth trying before end-to-end training: use the
+directional and statistical maps to generate high-recall candidate regions, then
+classify candidates with a small CNN. Asking a detector to learn a 0.2 dB
+anisotropic texture change from ~3k boxes is a much harder ask than giving it
+the transform.
+
+---
+
+## What this does not do
+
+* No SLC / raw-echo processing — see the caveat above.
+* No multitemporal stacking. This is likely the strongest remaining lever
+  (scene persistent = low-rank, RFI transient = sparse; see the published
+  [time-series RFI extraction](https://ieeexplore.ieee.org/document/9606769/) and
+  [SSIM-based screening](https://ieeexplore.ieee.org/document/10959716/) work,
+  and [REACTIV](https://github.com/elisecolin/REACTIV) for HSV coding of a
+  stack). Quicklooks for the same relative orbit are free.
+* No subswath/burst geometry test. RFI respects subswath and burst boundaries
+  and terrain does not, which is a strong and nearly free discriminator.
+* `stripe_snr` treats adjacent Radon bins as independent, so its SNR is an
+  optimistic bound. Read it against the controls, not as a Gaussian sigma.
+
+## Tests
+
+```bash
+python tests/test_pipeline.py     # also runs under pytest
+```
+
+11 tests, asserting real behaviour against synthetic ground truth: closed-form
+speckle moments, spec-conformant composition, amplitude-vs-intensity
+identification, terrain suppression by the ratio channel, stripe-layer recovery,
+sub-quantiser detection, and stack integrity.
