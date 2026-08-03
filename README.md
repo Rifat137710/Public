@@ -169,6 +169,54 @@ actually caused and the fraction of footprint pixels the quantiser left
 untouched, alongside the win rate of each metric. Rows where the image barely
 moved but a metric still fires are detections of signal absent from most pixels.
 
+### Measured results (3 morphologies × 9 levels × 4 repeats, cross-pol injection)
+
+**Terrain baseline** — each metric on an interference-free box, i.e. pure
+terrain response:
+
+| morphology | z (co-pol) | z (cross-pol) | **z (ratio)** |
+|------------|-----------:|--------------:|--------------:|
+| patch      | 38.6 | 43.3 | **1.4** |
+| periodic   | 24.4 | 27.7 | **1.6** |
+| stripe     | 45.0 | 48.2 | **2.8** |
+
+A **15–30× terrain suppression**, and it is the whole ballgame: the interference
+has to out-compete that baseline, not the speckle floor.
+
+**Win rates** (fraction of scenes where the injected metric beat its own
+interference-free twin by ≥1.15×):
+
+| morphology | dB | median ΔDN | pixels unchanged | z co-pol | z cross-pol | **z ratio** | Radon (ratio) |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| patch | 0.2 | 0.0 | 66% | 0.00 | 0.00 | **1.00** | 0.00 |
+| patch | 1.0 | 2.0 | 2% | 0.00 | 0.00 | **1.00** | 0.25 |
+| patch | 8.0 | 21.0 | 0% | 0.00 | 0.75 | **1.00** | 1.00 |
+| stripe | 0.5 | 1.0 | 11% | 0.00 | 0.00 | **0.75** | 0.25 |
+| stripe | 2.0 | 5.0 | 0% | 0.00 | 0.25 | **0.75** | 1.00 |
+| periodic | 0.5 | 1.5 | 15% | 0.00 | 0.25 | **1.00** | 0.00 |
+
+Three things to take from this:
+
+1. **Co-pol never fires — at any level.** The injection is cross-pol only, so
+   this is the negative control, and it passes cleanly. Any co-pol response
+   would have meant the measurement was picking up a scene-wide artefact.
+2. **Raw cross-pol contrast is nearly useless**, reaching only 0.5–0.75 even at
+   8 dB, because terrain swamps it. This is the quantitative reason a detector
+   fed the plain RGB struggles: the signal is there, but the channel it is
+   presented in has a terrain background 30× larger than the effect.
+3. **The ratio channel detects a patch at 0.2 dB** — where the median digital
+   number change is **zero** and two thirds of the footprint pixels are
+   bit-identical to the interference-free scene.
+
+Directional integration is complementary rather than better: it wins on stripes
+(where it pools thousands of pixels) and loses on compact patches. Which of the
+two carries a given box depends on morphology and on the terrain underneath, so
+the triage measures both.
+
+Caveat on the printed "detection floor" line: with only 4 repeats a single miss
+drops a win rate below 1.0, so the reported floor is noisy at the level of one
+sweep step. Raise `--repeats` before quoting it.
+
 ---
 
 ## Feature stack

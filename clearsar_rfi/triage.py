@@ -230,6 +230,10 @@ def summarise(rows, quantile: float = 0.99) -> dict:
 
     ctrl = df[df["kind"] == "control"]
     lab = df[df["kind"] == "label"].copy()
+    if lab.empty:
+        return {"n_labels": 0, "n_controls": int(len(ctrl)), "thresholds": {},
+                "families": {}, "mechanisms": {}, "recoverable_fraction": float("nan"),
+                "table": lab}
 
     thresholds: dict[str, float] = {}
     for metric in DETECTION_METRICS:
