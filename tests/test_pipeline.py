@@ -214,3 +214,60 @@ def _main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(_main())
+
+
+def test_clutter_scaling_detects_correlated_background():
+    """Correlated clutter must fit alpha well below the independent-pixel 1.0."""
+    from clearsar_rfi.clutter import measure_clutter_scaling
+
+    rng = np.random.default_rng(3)
+    # 1/f-like field: sum of progressively smoother random layers, which is how
+    # terrain behaves and why window averaging stops helping.
+    field = np.zeros((256, 256))
+    for k in (2, 4, 8, 16, 32):
+        coarse = rng.normal(size=(256 // k + 2, 256 // k + 2))
+        field += np.kron(coarse, np.ones((k, k)))[:256, :256] * np.sqrt(k)
+    field += 0.3 * rng.normal(size=field.shape)
+
+    fit = measure_clutter_scaling(field)
+    assert 0.0 < fit.alpha < 0.8, fit.alpha
+    assert fit.actual_gain(10, 138) < 0.5 * fit.ideal_gain(10, 138)
+
+    white = rng.normal(size=(256, 256))
+    assert measure_clutter_scaling(white).alpha > fit.alpha
+
+
+def test_azimuth_tophat_is_orientation_selective():
+    """The filter must respond to a range-extended band, not to a vertical one."""
+    from clearsar_rfi.clutter import azimuth_tophat
+
+    a = np.zeros((128, 128))
+    a[60:70, 20:110] = 1.0                     # RFI-shaped: wide and short
+    horiz = np.abs(azimuth_tophat(a, 10, 48)).max()
+
+    b = np.zeros((128, 128))
+    b[20:110, 60:70] = 1.0                     # same area, wrong orientation
+    vert = np.abs(azimuth_tophat(b, 10, 48)).max()
+
+    assert horiz > 3 * vert, (horiz, vert)
+
+
+def test_tail_ratio_flags_non_gaussian_clutter():
+    """A Gaussian sits near 3.3; heavy-tailed clutter must score far above it."""
+    from clearsar_rfi.clutter import GAUSSIAN_TAIL_RATIO, tail_ratio
+
+    rng = np.random.default_rng(11)
+    gauss = tail_ratio(rng.normal(size=200_000))
+    assert abs(gauss - GAUSSIAN_TAIL_RATIO) < 1.0, gauss
+
+    heavy = tail_ratio(rng.standard_t(df=2, size=200_000))
+    assert heavy > 2 * gauss, (heavy, gauss)
+
+
+def test_effective_looks_matches_measured_alpha():
+    """The dataset-median box must be worth far fewer looks than its pixel count."""
+    from clearsar_rfi.clutter import CLUTTER_ALPHA, effective_looks
+
+    assert effective_looks(10, 138) < 0.05 * (10 * 138)
+    assert effective_looks(10, 138, alpha=1.0) == 10 * 138
+    assert 0.4 < CLUTTER_ALPHA < 0.45
