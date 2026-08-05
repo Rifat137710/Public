@@ -126,6 +126,11 @@ At the thesis operating point, **10.07 % of steps violate with the chargers swit
 | SafeSAC (weak) | 0.0912 | −0.0095 |
 | **Droop (1547)** | **0.0521** | **−0.0486** |
 
+(Referenced to the weekday floor. The 25 evaluation seeds mix weekdays and weekends, so the
+effective floor is nearer 0.105 and the relief figures shift by ~0.005 — the ordering and
+the order of magnitude do not change. Stage 1 will compute the per-episode floor exactly,
+seed by seed, as a paired reference.)
+
 Two consequences, both severe:
 
 1. The entire between-method spread rides on a background the controller did not cause.
