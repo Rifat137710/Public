@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
+*.egg-info/
+.venv/
+venv/
+
+# Run outputs. Checkpoints under artifacts/ are tracked on purpose -- they are
+# the thesis artifacts the Stage 0 reproduction gate replays.
+results/
+runs/

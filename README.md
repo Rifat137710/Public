@@ -24,22 +24,36 @@ safesac/
   projection.py   DPP-parametrised SOCP safety projection
   agents.py       zero, uncoordinated, IEEE 1547 droop
   evaluate.py     rollout, metrics, shared-seed evaluation
+  learned.py      SAC-Lagrangian and SafeSAC, checkpoint-compatible
+  train.py        training loop, convergence detector, fixed-budget mode
 ```
 
-Run the tests with `python -m pytest tests/ -q` from the repository root.
+Run the tests with `python -m pytest tests/ -q` from the repository root (56 tests, ~2.5 min).
 
-## Status — Stage 0 in progress
+Reproduce the published learned results from the shipped checkpoints:
 
-**Reproduction verified.** The port reproduces both heuristic rows of thesis Table 6.1 to
-the published precision, which exercises seed derivation, scenario and fleet sampling,
-environment dynamics, reward, and metrics end to end:
+```
+python scripts/reproduce_table_6_1.py --checkpoints artifacts/checkpoints
+```
 
-| method | violation rate | SoC met | net cost |
-|---|---|---|---|
-| Uncoordinated — published | 0.1156 | 0.9955 | $230.7311 |
-| Uncoordinated — port | 0.1156 | 0.9955 | $230.7311 |
-| Droop (1547) — published | 0.0521 | 0.3245 | $66.2656 |
-| Droop (1547) — port | 0.0521 | 0.3245 | $66.2656 |
+## Status — Stage 0 complete
+
+**Full reproduction verified.** The port reproduces all six rows of thesis Table 6.1. This
+exercises seed derivation, scenario and fleet sampling, environment dynamics, reward,
+metrics, the SOCP projection, and the actor networks end to end.
+
+| method | violation rate | SoC met | net cost | source |
+|---|---|---|---|---|
+| Uncoordinated | 0.1156 / **0.1156** | 0.9955 / **0.9955** | $230.7311 / **$230.7311** | published / port |
+| Droop (1547) | 0.0521 / **0.0521** | 0.3245 / **0.3245** | $66.2656 / **$66.2656** | published / port |
+| SAC-Lag (weak) | 0.0904 / **0.0904** | 0.2767 / 0.2752 | $104.29 / $104.52 | published / port |
+| SafeSAC (weak) | 0.0912 / **0.0912** | 0.5688 / 0.5704 | $125.94 / $125.82 | published / port |
+| SAC-Lag (strong→weak) | 0.0151 / **0.0151** | 0.0000 / **0.0000** | −$38.17 / **−$38.1709** | published / port |
+| SafeSAC (strong→weak) | 0.1058 / **0.1058** | 0.4469 / **0.4469** | $69.66 / **$69.6595** | published / port |
+
+Every violation rate and Vmin matches to the published precision. The two cross-deployment
+rows match to six significant figures; the ≤0.25 % residual on the in-distribution rows is
+float32 drift between torch 2.10/T4 and torch 2.13/CPU.
 
 **Physics path rewritten** (Stage 2, landed early):
 
@@ -52,4 +66,17 @@ environment dynamics, reward, and metrics end to end:
 The sweep matches pandapower to 5e-9 pu; the analytic sensitivities match published
 Table 4.1 to five significant figures. pandapower stays in CI as the oracle.
 
-**Next:** port the learned agents and the training loop, then Stage 1.
+**Two findings the reproduction establishes**, both invisible in the thesis because neither
+quantity was logged:
+
+- The safety layer is **infeasible on 12.50 % of steps** at the published operating point
+  (900 of 7 200), and latches a station off on 10.42 %. Its effective lower bound of 0.960 pu
+  sits below the idle feeder's 0.9441 Vmin, so near the evening peak no station command can
+  satisfy it and the layer emits an all-zero command instead. Both SafeSAC checkpoints give
+  identical counts — infeasibility is set by the feeder, not by the policy. (Audit A5.)
+- The compared runs had **unequal training budgets**: 97 episodes for SAC-Lag (weak) against
+  85 for SafeSAC (weak), and 114 against 86 cross-deployment, because training stopped on a
+  convergence detector rather than a fixed budget. (Audit A6.)
+
+**Next:** Stage 1 — correctness fixes and the fair ablation at the settled operating point
+(`load_scale` 0.40, 30 EVs/station/day).

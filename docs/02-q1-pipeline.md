@@ -108,6 +108,16 @@ This must go before anything else.
 **Gate 0** — the ported package reproduces every number in `00-knowledge-base.md` §5 from
 the shipped checkpoints, and `pytest` is green.
 
+> **PASSED.** All six rows of Table 6.1 reproduce (`scripts/reproduce_table_6_1.py`, results
+> in `00-knowledge-base.md` §5b); 56 tests green in ~2.5 min. Every violation rate and Vmin
+> matches to published precision, the two cross-deployment rows to 6 significant figures.
+> Deferred out of Stage 0 as not gate-blocking: YAML config loading (the frozen dataclass
+> presets plus `fingerprint()` cover the same ground for now) and CI wiring.
+>
+> Two defects were quantified in the process and are now first-class metrics:
+> the projection is infeasible on 12.50 % of steps (audit A5), and the compared runs
+> received 97 vs 85 training episodes (audit A6).
+
 ---
 
 ### Stage 1 — Correctness (weeks 2–3)

@@ -96,14 +96,35 @@ class SensitivityCache:
         self.loading: Optional[LoadingSensitivities] = None
         self.n_refreshes = 0
 
-    def maybe_refresh(self, current_step: int, pf: PFResult) -> bool:
+    def maybe_refresh(self, current_step: int, pf: Optional[PFResult] = None) -> bool:
+        """Recompute the linear model if the refresh interval has elapsed.
+
+        With `pf=None` the base point is re-solved from the feeder's *current*
+        state, which is what the thesis did: its `compute_grid_sensitivities`
+        ran its own power flow. Passing a cached `pf` instead linearises around
+        the previous control step, one exogenous update behind.
+        """
         if self.sens is not None and (current_step - self.last_refresh) < self.refresh_steps:
             return False
+        if pf is None:
+            pf = self.solver.solve()
         self.sens = self._jacobian.compute(pf)
         self.loading = compute_loading_sensitivities(self.feeder, self.solver)
         self.last_refresh = current_step
         self.n_refreshes += 1
         return True
+
+    def rebind(self, feeder: Feeder, solver: RadialPowerFlow) -> None:
+        """Point at a freshly built feeder without touching the refresh clock.
+
+        `ChargingFeederEnv.reset` rebuilds the feeder each episode, so the cache
+        has to follow it. Keeping `last_refresh` is what reproduces the thesis's
+        cross-episode staleness; call `invalidate` as well to start clean.
+        """
+        self.feeder = feeder
+        self.solver = solver
+        self.topo = FeederTopology(feeder)
+        self._jacobian = JacobianSensitivities(feeder, self.topo)
 
     def invalidate(self) -> None:
         self.sens = None

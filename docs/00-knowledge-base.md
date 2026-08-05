@@ -187,6 +187,44 @@ operating point to 0.50. Weak-grid Vmin there is 0.9557, not 0.9441.
 
 ---
 
+## 5b. Port reproduction of Table 6.1 — Stage 0 gate, PASSED
+
+`scripts/reproduce_table_6_1.py` loads the four shipped checkpoints with their frozen
+normalizers and replays the published eval band (`patch7_weak_eval`, 25 episodes, weak
+feeder, `load_scale` 0.50, margin 0.010, 1-day episodes).
+
+| method | metric | published | port | Δ |
+|---|---|---|---|---|
+| SAC-Lag (weak) | viol / SoC / cost / R | 0.0904 / 0.2767 / 104.29 / −923.50 | **0.0904** / 0.2752 / 104.52 / −923.11 | rates exact |
+| SafeSAC (weak) | viol / SoC / cost / R | 0.0912 / 0.5688 / 125.94 / −505.15 | **0.0912** / 0.5704 / 125.82 / −505.37 | rates exact |
+| SAC-Lag (strong→weak) | viol / SoC / cost / R | 0.0151 / 0.0000 / −38.17 / −1898.67 | **0.0151 / 0.0000 / −38.1709 / −1898.6735** | 6 s.f. |
+| SafeSAC (strong→weak) | viol / SoC / cost / R | 0.1058 / 0.4469 / 69.66 / −1024.12 | **0.1058 / 0.4469 / 69.6595 / −1024.1232** | 6 s.f. |
+
+Vmin reproduces to 4 dp on all four rows. The residuals on the two in-distribution rows
+(≤0.25 %) are float32 drift: the reference ran torch 2.10 on a Tesla T4, the port runs torch
+2.13 on CPU, and near an action bound the last-bit difference occasionally flips a
+charge/idle decision. The two cross-deployment rows matching to 6 significant figures is
+what identifies this as arithmetic, not a porting error.
+
+**Two traps found while closing this gate, recorded so they are not re-derived:**
+
+1. `SensitivityCache.needs_refresh` tests `current_step - last_refresh >= refresh_steps`.
+   `current_step` restarts at 0 each episode and `last_refresh` does not, so read literally
+   the cache can never refresh again after episode 1. It *does* refresh, because a later
+   patch cell (`thesis11.ipynb` §"Patched SafeSACLagAgent.select_action") rewires
+   `select_action` to clear the cache and the projector freeze latch whenever `env.reset()`
+   builds a new network object. Running the unpatched logic instead inflates SoC met by
+   +0.117 and net cost by +$60 — so the patch is load-bearing for every published SafeSAC
+   number.
+2. `compute_grid_sensitivities` runs its **own** power flow at the current network state.
+   Handing it the env's cached `_last_pf` linearises one exogenous step behind.
+
+Recorded projector behaviour over the reproduction run (7 200 steps): **900 infeasible
+(0.1250)**, **750 steps with a latched-off station (0.1042)**, 600 refreshes. Identical for
+both SafeSAC checkpoints. See audit A5.
+
+---
+
 ## 6. Compute budget observed
 
 | | ms/step | 1 run (≈100 ep × 288) |

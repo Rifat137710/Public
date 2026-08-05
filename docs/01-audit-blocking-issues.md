@@ -175,6 +175,22 @@ Measured over a full day with a representative −40 kW request at every station
 | 0.50 | 0.000 | 0.9434 | 0.000 | 0.000 |
 | **0.40 (proposed)** | 0.010 | 0.9543 | **0.000** | 0.000 |
 
+**Now confirmed under the actual published run, not a probe.** Replaying the shipped
+`safesac_weak_v3` and `safesac_strong_v3` checkpoints over the 25 published eval seeds —
+the run that reproduces every number in Table 6.1 (see `scripts/reproduce_table_6_1.py`) —
+the projector reports:
+
+| | value |
+|---|---|
+| projection calls | 7 200 (25 × 288) |
+| solver status `infeasible` | **900 → 0.1250** |
+| steps with ≥1 station latched off | **750 → 0.1042** |
+| sensitivity refreshes | 600 (24/episode, as designed) |
+
+Both SafeSAC checkpoints give *identical* counts, which is itself diagnostic: infeasibility
+is decided by the feeder state and the ramp/box constraints, not by what the policy asked
+for. The safety layer was failing on a fixed schedule regardless of the agent.
+
 On infeasibility the layer returns an **all-zero command** and, after three consecutive
 failures, freezes the station. So for roughly an eighth of every episode — concentrated in
 the evening peak, exactly when charging decisions matter — SafeSAC was not being *projected*,
@@ -207,6 +223,21 @@ statements about the method.
 
 The thesis states this honestly in §6.11. That does not save it: for a Q1 RL paper it is
 the single most common rejection reason.
+
+**The single runs also had unequal budgets.** `step_count` in each checkpoint divided by
+288 steps/episode gives what each arm actually got:
+
+| run | episodes | λ final | α final |
+|---|---|---|---|
+| `saclag_weak_v2` | **97** | 0.0 | 0.847 |
+| `safesac_weak_v3` | **85** | 17.325 | 0.613 |
+| `saclag_strong_v2` | **114** | 0.0 | 19.402 |
+| `safesac_strong_v3` | **86** | 17.847 | 0.418 |
+
+The headline in-distribution comparison gives the baseline **12 more episodes** (14 %) than
+the proposed method; the cross-deployment pair differs by 28 episodes (33 %). This is a
+side-effect of stopping on `ConvergenceDetector` rather than on a fixed budget, and it cuts
+*against* SafeSAC on service — but it means no claim in Table 6.1 is a controlled comparison.
 
 **Fix.** ≥5 training seeds per configuration; report mean ± 95 % CI **across seeds**;
 run the significance tests at the seed level, or use a hierarchical/bootstrap scheme that
