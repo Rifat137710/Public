@@ -1,4 +1,91 @@
-# SafeSAC — Phase 0.4: fast radial power flow + analytic sensitivities
+# SafeSAC — Phase 0 pipeline fixes
+
+| File | Phase | Purpose |
+|---|---|---|
+| `radial_pf.py` | 0.4 | Fast radial power flow + analytic voltage sensitivities |
+| `validate_radial_pf.py` | 0.4 | Validation against pandapower on the thesis feeders |
+| `lagrangian.py` | 0.2 | Corrected CMDP dual-variable controller |
+| `test_lagrangian.py` | 0.2 | Reproduces the multiplier defect; validates the fix |
+| `telemetry.py` | 0.3 | Per-episode instrumentation + post-hoc health report |
+
+---
+
+## Phase 0.2 — the multiplier defect
+
+The shipped checkpoints ended at
+
+```
+saclag_weak_v2     lambda = 0.0        saclag_strong_v2   lambda = 0.0
+safesac_weak_v3    lambda = 17.32      safesac_strong_v3  lambda = 17.85
+```
+
+With `lambda = 0` the constraint term contributes **nothing** to the actor
+loss, so the SAC-Lag baseline the thesis calls "precisely the AL-SAC
+formulation of Chen et al." trained as an unconstrained agent.
+
+The root defect is dimensional. `qc_new` estimates the discounted *return*
+`E[Σ γᵗ cₜ]`, but `constraint_threshold = 0.01` is documented as a *per-step*
+budget. At `γ = 0.99` those differ by `1/(1-γ) = 100`.
+
+`test_lagrangian.py` demonstrates the consequence in closed loop:
+
+```
+[satisfied constraint] J_C=0.219 vs budget d_return=1  -> met with 4.6x margin
+  legacy lambda = 5.23 (and still climbing)
+  fixed  lambda = 0    (correctly inactive)
+```
+
+A policy comfortably *inside* its documented budget is penalised harder and
+harder, without bound. When the budget sits below the structural cost floor —
+which it does on the weak feeder — there is no equilibrium at all: λ grows
+linearly forever and the shipped code has no cap, no health check, and no log.
+
+`LagrangeController` fixes the scale, normalises the dual error so `lr` is
+scale-free, caps λ, and exposes `health()` so a degenerate or saturated
+multiplier fails the run instead of passing silently. Use
+`from_measured_floor()` to set the budget above the floor measured in Phase 1.
+
+**One result contradicted the plan.** I recommended PID damping (Stooke et al.).
+Under a 300-update policy lag:
+
+```
+plain lr=2e-2 : 13.0% undershoot
++ kp=0.5      : 11.8%   (small real gain)
++ kd=4.0      : 13.0%   (inert — the derivative fires only on rising cost,
+                         and the approach to budget is monotone)
+lr=5e-3       :  0.0%   (the integral gain is the dominant knob)
+```
+
+So tune `lr` conservatively first; `kd` should only be expected to help where
+cost is noisy or non-monotone. The gains are exposed, not recommended by default.
+
+**Still open:** *why* the two arms landed on opposite sides. The scale error is
+definite and dimensionally wrong regardless, but attributing 0-vs-17 to a
+specific mechanism needs the instrumented rerun — which is what 0.3 provides.
+
+## Phase 0.3 — instrumentation
+
+`telemetry.py` records λ, α, `mean_qc`, cost excess, projection-active fraction,
+SOCP-infeasible steps, **projection-exception steps** (the silent bypass), and
+worst-bus voltage per episode. `health_report()` turns a finished run into
+findings, and works on the old logs too. Run against the thesis artifacts it
+recovers the audit independently:
+
+```
+--- safesac_weak_v3 ---
+  [FAIL] LAMBDA_NOT_LOGGED: impossible to verify the constraint was ever active
+  [FAIL] NOISY_CONVERGENCE: last-20-episode reward CV = 47%; a 'converged' flag
+         on a signal this noisy is not meaningful
+  [WARN] UNDER_TRAINED: 24480 steps, vs 1e5-1e6 typical for SAC here
+  [WARN] VIOLATION_FLOOR: last 5 episodes all had exactly 26 violation steps
+         despite different seeds: structural, not policy-driven
+```
+
+Reward CV across the four runs: 22%, 47%, 36%, 28% — all flagged `converged`.
+
+---
+
+## Phase 0.4: fast radial power flow + analytic sensitivities
 
 Replaces the `pandapower.runpp` call and the finite-difference sensitivity
 refresh in the SafeSAC training loop. Both are derived from one precomputed
