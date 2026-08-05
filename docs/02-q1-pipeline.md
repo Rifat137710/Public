@@ -72,6 +72,22 @@ Each stage has a **gate**. Do not start the next stage until the gate passes.
 
 ---
 
+### Compute budget (Kaggle)
+
+The binding constraint on Kaggle is **not** GPU count — it is the ~30 GPU-h/week quota, the
+12 h session cap, and the 4 vCPU allocation. This workload barely touches the GPU: the
+networks are 372 k parameters at batch 256, which is ~1–2 ms per update. The 115 ms step was
+CPU-bound on power flow and CVXPY. **A second GPU would have changed nothing.**
+
+Stage 4 needs ≈ 50 training runs + 250 evaluation runs.
+
+| | per SafeSAC run | Stage 4 total |
+|---|---|---|
+| thesis implementation | ~48 min | **~77 h** — over two full weekly quotas, zero iteration budget |
+| after Stage 2 (target) | ~5 min | **~9 h** — one comfortable week, room to iterate |
+
+---
+
 ### Stage 0 — Port to a package, reproduce exactly (week 1)
 
 The current code is a 39-cell notebook where the live configuration is the result of
@@ -96,6 +112,17 @@ the shipped checkpoints, and `pytest` is green.
 
 ### Stage 1 — Correctness (weeks 2–3)
 
+**Operating-point decision, settled by measurement (audit A4): move to `load_scale = 0.40`.**
+It is the only scale where the idle feeder is fully compliant (0/288 violating steps) *and*
+full-rate charging genuinely violates (0.0868). At the thesis's 0.50 the idle floor is
+0.1007 — higher than the reported SafeSAC and SAC-Lag rates, so the published safety
+comparison is ~92 % background. 0.40 is also the operating point Table 5.3's projection
+numbers were computed at, so the move resolves audit B2 at the same time.
+
+Consequence to plan for: at 0.40 the violation *rates* will be much smaller and the
+constraint will bind only under aggressive charging. That is the point — it makes every
+violation attributable. Expect the headline numbers to change substantially.
+
 Fix, in this order, with a test for each:
 
 1. **A3 sign convention** — one convention, asserted in tests, propagated to every figure,
@@ -117,26 +144,38 @@ shrinks or vanishes — that is the finding, and better to learn it now.*
 
 ---
 
-### Stage 2 — Throughput (weeks 3–4)
+### Stage 2 — Throughput — **power-flow path DONE**
 
-Current: 42–118 ms/step, ~48 min per SafeSAC run. Stage 4 needs ~5 feeders × 5 seeds ×
-2 methods × 2 training grids ≈ 100 runs. At today's speed that is ~80 GPU-hours of pure
-power flow. Two changes:
+The bottleneck was never the GPU. Measured on this container:
 
-1. **Analytic sensitivities from the power-flow Jacobian.** Today: 8 extra NR solves per
-   refresh via central differences. Replace with one LU back-substitution against the
-   converged Jacobian — exact, ~50× cheaper, and *more defensible in the paper* than finite
-   differences. This also makes per-step refresh affordable, which turns B3's ablation into
-   a real result.
-2. **Fast radial power flow.** Backward–forward sweep specialised to the radial topology,
-   vectorised; 20–100× faster than `pandapower` NR with `numba=False`. Validate against
-   pandapower to 1e-8 pu on every bus across 10⁴ random operating points, and keep
-   pandapower as the checked reference in CI.
+| operation | thesis implementation | ported | speedup |
+|---|---|---|---|
+| single power flow | pandapower NR, 25.75 ms | radial sweep, **0.103 ms** | **249×** |
+| sensitivity refresh | 8 central-difference NR solves, 447.6 ms | 1 LU + 8 back-substitutions, **0.662 ms** | **677×** |
+| **PF + sensitivity per step** | **63.05 ms** | **0.159 ms** | **398×** |
 
-Optionally vectorise across parallel environments.
+The sweep matches pandapower to **5e-9 pu** across 300 random operating states on both
+feeders, and the analytic sensitivities match the thesis's published Table 4.1 values to
+five significant figures on every station and both grids (`tests/test_powerflow.py`).
+pandapower stays in CI as the oracle.
 
-**Gate 2** — ≥20× end-to-end step-throughput improvement, with the fast solver matching
-pandapower to 1e-8 pu and a full training run reproducing Stage-1 results within seed noise.
+Two bonuses beyond speed: the analytic Jacobian sensitivities are *exact* rather than a
+finite-difference approximation, which is easier to defend in review; and per-step refresh
+is now essentially free, which converts audit item B3 from an embarrassment into a real
+ablation axis.
+
+**Remaining Stage 2 work.** With power flow at 0.1 ms, the SOCP solve (~35 ms) is now
+~95 % of the step. Three things, in order of expected payoff:
+1. **Feasibility pre-check** — skip the solve when the raw action already satisfies every
+   constraint with margin. The thesis wrote this (Patch 4's `projection_skip_margins`) and
+   then commented it out. A converged policy should be feasible most steps.
+2. **Warm-started / code-generated solver** — CVXPYgen, or a hand-rolled active-set routine
+   for what is only an 8-variable QP with one cone per station.
+3. **Batched environments** — with a vectorised radial sweep, N scenarios advance in
+   near-constant time, which is also where the GPU finally earns its place.
+
+**Gate 2** — SafeSAC step time under 10 ms (from 115 ms), fast solver matching pandapower
+to 1e-7 pu in CI, and a full training run reproducing Stage-1 results within seed noise.
 
 ---
 

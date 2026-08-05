@@ -95,29 +95,58 @@ claims: an over-injection request on a *lightly loaded / high-PV* feeder that th
 curtails against the **upper** 1.05 pu bound. That is the true V2G-support demonstration
 and it is currently missing.
 
+**Now confirmed by measurement** (A4 table, `+80 kW` column): full-rate V2G injection at
+every station produces **zero** violations at every load scale tested, 0.35 through 0.50.
+On this testbed V2G literally cannot cause a lower-bound violation — so the projection is
+never exercised on a V2G request anywhere in the paper. Without a high-PV / light-load
+overvoltage case, the V2G-safety claim has no supporting experiment at all.
+
 ---
 
-## A4 — Almost all reported violations are exogenous
+## A4 — The reported violations are mostly exogenous — now measured
 
-At `case33bw_load_scale = 0.50` with **zero EV power**, the notebook's own spot-check
-reports weak-grid `Vmin = 0.9441 pu` at the daily peak multiplier — already outside the band.
+This was an estimate in the first pass. It is now **measured** (`tests/test_powerflow.py`),
+by sweeping a full 288-step weekday over the thesis's own load shape with the stations held
+at fixed power:
 
-Working the load shape (`baseline 0.40 + 0.60·N(19 h, 2 h) + 0.40·N(7.5 h, 1.5 h)`, peak = 1.00)
-against that drop puts roughly **2.5 h/day ≈ 30 of 288 steps ≈ 10 %** in structural violation
-before the controller acts at all. Compare the measured rates: uncoord 0.116, SafeSAC 0.091,
-SAC-Lag 0.090, droop 0.052.
+| weak feeder, weekday | 0 kW (idle) | −40 kW | −80 kW (full charge) | +80 kW (full V2G) |
+|---|---|---|---|---|
+| load scale 0.35 | 0.0000 | 0.0000 | 0.0000 | 0.0000 |
+| **load scale 0.40** | **0.0000** | **0.0000** | **0.0868** | 0.0000 |
+| load scale 0.45 | 0.0104 | 0.0938 | 0.1424 | 0.0000 |
+| **load scale 0.50 (thesis)** | **0.1007** | 0.1424 | 0.2500 | 0.0000 |
 
-So the safety axis is dominated by a constant the controller cannot influence, and
-"SafeSAC matches SAC-Lag on safety (0.091 vs 0.090, p = 0.86)" mostly says *both are
-measuring the same background*. There is **no zero-injection reference run** in the artifact
-set, so the controllable fraction was never quantified.
+At the thesis operating point, **10.07 % of steps violate with the chargers switched off**
+(11.46 % at weekends). Set that against the published results:
 
-**Fix (two parts, do both).**
-1. Add a **no-EV / zero-action baseline** and report *excess* violations over it.
-2. Move the operating point so the feeder is *feasible* at base load and violations arise
-   only from charging — or keep it and report the decomposition explicitly. Report
-   violation **magnitude** (pu·steps) and time-outside-band, not only a step-rate that
-   saturates.
+| method | reported rate | **relative to the 0.1007 idle floor** |
+|---|---|---|
+| Uncoordinated | 0.1156 | +0.0149 |
+| SAC-Lag (weak) | 0.0904 | −0.0103 |
+| SafeSAC (weak) | 0.0912 | −0.0095 |
+| **Droop (1547)** | **0.0521** | **−0.0486** |
+
+Two consequences, both severe:
+
+1. The entire between-method spread rides on a background the controller did not cause.
+   The headline "SafeSAC matches SAC-Lag on safety, 0.0912 vs 0.0904, p = 0.86" compares two
+   numbers that are ~92 % identical background. The 0.0008 difference is 0.8 % of the floor.
+2. Measured *properly* — as violation relief below the idle floor — **droop delivers about
+   five times more voltage relief than either learned controller** (−0.0486 vs −0.010).
+   The current framing hides this behind a Pareto label. See B4.
+
+**The fix is clean, and the right operating point is 0.40.** It is the only scale in the
+family where the idle feeder is fully compliant (0/288 steps) *and* full-rate charging
+genuinely violates (8.68 % of steps). Every violation at 0.40 is therefore attributable to
+the controller's own decisions — which is exactly what the safety metric needs to mean.
+0.45 is already contaminated (0.0104) and 0.50 is swamped.
+
+Note this is the operating point Table 5.3's projection numbers were computed at (audit B2),
+so moving there also removes that inconsistency.
+
+**Also do:** report violation *magnitude* (pu·steps) and time-outside-band alongside the
+step rate, and keep the zero-injection run as a permanent reference row in every results
+table.
 
 ---
 
