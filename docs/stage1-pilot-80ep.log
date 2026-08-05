@@ -1,0 +1,116 @@
+Stage 1 fair ablation | fingerprint 28dd11680707f901
+arms ['no_projection', 'projection'] | seeds [0, 1, 2] | 80 train eps | 25 eval eps
+
+[reference] heuristics and the zero-injection baseline
+  zero           viol=0.0000  soc=0.000  cost=$    0.00
+  uncoordinated  viol=0.0626  soc=0.804  cost=$  685.78
+  droop          viol=0.0000  soc=0.007  cost=$   63.12
+
+[no_projection | seed 0] training 80 episodes
+[no_projection_s0] ep    0  R= -3510.91  viol=  0  lam=  0.002  Jc= 0.000  Qc= +0.053  inf=0.000   13.6 ms/step       5s
+[no_projection_s0] ep    7  R= -2851.39  viol=  0  lam=  0.052  Jc= 0.000  Qc= +0.037  inf=0.000   26.0 ms/step      64s
+[no_projection_s0] ep   15  R= -3599.13  viol=  0  lam=  0.184  Jc= 0.000  Qc= +0.151  inf=0.000   27.3 ms/step     153s
+[no_projection_s0] ep   23  R= -2315.55  viol=  0  lam=  1.121  Jc= 0.000  Qc= +1.089  inf=0.000   27.7 ms/step     226s
+[no_projection_s0] ep   31  R=  -499.31  viol=  2  lam=  3.044  Jc= 0.001  Qc= +1.103  inf=0.000   28.7 ms/step     294s
+[no_projection_s0] ep   39  R= -2994.74  viol=  0  lam=  4.850  Jc= 0.000  Qc= +0.605  inf=0.000   25.7 ms/step     364s
+[no_projection_s0] ep   47  R= -1951.91  viol=  0  lam=  6.393  Jc= 0.000  Qc= +0.662  inf=0.000   28.7 ms/step     432s
+[no_projection_s0] convergence criterion met at episode 52
+[no_projection_s0] ep   55  R= -1265.37  viol=  0  lam=  7.770  Jc= 0.000  Qc= +0.553  inf=0.000   25.1 ms/step     499s
+[no_projection_s0] ep   63  R= -1833.08  viol=  3  lam=  9.125  Jc= 0.004  Qc= +0.666  inf=0.000   27.0 ms/step     568s
+[no_projection_s0] ep   71  R= -2259.16  viol= 12  lam= 10.403  Jc= 0.048  Qc= +0.512  inf=0.000   23.4 ms/step     633s
+[no_projection_s0] ep   79  R= -3966.56  viol=  0  lam= 11.636  Jc= 0.000  Qc= +0.566  inf=0.000   25.8 ms/step     704s
+  -> viol=0.0060  attributable=+0.0060  soc=0.003  cost=$  121.86  lambda=11.6362  (762s)
+
+[no_projection | seed 1] training 80 episodes
+[no_projection_s1] ep    0  R= -3752.78  viol=  1  lam=  0.002  Jc= 0.001  Qc= +0.043  inf=0.000    5.9 ms/step       3s
+[no_projection_s1] ep    7  R= -2532.46  viol=  0  lam=  0.058  Jc= 0.000  Qc= +0.074  inf=0.000   30.6 ms/step      66s
+[no_projection_s1] ep   15  R= -2969.14  viol=  0  lam=  0.972  Jc= 0.000  Qc= +0.581  inf=0.000   28.8 ms/step     137s
+[no_projection_s1] ep   23  R= -2061.26  viol=  0  lam=  3.663  Jc= 0.000  Qc= +0.889  inf=0.000   24.5 ms/step     207s
+[no_projection_s1] ep   31  R= -1712.28  viol= 17  lam=  7.503  Jc= 0.084  Qc= +2.232  inf=0.000   26.8 ms/step     276s
+[no_projection_s1] ep   39  R= -2553.52  viol=  1  lam= 12.516  Jc= 0.000  Qc= +1.942  inf=0.000   31.2 ms/step     346s
+[no_projection_s1] ep   47  R= -2227.58  viol=  0  lam= 18.881  Jc= 0.000  Qc= +2.446  inf=0.000   28.9 ms/step     418s
+[no_projection_s1] ep   55  R= -1563.14  viol= 12  lam= 25.162  Jc= 0.023  Qc= +1.770  inf=0.000   28.3 ms/step     488s
+[no_projection_s1] ep   63  R= -2130.34  viol=  0  lam= 30.226  Jc= 0.000  Qc= +1.907  inf=0.000   23.6 ms/step     554s
+[no_projection_s1] ep   71  R= -1499.22  viol=  0  lam= 34.545  Jc= 0.000  Qc= +1.850  inf=0.000   28.8 ms/step     620s
+[no_projection_s1] ep   79  R= -1554.80  viol=  1  lam= 38.368  Jc= 0.000  Qc= +1.491  inf=0.000   27.8 ms/step     693s
+  -> viol=0.0128  attributable=+0.0128  soc=0.149  cost=$  392.43  lambda=38.3679  (730s)
+
+[no_projection | seed 2] training 80 episodes
+[no_projection_s2] ep    0  R= -3869.06  viol=  1  lam=  0.000  Jc= 0.001  Qc= +0.008  inf=0.000    4.1 ms/step       2s
+[no_projection_s2] ep    7  R= -2264.26  viol=  0  lam=  0.027  Jc= 0.000  Qc= +0.048  inf=0.000   22.4 ms/step      59s
+[no_projection_s2] ep   15  R= -3307.73  viol= 14  lam=  0.223  Jc= 0.046  Qc= +0.123  inf=0.000   24.3 ms/step     121s
+[no_projection_s2] ep   23  R= -3158.53  viol=  6  lam=  0.413  Jc= 0.012  Qc= +0.075  inf=0.000   27.5 ms/step     199s
+[no_projection_s2] ep   31  R= -2556.38  viol=  0  lam=  0.590  Jc= 0.000  Qc= +0.098  inf=0.000   28.3 ms/step     297s
+[no_projection_s2] ep   39  R= -2225.23  viol=  0  lam=  0.763  Jc= 0.000  Qc= +0.092  inf=0.000   27.9 ms/step     366s
+[no_projection_s2] ep   47  R= -2618.73  viol=  4  lam=  0.924  Jc= 0.003  Qc= +0.079  inf=0.000   26.4 ms/step     428s
+[no_projection_s2] ep   55  R= -2090.39  viol=  0  lam=  1.087  Jc= 0.000  Qc= +0.081  inf=0.000   21.5 ms/step     488s
+[no_projection_s2] ep   63  R= -2115.65  viol= 17  lam=  1.266  Jc= 0.082  Qc= +0.093  inf=0.000   27.1 ms/step     548s
+[no_projection_s2] ep   71  R= -1891.04  viol= 18  lam=  1.470  Jc= 0.105  Qc= +0.083  inf=0.000   21.9 ms/step     613s
+[no_projection_s2] ep   79  R= -2764.43  viol= 18  lam=  1.699  Jc= 0.048  Qc= +0.102  inf=0.000   23.3 ms/step     674s
+  -> viol=0.0503  attributable=+0.0503  soc=0.101  cost=$  305.14  lambda=1.6987  (713s)
+
+[projection | seed 0] training 80 episodes
+[projection_s0] ep    0  R= -4063.38  viol=  0  lam=  0.001  Jc= 0.000  Qc= +0.031  inf=0.000   11.4 ms/step       5s
+[projection_s0] ep    7  R= -3114.60  viol=  0  lam=  0.080  Jc= 0.000  Qc= +0.069  inf=0.000   31.0 ms/step      79s
+[projection_s0] ep   15  R= -2139.64  viol=  0  lam=  0.301  Jc= 0.000  Qc= +0.139  inf=0.000   33.3 ms/step     157s
+[projection_s0] ep   23  R= -2069.45  viol=  0  lam=  0.608  Jc= 0.000  Qc= +0.152  inf=0.000   33.0 ms/step     241s
+[projection_s0] ep   31  R= -2113.09  viol=  0  lam=  0.878  Jc= 0.000  Qc= +0.131  inf=0.000   33.3 ms/step     328s
+[projection_s0] ep   39  R= -1599.66  viol=  0  lam=  1.115  Jc= 0.000  Qc= +0.111  inf=0.003   29.7 ms/step     411s
+[projection_s0] ep   47  R= -4138.33  viol=  0  lam=  1.326  Jc= 0.000  Qc= +0.102  inf=0.000   30.8 ms/step     487s
+[projection_s0] ep   55  R= -2025.91  viol=  0  lam=  1.500  Jc= 0.000  Qc= +0.081  inf=0.000   33.4 ms/step     567s
+[projection_s0] convergence criterion met at episode 57
+[projection_s0] ep   63  R= -2069.57  viol=  0  lam=  1.664  Jc= 0.000  Qc= +0.080  inf=0.003   32.5 ms/step     646s
+[projection_s0] ep   71  R= -5067.27  viol=  0  lam=  1.837  Jc= 0.000  Qc= +0.099  inf=0.000   33.5 ms/step     728s
+[projection_s0] ep   79  R= -2471.19  viol=  0  lam=  2.026  Jc= 0.000  Qc= +0.094  inf=0.003   33.1 ms/step     809s
+  -> viol=0.0000  attributable=+0.0000  soc=0.072  cost=$  223.20  lambda=2.0256  (888s)
+
+[projection | seed 1] training 80 episodes
+[projection_s1] ep    0  R= -3284.75  viol=  0  lam=  0.001  Jc= 0.000  Qc= +0.019  inf=0.000   12.2 ms/step       4s
+[projection_s1] ep    7  R= -5581.11  viol=  0  lam=  0.038  Jc= 0.000  Qc= +0.095  inf=0.000   35.1 ms/step      80s
+[projection_s1] ep   15  R= -3557.36  viol=  0  lam=  1.489  Jc= 0.000  Qc= +0.994  inf=0.000   46.2 ms/step     183s
+[projection_s1] ep   23  R= -3336.82  viol=  0  lam=  7.344  Jc= 0.000  Qc= +2.551  inf=0.003   37.0 ms/step     286s
+[projection_s1] ep   31  R= -2157.02  viol=  0  lam= 17.511  Jc= 0.000  Qc= +6.124  inf=0.000   35.2 ms/step     374s
+[projection_s1] ep   39  R= -3354.26  viol=  0  lam= 31.625  Jc= 0.000  Qc= +5.810  inf=0.000   33.3 ms/step     459s
+[projection_s1] ep   47  R= -1762.70  viol=  0  lam= 50.941  Jc= 0.000  Qc= +8.135  inf=0.000   30.6 ms/step     538s
+[projection_s1] ep   55  R= -5474.09  viol=  0  lam= 76.354  Jc= 0.000  Qc=+10.245  inf=0.000   29.5 ms/step     614s
+[projection_s1] ep   63  R= -4744.06  viol=  0  lam=110.356  Jc= 0.000  Qc=+16.206  inf=0.000   29.0 ms/step     695s
+[projection_s1] ep   71  R=  -851.90  viol=  0  lam=156.709  Jc= 0.000  Qc=+23.904  inf=0.003   31.3 ms/step     773s
+[projection_s1] ep   79  R= -1262.24  viol=  0  lam=210.033  Jc= 0.000  Qc=+23.826  inf=0.000   34.1 ms/step     877s
+  -> viol=0.0000  attributable=+0.0000  soc=0.146  cost=$  244.82  lambda=210.0327  (976s)
+
+[projection | seed 2] training 80 episodes
+[projection_s2] ep    0  R= -3926.48  viol=  0  lam=  0.000  Jc= 0.000  Qc= +0.008  inf=0.000   10.3 ms/step       4s
+[projection_s2] ep    7  R= -2743.46  viol=  0  lam=  0.431  Jc= 0.000  Qc= +0.563  inf=0.000   34.5 ms/step      75s
+[projection_s2] ep   15  R= -1994.92  viol=  0  lam=  1.716  Jc= 0.000  Qc= +0.978  inf=0.003   32.4 ms/step     157s
+[projection_s2] ep   23  R= -3029.99  viol=  0  lam=  4.692  Jc= 0.000  Qc= +1.196  inf=0.003   31.3 ms/step     239s
+[projection_s2] ep   31  R= -2775.65  viol=  0  lam=  7.539  Jc= 0.000  Qc= +2.205  inf=0.000   35.6 ms/step     324s
+[projection_s2] ep   39  R= -3567.86  viol=  0  lam= 16.203  Jc= 0.000  Qc= +6.091  inf=0.000   32.7 ms/step     408s
+[projection_s2] ep   47  R= -3925.23  viol=  0  lam= 30.705  Jc= 0.000  Qc= +6.800  inf=0.000   31.1 ms/step     485s
+[projection_s2] convergence criterion met at episode 51
+[projection_s2] ep   55  R= -4025.68  viol=  0  lam= 48.400  Jc= 0.000  Qc= +8.058  inf=0.003   32.8 ms/step     573s
+[projection_s2] ep   63  R= -2963.76  viol=  0  lam= 72.068  Jc= 0.000  Qc=+12.381  inf=0.000   32.6 ms/step     688s
+[projection_s2] ep   71  R= -3806.07  viol=  0  lam=108.070  Jc= 0.000  Qc=+14.696  inf=0.000   35.7 ms/step     775s
+[projection_s2] ep   79  R= -2893.39  viol=  0  lam=162.423  Jc= 0.000  Qc=+22.606  inf=0.000   35.0 ms/step     863s
+  -> viol=0.0000  attributable=+0.0000  soc=0.014  cost=$   93.62  lambda=162.4235  (941s)
+
+==============================================================================
+STAGE 1 PILOT -- mean +- sd across seeds
+==============================================================================
+arm                   viol   attributable   SoC met   net cost    lambda
+no_projection    0.0230+-0.019    +0.0230+-0.019  0.084+-0.06  273.14+-112.8 17.234+-15.48
+projection       0.0000+-0.000    +0.0000+-0.000  0.077+-0.05  187.21+-66.8124.827+-88.98
+
+projection - no_projection:  SoC -0.0071   violations -0.0230
+thesis reported SoC +0.2921 for the same contrast (unequal budgets, lambda pinned at 0 in the baseline)
+
+------------------------------------------------------------------------------
+  no_projection    seed 0:  lambda_final= 11.6362  mean J_C= 0.0130  corr(lambda, J_C)=+0.224
+  no_projection    seed 1:  lambda_final= 38.3679  mean J_C= 0.0166  corr(lambda, J_C)=+0.139
+  no_projection    seed 2:  lambda_final=  1.6987  mean J_C= 0.0213  corr(lambda, J_C)=+0.381
+  projection       seed 0:  lambda_final=  2.0256  mean J_C= 0.0000  corr(lambda, J_C)=+nan
+  projection       seed 1:  lambda_final=210.0327  mean J_C= 0.0000  corr(lambda, J_C)=+nan
+  projection       seed 2:  lambda_final=162.4235  mean J_C= 0.0000  corr(lambda, J_C)=+nan
+
+Gate 1a -- lambda leaves zero in every run: PASS
+Gate 1b -- lambda vs realised cost, mean corr over runs with any violation: +0.248 (n=3)
+wrote results/ablation/ablation.json

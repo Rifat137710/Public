@@ -188,7 +188,31 @@ shrinks or vanishes — that is the finding, and better to learn it now.*
 > | 3 | B1 reward | **done** — loss term off in `stage1()`. Objective is now service-dominated (user > cost > degradation), which is what the abstract claims. |
 > | 4 | B3 refresh cadence | **done** — `sensitivity_refresh_steps` is a config parameter with a test pinning {1: 288, 12: 24, 288: 1} refreshes/episode. Default stays 12 (hourly); the claim of per-step refresh was the error, not the value. |
 > | 5 | A4 exogenous | **done** — `evaluate.attributable()` reports paired excess over a zero-injection run with a 95 % CI. |
-> | 6 | A1 fair ablation | **running** — `scripts/run_ablation.py`, 3 seeds × 80 episodes, arms identical but for the projection. |
+> | 6 | A1 fair ablation | **runner done, pilot inconclusive at 80 episodes — rerunning at 250.** |
+>
+> **80-episode pilot, 3 seeds, arms identical but for the projection:**
+>
+> | arm | violations | attributable | SoC met | net cost | λ final |
+> |---|---|---|---|---|---|
+> | no projection | 0.0230 ± 0.019 | +0.0230 | 0.084 ± 0.06 | $273.14 | 17.2 ± 15.5 |
+> | projection | **0.0000 ± 0.000** | +0.0000 | 0.077 ± 0.05 | $187.21 | 124.8 ± 89.0 |
+>
+> **Safety result is real and clean.** The projection removes violations entirely,
+> 0.0230 → 0.0000, and because the idle floor at this operating point is exactly zero
+> every one of those 0.0230 is attributable to the controller. This is the first time the
+> projection's safety benefit has been measured against a matched baseline.
+>
+> **The service result is not yet decidable, and must not be read as a null.** Both arms
+> reach SoC ≈ 0.08 against uncoordinated's 0.804 — neither has learned the basic task.
+> Rewards are still non-monotonic at episode 80 and three of six runs were *worse* in
+> their final quarter. Comparing two under-trained policies says nothing about the
+> +0.292 claim, so the Stage 3 gate is **not** invoked on this. Rerunning at 250 episodes.
+>
+> **λ is unstable enough to question the machinery.** Final values across three seeds in
+> the projection arm: 2.03 / 210.03 / 162.42 — while realised J_C is *identically zero*
+> in all three, because the projection prevents the violations. A multiplier running to
+> 210 with nothing to penalise is the extrapolation failure of audit A2 in its clearest
+> form: the sign is fixed, the magnitude is still noise.
 >
 > **Gate 1 is split in two,** because the original wording conflates two claims that
 > measurably come apart. *1a: λ leaves zero in every run.* *1b: λ tracks realised J_C.*
