@@ -112,16 +112,41 @@ the shipped checkpoints, and `pytest` is green.
 
 ### Stage 1 — Correctness (weeks 2–3)
 
-**Operating-point decision, settled by measurement (audit A4): move to `load_scale = 0.40`.**
-It is the only scale where the idle feeder is fully compliant (0/288 violating steps) *and*
-full-rate charging genuinely violates (0.0868). At the thesis's 0.50 the idle floor is
-0.1007 — higher than the reported SafeSAC and SAC-Lag rates, so the published safety
-comparison is ~92 % background. 0.40 is also the operating point Table 5.3's projection
-numbers were computed at, so the move resolves audit B2 at the same time.
+#### Operating-point decision, settled by measurement
 
-Consequence to plan for: at 0.40 the violation *rates* will be much smaller and the
-constraint will bind only under aggressive charging. That is the point — it makes every
-violation attributable. Expect the headline numbers to change substantially.
+**Background load `load_scale = 0.40`, EV penetration ~30 vehicles/station/day.**
+
+Two separate measurements, both on the shipped evaluation seeds.
+
+*First*, the background load has to come down. At the thesis's 0.50 the idle feeder already
+violates 9.47 % of steps, above the published SafeSAC (0.0912) and SAC-Lag (0.0904) — the
+safety comparison is ~96 % background (audit A4). At 0.40 the idle floor is exactly zero, so
+every violation is caused by a charging decision. 0.40 is also where Table 5.3's projection
+numbers were computed, so the move resolves audit B2 too.
+
+*Second*, at 0.40 with the thesis's fleet the problem becomes trivial — uncoordinated
+charging violates only 0.63 % of steps and droop violates none. So raise **EV penetration**
+rather than background load. That keeps the idle floor at zero while restoring difficulty,
+and it reframes the study as an EV-hosting-capacity question, which is what the paper is
+actually about:
+
+| EVs/station/day | idle | uncoordinated | | droop (1547) | |
+|---|---|---|---|---|---|
+| | viol | viol | SoC met | viol | SoC met |
+| 10 (thesis) | 0.0000 | 0.0063 | 0.995 | 0.0000 | 0.326 |
+| 20 | 0.0000 | 0.0363 | 0.935 | 0.0000 | 0.043 |
+| **30** | **0.0000** | **0.0648** | **0.830** | **0.0000** | **0.006** |
+| 40 | 0.0000 | 0.0722 | 0.638 | 0.0000 | 0.004 |
+
+At 30 the two heuristics bracket a wide, honest Pareto gap: droop is perfectly safe and
+almost useless (0.006 of targets met), uncoordinated serves 0.830 but violates 6.5 % of
+steps. A learned controller finally has somewhere to go that neither heuristic reaches —
+which is precisely what the thesis's operating point denied it. And because the idle floor
+is zero, every violation it does incur is its own.
+
+This also fixes audit B4 structurally rather than rhetorically: at 30 EVs/station, beating
+droop no longer means beating an unbeatable violation rate, it means delivering service that
+droop cannot while staying near its safety.
 
 Fix, in this order, with a test for each:
 
