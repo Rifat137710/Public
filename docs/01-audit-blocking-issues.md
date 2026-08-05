@@ -117,28 +117,27 @@ at fixed power:
 | **load scale 0.50 (thesis)** | **0.1007** | 0.1424 | 0.2500 | 0.0000 |
 
 At the thesis operating point, **10.07 % of steps violate with the chargers switched off**
-(11.46 % at weekends). Set that against the published results:
+(11.46 % at weekends).
 
-| method | reported rate | **relative to the 0.1007 idle floor** |
+**Measured properly**: running a `ZeroAgent` (chargers idle) over the *exact 25 evaluation
+seeds* used for Table 6.1 gives an idle floor of **0.0947 ± paired**, Vmin 0.9438:
+
+| method | reported rate | **relief vs the 0.0947 idle floor** |
 |---|---|---|
-| Uncoordinated | 0.1156 | +0.0149 |
-| SAC-Lag (weak) | 0.0904 | −0.0103 |
-| SafeSAC (weak) | 0.0912 | −0.0095 |
-| **Droop (1547)** | **0.0521** | **−0.0486** |
-
-(Referenced to the weekday floor. The 25 evaluation seeds mix weekdays and weekends, so the
-effective floor is nearer 0.105 and the relief figures shift by ~0.005 — the ordering and
-the order of magnitude do not change. Stage 1 will compute the per-episode floor exactly,
-seed by seed, as a paired reference.)
+| Uncoordinated | 0.1156 | **+0.0208** (± 0.0018 SE, paired) |
+| SafeSAC (weak) | 0.0912 | −0.0035 |
+| SAC-Lag (weak) | 0.0904 | −0.0043 |
+| **Droop (1547)** | **0.0521** | **−0.0426** (± 0.0019 SE, paired) |
 
 Two consequences, both severe:
 
 1. The entire between-method spread rides on a background the controller did not cause.
-   The headline "SafeSAC matches SAC-Lag on safety, 0.0912 vs 0.0904, p = 0.86" compares two
-   numbers that are ~92 % identical background. The 0.0008 difference is 0.8 % of the floor.
-2. Measured *properly* — as violation relief below the idle floor — **droop delivers about
-   five times more voltage relief than either learned controller** (−0.0486 vs −0.010).
-   The current framing hides this behind a Pareto label. See B4.
+   The published "SafeSAC matches SAC-Lag on safety, 0.0912 vs 0.0904" compares two numbers
+   that are ~96 % identical idle background. Both learned agents move the violation rate by
+   about **0.4 percentage points** relative to doing nothing.
+2. Measured as relief below the idle floor, **droop delivers roughly ten times more voltage
+   relief than either learned controller** (−0.0426 vs −0.0035/−0.0043). The current framing
+   hides this behind a Pareto label. See B4.
 
 **The fix is clean, and the right operating point is 0.40.** It is the only scale in the
 family where the idle feeder is fully compliant (0/288 steps) *and* full-rate charging
