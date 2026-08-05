@@ -14,7 +14,13 @@ import numpy as np
 import pytest
 
 from safesac.agents import DroopAgent, UncoordinatedAgent, ZeroAgent
-from safesac.config import ExperimentConfig, derive_seed, eval_episode_seed, train_episode_seed
+from safesac.config import (
+    MASTER_SEED,
+    ExperimentConfig,
+    derive_seed,
+    eval_episode_seed,
+    train_episode_seed,
+)
 from safesac.env import ChargingFeederEnv, compute_reward
 from safesac.evaluate import evaluate
 from safesac.scenario import sample_fleet
@@ -166,3 +172,75 @@ def test_evaluation_is_deterministic(cfg):
         agg = evaluate(DroopAgent(env), env, cfg, n_episodes=3, run_label=EVAL_LABEL)["aggregate"]
         results.append(agg["total_reward_mean"])
     assert results[0] == results[1]
+
+
+# --- audit A4: violations attributable to the controller --------------------
+
+
+def test_attributable_violations_subtract_the_idle_feeder():
+    """A raw violation rate at load 0.50 is ~96 % background, not control."""
+    from safesac.evaluate import attributable
+
+    cfg = ExperimentConfig.thesis_final("weak")
+    env = ChargingFeederEnv(cfg)
+    zero = evaluate(ZeroAgent(env), env, cfg, n_episodes=5, run_label=EVAL_LABEL)
+    uncoord = evaluate(
+        UncoordinatedAgent(env), env, cfg, n_episodes=5, run_label=EVAL_LABEL
+    )
+
+    attr = attributable(uncoord["per_episode"], zero["per_episode"])
+    raw = uncoord["aggregate"]["voltage_violation_step_rate_mean"]
+    excess = attr["voltage_violation_step_rate_excess_mean"]
+
+    assert attr["n_episodes"] == 5
+    assert attr["voltage_violation_step_rate_baseline_mean"] > 0.09
+    assert 0.0 < excess < raw
+    # Most of the headline number is the feeder, not the charging.
+    assert excess / raw < 0.25
+    assert (
+        attr["voltage_violation_step_rate_excess_ci95_lo"]
+        <= excess
+        <= attr["voltage_violation_step_rate_excess_ci95_hi"]
+    )
+
+
+def test_attributable_is_zero_against_itself():
+    from safesac.evaluate import attributable
+
+    cfg = ExperimentConfig.stage1("weak")
+    env = ChargingFeederEnv(cfg)
+    run = evaluate(ZeroAgent(env), env, cfg, n_episodes=3, run_label=EVAL_LABEL)
+    attr = attributable(run["per_episode"], run["per_episode"])
+    assert attr["voltage_violation_step_rate_excess_mean"] == 0.0
+
+
+def test_attributable_rejects_unpaired_runs():
+    from safesac.evaluate import attributable
+
+    with pytest.raises(ValueError, match="unpaired"):
+        attributable([{"voltage_violation_step_rate": 0.1}], [])
+
+
+def test_stage1_removes_the_loss_term_from_the_objective():
+    """Audit B1: the feeder-loss term is not what the abstract optimises."""
+    cfg = ExperimentConfig.stage1("weak")
+    env = ChargingFeederEnv(cfg)
+    agent = UncoordinatedAgent(env)
+
+    totals = {"cost": 0.0, "user": 0.0, "deg": 0.0, "loss": 0.0}
+    for ep in range(3):  # the split is seed-dependent; average a few
+        obs, info = env.reset(seed=eval_episode_seed(MASTER_SEED, ep, EVAL_LABEL))
+        for _ in range(env.scenario.n_steps):
+            obs, _, terminated, truncated, info = env.step(agent.select_action(obs))
+            for k in totals:
+                totals[k] += info.reward_components.get(k, 0.0)
+            if terminated or truncated:
+                break
+
+    assert totals["loss"] == 0.0
+    # Service is the dominant term and money is second -- which is the ordering
+    # the abstract claims and the thesis's objective did not have.
+    ranked = sorted(totals, key=lambda k: abs(totals[k]), reverse=True)
+    assert ranked[0] == "user"
+    assert ranked[1] == "cost"
+    assert abs(totals["cost"]) / sum(abs(v) for v in totals.values()) > 0.15

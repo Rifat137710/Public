@@ -185,3 +185,43 @@ def evaluate(agent, env, cfg: ExperimentConfig, *, n_episodes: int, run_label: s
         roll = collect_rollout(agent, env, seed=seed, deterministic=True)
         per_episode.append(compute_metrics(cfg, roll))
     return {"aggregate": aggregate(per_episode), "per_episode": per_episode}
+
+
+def attributable(
+    method: List[Dict[str, float]],
+    baseline: List[Dict[str, float]],
+    keys=("voltage_violation_step_rate", "voltage_violation_magnitude_pu"),
+) -> Dict[str, float]:
+    """Paired excess of a method over a zero-injection run on the same seeds.
+
+    Audit item A4. A raw violation rate mixes what the controller caused with
+    what the feeder was going to do anyway; at the thesis operating point the
+    idle feeder alone violates 9.47 % of steps, so ~96 % of the headline number
+    is exogenous and the published ranking is mostly noise about the background.
+    Subtracting the paired zero-injection run leaves only what the charging
+    decisions are responsible for -- which can be negative, meaning the
+    controller actively helped.
+
+    `method` and `baseline` must be the per-episode lists from `evaluate` runs
+    that used the same `run_label` and episode count.
+    """
+    if len(method) != len(baseline):
+        raise ValueError(f"unpaired: {len(method)} vs {len(baseline)} episodes")
+
+    out: Dict[str, float] = {"n_episodes": len(method)}
+    for key in keys:
+        d = np.asarray(
+            [m[key] - b[key] for m, b in zip(method, baseline)], dtype=np.float64
+        )
+        n = d.size
+        mean = float(d.mean())
+        # Paired-difference CI; ddof=1 because this is a sample of episodes.
+        sem = float(d.std(ddof=1) / np.sqrt(n)) if n > 1 else 0.0
+        out[f"{key}_excess_mean"] = mean
+        out[f"{key}_excess_std"] = float(d.std(ddof=1)) if n > 1 else 0.0
+        out[f"{key}_excess_ci95_lo"] = mean - 1.96 * sem
+        out[f"{key}_excess_ci95_hi"] = mean + 1.96 * sem
+        out[f"{key}_baseline_mean"] = float(
+            np.mean([b[key] for b in baseline])
+        )
+    return out

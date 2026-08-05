@@ -79,6 +79,9 @@ class EpisodeRecord:
     lambda_lagrange: float
     alpha: float
     mean_qc: float
+    realised_cost: float
+    """Undiscounted sum of the per-step constraint cost -- the quantity the
+    Lagrangian is supposed to be driving down, which the thesis never logged."""
     projection_infeasible_rate: float
     projection_frozen_step_rate: float
 
@@ -100,7 +103,8 @@ class TrainResult:
 
 _CSV_HEADER = (
     "episode_idx,seed,total_reward,n_steps,n_violation_steps,pf_failures,"
-    "mean_step_ms,lambda,alpha,mean_qc,proj_infeasible_rate,proj_frozen_rate\n"
+    "mean_step_ms,lambda,alpha,mean_qc,realised_cost,proj_infeasible_rate,"
+    "proj_frozen_rate\n"
 )
 
 
@@ -157,6 +161,7 @@ def train(
 
         ep_t0 = time.perf_counter()
         total_r = 0.0
+        realised_cost = 0.0
         n_viol = pf_fail = n_steps = 0
         last_metrics: Dict[str, float] = {}
 
@@ -172,6 +177,7 @@ def train(
                     last_metrics = m
 
             total_r += reward
+            realised_cost += info.constraint_cost
             if info.constraint_cost > 1e-4:
                 n_viol += 1
             if not info.pf_converged:
@@ -201,6 +207,7 @@ def train(
             lambda_lagrange=float(getattr(agent, "lambda_lagrange", 0.0)),
             alpha=float(getattr(agent, "alpha", 0.0)),
             mean_qc=float(last_metrics.get("mean_qc", float("nan"))),
+            realised_cost=realised_cost,
             projection_infeasible_rate=inf_rate,
             projection_frozen_step_rate=frz_rate,
         )
@@ -212,7 +219,7 @@ def train(
                     f"{rec.episode_idx},{rec.seed},{rec.total_reward:.6f},{rec.n_steps},"
                     f"{rec.n_violation_steps},{rec.pf_failures},{rec.mean_step_ms:.3f},"
                     f"{rec.lambda_lagrange:.6f},{rec.alpha:.6f},{rec.mean_qc:.6f},"
-                    f"{rec.projection_infeasible_rate:.6f},"
+                    f"{rec.realised_cost:.6f},{rec.projection_infeasible_rate:.6f},"
                     f"{rec.projection_frozen_step_rate:.6f}\n"
                 )
 
@@ -223,7 +230,8 @@ def train(
         ):
             print(
                 f"[{tc.run_label}] ep {episode_idx:4d}  R={total_r:9.2f}  viol={n_viol:3d}  "
-                f"lam={rec.lambda_lagrange:7.3f}  a={rec.alpha:6.3f}  "
+                f"lam={rec.lambda_lagrange:7.3f}  Jc={realised_cost:6.3f}  "
+                f"Qc={rec.mean_qc:+7.3f}  "
                 f"inf={inf_rate:.3f}  {mean_step_ms:5.1f} ms/step  "
                 f"{time.perf_counter() - wall_t0:6.0f}s"
             )

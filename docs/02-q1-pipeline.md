@@ -177,6 +177,25 @@ Fix, in this order, with a test for each:
 measured; the sign convention test passes. *Report the pilot numbers even if the SoC effect
 shrinks or vanishes — that is the finding, and better to learn it now.*
 
+> **Progress.** Items 1–5 landed; item 6 (the pilot) is the remaining gate.
+>
+> | # | item | status |
+> |---|---|---|
+> | — | operating point | **settled and measured**: `ExperimentConfig.stage1()`, load 0.40, 30 EV/stn. Idle floor exactly 0.0000; uncoordinated 0.0626 / SoC 0.804; droop 0.0000 / SoC 0.005. |
+> | — | projection margin | **chosen by measurement**, not inherited. Margin 0 leaves 3.1 % of steps violating from linearisation error alone; 0.010 is the smallest margin reaching zero, and is satisfiable here (0.17 % infeasible) unlike at the thesis operating point (12.5 %). |
+> | 1 | A3 sign convention | **done** — `high_pv_overvoltage()` adds the missing upper-bound V2G experiment. Gap 67.62 kW vs the published 25.865 kW, and it exercises the reactive channel (−95.4 kvar) for the first time. |
+> | 2 | A2 cost critic | **done** — cause identified (critic negative on a non-negative target, λ pinned at its floor); `clamp_cost_critic` fixes it, and disabling it reproduces the pathology on 1 of 2 seeds. λ, Q_C and realised J_C now logged per episode. |
+> | 3 | B1 reward | **done** — loss term off in `stage1()`. Objective is now service-dominated (user > cost > degradation), which is what the abstract claims. |
+> | 4 | B3 refresh cadence | **done** — `sensitivity_refresh_steps` is a config parameter with a test pinning {1: 288, 12: 24, 288: 1} refreshes/episode. Default stays 12 (hourly); the claim of per-step refresh was the error, not the value. |
+> | 5 | A4 exogenous | **done** — `evaluate.attributable()` reports paired excess over a zero-injection run with a 95 % CI. |
+> | 6 | A1 fair ablation | **running** — `scripts/run_ablation.py`, 3 seeds × 80 episodes, arms identical but for the projection. |
+>
+> **Gate 1 is split in two,** because the original wording conflates two claims that
+> measurably come apart. *1a: λ leaves zero in every run.* *1b: λ tracks realised J_C.*
+> A cost critic fitted where violations are rare can push λ up while J_C stays at zero —
+> observed at 0.81 with J_C ≈ 0. Reporting λ alone as evidence of constraint satisfaction
+> is the same error the thesis made, in the opposite direction.
+
 ---
 
 ### Stage 2 — Throughput — **power-flow path DONE**

@@ -62,8 +62,17 @@ class AgentHParams:
     """Audit A2. The cost critic is regressed on a non-negative cost, so its
     output should be non-negative too; unclamped it can go negative and drive
     the Lagrange multiplier to the ``max(0, .)`` floor, which is where both
-    shipped SAC-Lag checkpoints sit (lambda = 0.0 exactly). Enabling this makes
-    the baseline's constraint mechanism actually engage."""
+    shipped SAC-Lag checkpoints sit (lambda = 0.0 exactly). Measured on
+    `saclag_weak_v2`: realised episode cost 0.2609, but Q_C averages -0.7434 and
+    sits below the 0.01 threshold on 73 % of steps, so
+    ``lambda <- max(0, lambda + lr * (Q_C - 0.01))`` can never leave zero."""
+
+    alpha_ceiling: Optional[float] = None
+    """Audit A1/B5. The thesis capped the entropy temperature at 1.0, but only
+    from Patch 6 onward -- so `safesac_*_v3` trained under the cap and
+    `saclag_strong_v2` did not, finishing at alpha = 19.4 with a near-uniform
+    policy. That checkpoint is the "collapse" baseline in the cross-deployment
+    claim. Any fair ablation must apply the same value to every arm."""
 
     projection_skip_when_feasible: bool = False
     """The feasibility pre-check the thesis wrote as Patch 4 and then commented
@@ -338,6 +347,9 @@ class SACLagAgent(BaseAgent):
         self.alpha_optim.zero_grad()
         alpha_loss.backward()
         self.alpha_optim.step()
+        if self.hp.alpha_ceiling is not None:
+            with torch.no_grad():
+                self.log_alpha.data.clamp_(max=math.log(self.hp.alpha_ceiling))
 
         with torch.no_grad():
             cv = float(qc_new.mean().item()) - self.hp.constraint_threshold

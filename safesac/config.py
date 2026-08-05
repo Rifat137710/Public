@@ -196,6 +196,76 @@ class ExperimentConfig:
             scenario=ScenarioConfig(load_scale=0.40),
         )
 
+    @classmethod
+    def stage1(cls, variant: str = "weak", evs_per_station: float = 30.0) -> "ExperimentConfig":
+        """The operating point every Stage 1+ experiment runs at.
+
+        Load scale 0.40 puts the idle feeder at zero violating steps, so every
+        violation belongs to a charging decision (audit A4). Difficulty then
+        comes from EV penetration rather than background load, which keeps that
+        property and reframes the study as hosting capacity: at 30 vehicles per
+        station per day the heuristics bracket a wide Pareto gap that neither
+        one closes.
+
+        The feeder-loss reward term is off here -- it was 51.6 % of the reward
+        magnitude and is not what the abstract claims to optimise (audit B1).
+
+        The projection margin stays at 0.010 pu, but now because it was measured
+        rather than inherited. Against a worst-case full-charge request at this
+        operating point (`scripts/characterize_operating_point.py`):
+
+            margin   infeasible   realised violations   SoC met
+            0.000      0.0000           0.0312           0.810
+            0.005      0.0000           0.0003           0.786
+            0.010      0.0017           0.0000           0.721
+            0.020      0.1684           0.0000           0.611
+
+        Margin 0 shows what the margin is for: first-order sensitivities alone
+        leave 3.1 % of steps violating once the AC solve catches up. 0.010 is the
+        smallest margin that drives realised violations to zero, and unlike the
+        thesis's operating point -- where the same 0.010 was infeasible on 12.5 %
+        of steps -- it is essentially always satisfiable here.
+        """
+        return cls(
+            feeder=FeederConfig(variant=variant),
+            fleet=FleetConfig(
+                size_per_station_mean=evs_per_station,
+                size_per_station_std=evs_per_station * 0.20,
+            ),
+            scenario=ScenarioConfig(load_scale=0.40),
+            reward=RewardConfig(include_loss_term=False),
+        )
+
+    @classmethod
+    def high_pv_overvoltage(cls, variant: str = "weak") -> "ExperimentConfig":
+        """The V2G-safety case the thesis claims but never ran (audit A3).
+
+        Every projection result in the thesis curtails *charging* against the
+        lower bound; the abstract describes it as curtailing a V2G request. On
+        this testbed V2G cannot cause a lower-bound violation at all, so the
+        stated claim had no supporting experiment.
+
+        This is the operating point where it does hold: light load (0.20), a
+        high-PV feeder (500 kW at each of three PV buses, ~2x the coincident
+        load) and 320 kVA V2G hubs -- four 80 kW bidirectional chargers apiece.
+
+        Idle Vmax is 1.0230, comfortably inside even the margin-tightened upper
+        bound of 1.040. Full V2G injection at all four stations lifts it to
+        1.0538: a breach *caused by the injection itself*, which the projection
+        must curtail against the 1.05 pu **upper** bound. That is the mirror
+        image of every projection result the thesis actually published, all of
+        which curtail charging against the lower bound.
+        """
+        return cls(
+            feeder=FeederConfig(
+                variant=variant,
+                pv_rated_kw=(500.0, 500.0, 500.0),
+                ev_station_kva=320.0,
+            ),
+            scenario=ScenarioConfig(load_scale=0.20),
+            reward=RewardConfig(include_loss_term=False),
+        )
+
     def with_(self, **kwargs) -> "ExperimentConfig":
         return replace(self, **kwargs)
 

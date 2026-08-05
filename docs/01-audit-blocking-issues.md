@@ -55,17 +55,53 @@ So the paper's "state-of-the-art learned baseline, precisely the AL-SAC formulat
 Chen et al." is, as executed, **plain SAC**. Every comparison to the AL-SAC literature is
 mislabelled.
 
-Why does SafeSAC's λ rise instead? Its replay stores `action_exec` = the *projected*
-action, and the cost critic is trained on that — but the actor update queries
-`Q_C(s, a_raw)` at the *unprojected* sample. The cost critic is evaluated off its own
-training distribution. λ = 17.3 is an artefact of that mismatch, not evidence the
-constraint is being tracked.
+### Measured directly, on a rollout from the shipped checkpoints
 
-**Fix.** (i) clamp the cost target at 0; (ii) decide and document one consistent
-convention — either train and query the cost critic on raw actions (the projection is then
-an environment property) or on executed actions (and update the actor through the
-projection); (iii) log λ, Q_C, and realised J_C per episode and *show* the constraint being
-tracked. Then re-verify that SAC-Lag actually behaves like AL-SAC.
+The multiplier update is `λ ← max(0, λ + lr·(Q_C − 0.01))`, so λ can only leave zero if
+the cost critic exceeds the threshold. It does not:
+
+| checkpoint | realised J_C (episode) | mean Q_C | min Q_C | % steps below threshold | λ |
+|---|---|---|---|---|---|
+| `saclag_weak_v2` | **0.2609** | **−0.7434** | −7.62 | **72.9 %** | **0.0** |
+| `safesac_weak_v3` | 0.6119 | +1.4954 | +0.43 | 0.0 % | 17.32 |
+
+The constraint cost is a sum of non-negative band excursions, so the *true* Q_C is
+positive — the realised cost proves it. The baseline's fitted critic nonetheless averages
+−0.74. λ is therefore pinned at its floor permanently, and the failure is self-sustaining:
+λ = 0 means no pressure to reduce cost, so nothing ever corrects the critic.
+
+Note the two realised costs are comparable and **SafeSAC's is the higher of the two**. The
+0-vs-17 gap in λ is a difference in the *sign of a fitted critic*, not a difference in
+constraint satisfaction.
+
+The raw/executed mismatch is real but is **not** the cause: on the same rollout,
+`Q_C(s, a_raw)` and `Q_C(s, a_exec)` differ by about 1 %, nowhere near enough to explain
+0 vs 17.
+
+### The fix works, and reproduces the pathology when disabled
+
+Two SAC-Lag runs at the Stage 1 operating point, identical but for the clamp
+(`scripts/lambda_diagnostic.py`, 15 episodes):
+
+| | seed 0 | seed 1 |
+|---|---|---|
+| unclamped | λ = 1.424, Q_C = +1.35 | **λ = 0.0, Q_C = −0.63 — pinned** |
+| clamped | λ = 0.809, Q_C = +0.53 | λ = 0.306, Q_C = +0.13 |
+
+Unclamped seed 1 reproduces the thesis failure exactly, and does so while its final
+episode registers **21 violating steps and J_C = 0.117** — real violations, multiplier at
+zero. With the clamp, every run engages.
+
+**One caveat that must go in the paper.** λ does not *track* the realised cost even when it
+engages: clamped seed 0 climbs to 0.81 while J_C stays at ~0. The multiplier responds to
+Q_C, and where violations are rare Q_C is dominated by off-distribution extrapolation. So
+λ > 0 is necessary but not sufficient — reporting λ as evidence of constraint satisfaction
+is exactly the error the thesis made in the other direction.
+
+**Fix.** (i) clamp the cost target at 0 — done, `AgentHParams.clamp_cost_critic`;
+(ii) log λ, Q_C and realised J_C per episode — done, `EpisodeRecord`; (iii) report the
+λ–J_C correlation, not λ alone; (iv) apply identical stabilisers to both arms
+(`alpha_ceiling`, learning rates), which the thesis did not.
 
 ---
 
@@ -100,6 +136,32 @@ every station produces **zero** violations at every load scale tested, 0.35 thro
 On this testbed V2G literally cannot cause a lower-bound violation — so the projection is
 never exercised on a V2G request anywhere in the paper. Without a high-PV / light-load
 overvoltage case, the V2G-safety claim has no supporting experiment at all.
+
+### The missing experiment now exists — `ExperimentConfig.high_pv_overvoltage()`
+
+Light load (0.40 → 0.20), high PV (500 kW at each of three PV buses, ~2× the coincident
+load) and 320 kVA V2G hubs (four 80 kW bidirectional chargers each). Idle Vmax is **1.0230**,
+comfortably inside even the margin-tightened 1.040 bound. Full V2G injection at all four
+stations lifts it to **1.0538** — a breach *caused by the injection itself*.
+
+Linearising about the exporting state, a full +320 kW/station request projects to:
+
+| feeder | safe P (kW) | safe Q (kvar) | Vmax before → after |
+|---|---|---|---|
+| weak | 208.5 / 310.8 / 306.1 / 292.5 | −95.4 / −4.8 / −7.3 / −18.5 | 1.0538 → 1.0398 |
+| strong | 276.2 / 319.6 / 317.6 / 311.7 | −38.3 / −0.2 / −1.3 / −5.9 | 1.0450 → 1.0400 |
+
+Two things this buys that the published Table 5.3 does not:
+
+- **Grid-awareness gap ‖·‖∞ = 67.62 kW**, against 25.865 kW for the published charging
+  case — the weak feeder needs 2.6× more curtailment, and on the mechanism the paper is
+  actually about.
+- **The reactive channel is exercised.** The layer absorbs up to −95.4 kvar at the worst
+  station; every published projection result has Q ≈ 0. This is the P–Q coordination the
+  method claims and never demonstrated.
+
+Only the weak feeder breaches the hard 1.05 bound; the strong one exceeds the tightened
+1.040 and is curtailed but stays compliant. That asymmetry is itself the transfer story.
 
 ---
 

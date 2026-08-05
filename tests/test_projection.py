@@ -144,3 +144,130 @@ def test_thesis_operating_point_makes_the_projection_infeasible():
 
 def test_clean_operating_point_keeps_the_projection_feasible():
     assert _daily_infeasibility_rate(0.40, 0.010) == 0.0
+
+
+# --- audit item A3: the missing V2G upper-bound experiment ------------------
+
+
+def _high_pv_state(v2g_kw: float):
+    cfg = ExperimentConfig.high_pv_overvoltage("weak")
+    feeder = build_feeder(cfg.feeder)
+    scale_loads(feeder, cfg.scenario.load_scale)
+    set_pv_power(feeder, np.array(cfg.feeder.pv_rated_kw))
+    set_station_power(feeder, np.full(4, v2g_kw), np.zeros(4))
+    solver = RadialPowerFlow(feeder)
+    return cfg, feeder, solver, solver.solve()
+
+
+def test_v2g_injection_causes_the_upper_bound_breach():
+    """Idle is compliant; the V2G request itself is what breaks the band."""
+    cfg = ExperimentConfig.high_pv_overvoltage("weak")
+    _, _, _, idle = _high_pv_state(0.0)
+    _, _, _, full = _high_pv_state(cfg.feeder.ev_station_kva)
+
+    tightened = cfg.safety.voltage_upper_pu - cfg.safety.projection_margin_pu
+    assert idle.v_pu.max() == pytest.approx(1.0230, abs=1e-3)
+    assert idle.v_pu.max() < tightened, "idle must sit inside the band the projector enforces"
+    assert full.v_pu.max() == pytest.approx(1.0538, abs=1e-3)
+    assert full.v_pu.max() > cfg.safety.voltage_upper_pu
+
+
+# The upper-bound analogue of published Table 5.3, linearised about a hub that
+# is already exporting at full rate -- so the voltage constraint binds rather
+# than the ramp limiter.
+UPPER_BOUND_SAFE_P = {
+    "weak": [208.535, 310.823, 306.053, 292.546],
+    "strong": [276.152, 319.621, 317.592, 311.657],
+}
+
+
+def _project_full_export(variant: str):
+    cfg = ExperimentConfig.high_pv_overvoltage(variant)
+    rated = cfg.feeder.ev_station_kva
+    feeder = build_feeder(cfg.feeder)
+    scale_loads(feeder, cfg.scenario.load_scale)
+    set_pv_power(feeder, np.array(cfg.feeder.pv_rated_kw))
+    set_station_power(feeder, np.full(4, rated), np.zeros(4))
+    solver = RadialPowerFlow(feeder)
+    pf = solver.solve()
+    sens = JacobianSensitivities(feeder).compute(pf)
+    loading = compute_loading_sensitivities(feeder, solver)
+    proj = SensitivityProjector(cfg, 4, 34)
+    res = proj.project(
+        np.full(4, rated), np.zeros(4), np.full(4, rated), np.zeros(4),
+        sens, loading, skip_when_feasible=False,
+    )
+    return cfg, feeder, solver, pf, res
+
+
+@pytest.mark.parametrize("variant", ["weak", "strong"])
+def test_projection_curtails_v2g_against_the_upper_bound(variant):
+    """The V2G-support demonstration the thesis claims but never ran (audit A3).
+
+    A full +320 kW export request at every station is curtailed downward until
+    the linearised Vmax re-enters the tightened upper bound -- the mirror image
+    of the charging curtailment the thesis published *as* a V2G result.
+    """
+    cfg, feeder, solver, pf, res = _project_full_export(variant)
+    rated = cfg.feeder.ev_station_kva
+
+    tightened = cfg.safety.voltage_upper_pu - cfg.safety.projection_margin_pu
+    assert res.ok
+    # Both feeders exceed the bound the projector enforces, so both get curtailed;
+    # only the weak one actually breaches the hard 1.05 pu limit.
+    assert pf.v_pu.max() > tightened
+    assert (pf.v_pu.max() > cfg.safety.voltage_upper_pu) == (variant == "weak")
+    assert res.p_kw == pytest.approx(UPPER_BOUND_SAFE_P[variant], abs=1e-2)
+    assert np.all(res.p_kw > 0.0), "still an injection, not a reversal into charging"
+    assert np.all(res.p_kw < rated), "and genuinely curtailed"
+
+    set_station_power(feeder, res.p_kw, res.q_kvar)
+    assert solver.solve().v_pu.max() <= cfg.safety.voltage_upper_pu
+
+
+def test_upper_bound_curtailment_also_absorbs_reactive_power():
+    """P and Q are coordinated -- the charging-only case never showed this."""
+    _, _, _, _, res = _project_full_export("weak")
+    assert res.q_kvar.min() == pytest.approx(-95.385, abs=1e-2)
+    assert np.all(res.q_kvar <= 0.0), "absorbing vars is what lowers the voltage"
+
+
+def test_upper_bound_grid_awareness_gap_exceeds_the_published_lower_bound_one():
+    """The weak feeder needs 67.6 kW more curtailment than the strong one.
+
+    Published Table 5.3's lower-bound gap is 25.865 kW; this case separates the
+    two feeders far more sharply, and on the mechanism the paper is about.
+    """
+    safe = {v: _project_full_export(v)[4].p_kw for v in ("weak", "strong")}
+    gap = float(np.max(np.abs(safe["weak"] - safe["strong"])))
+    assert gap == pytest.approx(67.617, abs=1e-2)
+    assert gap > 25.865
+
+
+def test_both_bounds_bind_on_the_same_feeder():
+    """The high-PV case exercises the projection in both directions.
+
+    Full injection is curtailed downward by the 1.04 pu upper bound; full
+    charging at the same 320 kVA rating is curtailed upward by the 0.96 pu lower
+    bound. The thesis only ever demonstrated the second and described it as the
+    first.
+    """
+    cfg, feeder, solver, pf = _high_pv_state(0.0)
+    sens = JacobianSensitivities(feeder).compute(pf)
+    loading = compute_loading_sensitivities(feeder, solver)
+    rated = cfg.feeder.ev_station_kva
+
+    def project(raw_p):
+        proj = SensitivityProjector(cfg, 4, 34)
+        return proj.project(
+            raw_p, np.zeros(4), np.zeros(4), np.zeros(4), sens, loading,
+            skip_when_feasible=False,
+        )
+
+    inject = project(np.full(4, rated))
+    charge = project(np.full(4, -rated))
+
+    assert inject.ok and charge.ok
+    assert np.all(inject.p_kw < rated)      # curtailed by the upper bound
+    assert np.all(charge.p_kw > -rated)     # curtailed by the lower bound
+    assert np.all(inject.p_kw > 0) and np.all(charge.p_kw < 0)

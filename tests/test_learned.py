@@ -9,6 +9,7 @@ projection trace.
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
@@ -218,3 +219,181 @@ def test_clean_operating_point_leaves_the_layer_feasible():
 
     assert agent.stats.n_infeasible == 0
     assert agent.stats.n_frozen_steps == 0
+
+
+# --- audit item A2: why the Lagrange multiplier could never leave zero -------
+
+
+def _rollout_tensors(label: str, cfg: ExperimentConfig, n_steps: int = 288):
+    agent, env = _load(label, cfg)
+    obs, info = env.reset(seed=eval_episode_seed(MASTER_SEED, 0, EVAL_LABEL))
+    agent.reset_episode()
+    observations, executed, costs = [], [], []
+    for _ in range(n_steps):
+        action = agent.select_action(obs, info=info, deterministic=True)
+        observations.append(obs)
+        executed.append(action)
+        obs, _, terminated, truncated, info = env.step(action)
+        costs.append(info.constraint_cost)
+        if terminated or truncated:
+            break
+    return (
+        agent,
+        torch.tensor(np.array(observations), dtype=torch.float32),
+        torch.tensor(np.array(executed), dtype=torch.float32),
+        np.array(costs),
+    )
+
+
+def test_the_baseline_cost_critic_is_negative_on_a_nonnegative_target():
+    """`saclag_weak_v2` cannot ever raise lambda, and this is why.
+
+    The constraint cost is a sum of non-negative band excursions, so Q_C is
+    regressed on a non-negative target and its true value is positive -- the
+    realised episode cost is 0.26. The fitted critic nonetheless returns a mean
+    of about -0.74. Since the multiplier update is
+    ``lambda <- max(0, lambda + lr * (Q_C - 0.01))`` and Q_C sits below the
+    threshold, lambda is pinned at its floor forever. Nothing then pushes the
+    cost down, so nothing corrects the critic: the failure sustains itself.
+    """
+    cfg = ExperimentConfig.thesis_final("weak")
+    agent, obs, executed, costs = _rollout_tensors("saclag_weak_v2", cfg)
+
+    assert costs.min() >= 0.0
+    assert costs.sum() > 0.2          # the true cost is positive
+
+    with torch.no_grad():
+        qc = agent.cost_critic(obs, executed)
+    assert qc.mean().item() < 0.0     # ...yet the critic is negative
+    assert (qc < agent.hp.constraint_threshold).float().mean().item() > 0.5
+
+    with torch.no_grad():
+        sampled, _, _ = agent.actor.sample(obs)
+        cv = agent.cost_critic(obs, sampled).mean().item() - agent.hp.constraint_threshold
+    assert cv < 0.0
+    assert max(0.0, agent.lambda_lagrange + agent.hp.lr_lambda * cv) == 0.0
+
+
+def test_the_proposed_cost_critic_is_positive_so_its_multiplier_climbs():
+    """Same code, opposite sign -- which is the whole difference in lambda."""
+    cfg = ExperimentConfig.thesis_final("weak")
+    agent, obs, executed, costs = _rollout_tensors("safesac_weak_v3", cfg)
+
+    with torch.no_grad():
+        qc = agent.cost_critic(obs, executed)
+    assert qc.min().item() > 0.0
+    assert qc.mean().item() > agent.hp.constraint_threshold
+    assert agent.lambda_lagrange > 17.0
+
+    # And the realised cost is *higher* than the baseline's, so the multiplier
+    # gap is not a difference in actual constraint satisfaction.
+    assert costs.sum() > 0.2609
+
+
+def test_the_raw_versus_executed_gap_is_not_what_drove_the_multiplier():
+    """Rules out the other candidate explanation.
+
+    The critics are trained on executed actions while the actor loss queries
+    them at raw ones. That mismatch is real, but at the published operating
+    point it moves Q_C by ~1 %, far too little to explain a 0-vs-17 difference.
+    """
+    cfg = ExperimentConfig.thesis_final("weak")
+    agent, env = _load("safesac_weak_v3", cfg)
+
+    obs_t, raw_t, exec_t = [], [], []
+    obs, info = env.reset(seed=eval_episode_seed(MASTER_SEED, 0, EVAL_LABEL))
+    agent.reset_episode()
+    for _ in range(env.scenario.n_steps):
+        action = agent.select_action(obs, info=info, deterministic=True)
+        obs_t.append(obs)
+        raw_t.append(agent._last_raw_action)
+        exec_t.append(action)
+        obs, _, terminated, truncated, info = env.step(action)
+        if terminated or truncated:
+            break
+
+    to_t = lambda x: torch.tensor(np.array(x), dtype=torch.float32)  # noqa: E731
+    with torch.no_grad():
+        qc_raw = agent.cost_critic(to_t(obs_t), to_t(raw_t)).mean().item()
+        qc_exec = agent.cost_critic(to_t(obs_t), to_t(exec_t)).mean().item()
+
+    # The projection genuinely changes the action...
+    assert np.abs(np.array(raw_t) - np.array(exec_t)).max() > 0.1
+    # ...but barely moves the cost critic, so it cannot explain lambda = 0 vs 17.
+    assert abs(qc_raw - qc_exec) / abs(qc_exec) < 0.05
+
+
+def test_clamping_the_cost_critic_keeps_the_target_nonnegative():
+    """The Stage 1 fix: a non-negative target cannot produce a negative bootstrap."""
+    hp = AgentHParams(clamp_cost_critic=True, batch_size=8, buffer_size=64)
+    agent = SACLagAgent(OBS_DIM, ACTION_DIM, hp=hp, device="cpu", seed=0)
+
+    # Force the cost critic strongly negative, then check the clamp holds.
+    with torch.no_grad():
+        agent.target_cost_critic.net[-1].bias.fill_(-5.0)
+        agent.cost_critic.net[-1].bias.fill_(-5.0)
+
+    rng = np.random.default_rng(0)
+    for _ in range(32):
+        agent.add_to_replay(
+            rng.normal(size=OBS_DIM).astype(np.float32),
+            rng.uniform(-1, 1, ACTION_DIM).astype(np.float32),
+            0.0, 0.0,
+            rng.normal(size=OBS_DIM).astype(np.float32), 0.0,
+        )
+    metrics = agent.train_step()
+    assert metrics is not None
+    assert metrics["mean_qc"] >= 0.0
+
+
+def test_alpha_ceiling_caps_the_entropy_temperature():
+    """Audit B5. Applied to one arm only, this is an unfair-ablation lever."""
+    hp = AgentHParams(alpha_ceiling=1.0, batch_size=8, buffer_size=64, init_alpha=0.9)
+    agent = SACLagAgent(OBS_DIM, ACTION_DIM, hp=hp, device="cpu", seed=0)
+    with torch.no_grad():
+        agent.log_alpha.data.fill_(float(np.log(50.0)))   # as if it had diverged
+
+    rng = np.random.default_rng(0)
+    for _ in range(32):
+        agent.add_to_replay(
+            rng.normal(size=OBS_DIM).astype(np.float32),
+            rng.uniform(-1, 1, ACTION_DIM).astype(np.float32),
+            0.0, 0.0,
+            rng.normal(size=OBS_DIM).astype(np.float32), 0.0,
+        )
+    agent.train_step()
+    assert agent.alpha <= 1.0 + 1e-6
+
+    # Without the ceiling it stays where it was pushed.
+    free = SACLagAgent(
+        OBS_DIM, ACTION_DIM, hp=AgentHParams(batch_size=8, buffer_size=64),
+        device="cpu", seed=0,
+    )
+    with torch.no_grad():
+        free.log_alpha.data.fill_(float(np.log(50.0)))
+    free.replay = agent.replay
+    free.train_step()
+    assert free.alpha > 10.0
+
+
+def test_sensitivity_refresh_cadence_is_configurable():
+    """Audit B3: the thesis claims per-step refresh; the code refreshes hourly."""
+    from safesac.projection import SensitivityCache
+
+    cfg = ExperimentConfig.stage1("weak")
+    assert cfg.safety.sensitivity_refresh_steps == 12   # 12 x 5 min = 1 hour
+
+    env = ChargingFeederEnv(cfg)
+    env.reset(seed=1)
+    counts = {}
+    for steps in (1, 12, 288):
+        c = ExperimentConfig.stage1("weak")
+        c = c.with_(safety=replace(c.safety, sensitivity_refresh_steps=steps))
+        env2 = ChargingFeederEnv(c)
+        env2.reset(seed=1)
+        cache = SensitivityCache(c, env2.feeder, env2._pf_solver)
+        for t in range(288):
+            cache.maybe_refresh(t)
+        counts[steps] = cache.n_refreshes
+
+    assert counts == {1: 288, 12: 24, 288: 1}
