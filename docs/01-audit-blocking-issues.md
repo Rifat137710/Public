@@ -154,7 +154,51 @@ table.
 
 ---
 
-## A5 — n = 1 training seed, but the paper reports d = 10.6 and p = 4e-21
+## A5 — At the published operating point the safety layer *fails* on ~1 step in 8
+
+Found while porting the projection, and not visible anywhere in the thesis because the
+infeasibility rate was never logged.
+
+The projection tightens the voltage band by the safety margin, so its effective lower bound
+is `0.95 + 0.010 = 0.960 pu`. At `load_scale = 0.50` the idle feeder sits at **Vmin =
+0.9441** — already 0.016 pu below that bound. No command the four 80 kVA stations can issue
+lifts the deepest buses back over 0.960 (the summed sensitivity at the worst bus is about
+1.8e-4 pu/kW, so full injection at every station buys ~0.014 pu). The program is therefore
+*infeasible by construction* whenever the feeder is near its evening peak.
+
+Measured over a full day with a representative −40 kW request at every station:
+
+| load scale | margin | idle Vmin | infeasible | command zeroed |
+|---|---|---|---|---|
+| **0.50 (thesis)** | **0.010 (thesis)** | 0.9441 | **0.125** | **0.125** |
+| 0.50 | 0.005 | 0.9441 | 0.045 | 0.045 |
+| 0.50 | 0.000 | 0.9434 | 0.000 | 0.000 |
+| **0.40 (proposed)** | 0.010 | 0.9543 | **0.000** | 0.000 |
+
+On infeasibility the layer returns an **all-zero command** and, after three consecutive
+failures, freezes the station. So for roughly an eighth of every episode — concentrated in
+the evening peak, exactly when charging decisions matter — SafeSAC was not being *projected*,
+it was being *switched off*.
+
+That reframes three published results:
+
+- SafeSAC's remarkably tight violation-rate spread (std 0.002 vs SAC-Lag's 0.024) is what
+  you would expect if the controller is pinned to a deterministic zero command during the
+  binding window, not evidence of "much more consistent safety behaviour" (§6.3).
+- Its lower V2G utilisation (0.103 vs SAC-Lag's 0.176) follows for the same reason.
+- The service gain is then partly attributable to the *fallback*, not the projection —
+  which compounds A1: the ablation cannot separate them.
+
+**Fix.** Log the projection status distribution — ok / infeasible / frozen / skipped — for
+every step of every run, and report it as a first-class metric. Move to `load_scale = 0.40`,
+where the margin-tightened bound is satisfiable and the measured infeasibility rate is zero.
+Choose the margin against the operating point rather than fixing it at 0.010, and add margin
+∈ {0, 0.005, 0.010, 0.020} to the ablation grid. A safety layer whose fallback fires an
+eighth of the time needs that fallback characterised, not hidden.
+
+---
+
+## A6 — n = 1 training seed, but the paper reports d = 10.6 and p = 4e-21
 
 Every learned arm was trained once. The 25 evaluation episodes vary the *scenario*, not the
 *policy*. The paired tests therefore estimate scenario variance with the policy held fixed,
