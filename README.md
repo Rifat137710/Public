@@ -128,6 +128,50 @@ Reward CV across the four runs: 22%, 47%, 36%, 28% — all flagged `converged`.
 
 ---
 
+## Phase 1.1/1.2 — controllability envelope (Gate A: **PASS**)
+
+`phase1_controllability.py` brackets what *any* controller could do, by running
+the true AC power flow at three station commands per half-hour of a weekday:
+stations idle, stations at the voltage-optimal point on their 80 kVA circle,
+and the opposite direction. No policy, no training.
+
+```
+weak feeder      load  Vmin idle  Vmin best  viol idle  viol best  controllable
+                 0.40     0.9557     0.9652       0.0%       0.0%         0.0%
+                 0.45     0.9499     0.9597       2.1%       0.0%         2.1%
+                 0.50     0.9441     0.9541      10.4%       0.0%        10.4%
+                 0.75     0.9138     0.9253      35.4%      25.0%        10.4%
+                 1.00     0.8816     0.8946      56.2%      43.8%        12.5%
+```
+
+**This corrects an earlier conclusion in this repo.** At load 0.50 the ideal
+command reaches `Vmin = 0.9541 > 0.95`, so **every** violation is fixable and
+none is structural. The violations are not a physical floor.
+
+What actually causes them is the projection's own safety margin:
+
+```
+tightest headroom above 0.95 at the ideal command : 4.10 milli-pu
+thesis margin (Table 5.2)                         : 10.00 milli-pu
+
+margin 0-4 m-pu -> 100% of the day reachable
+margin   5 m-pu ->  97.9%
+margin  10 m-pu ->  89.6%    <- the thesis setting; 10.4% unreachable
+```
+
+The margin tightens the target band to [0.96, 1.04], and the stations can only
+reach 0.9541. So the SOCP is infeasible at exactly the hours that matter, the
+3-consecutive-failure rule freezes the stations, and the violation count lands
+on the same value every episode regardless of seed. That is the full chain
+behind the 26/288 count, the bit-identical `vmin_pu_mean`, and the null safety
+result — and it is a two-character fix, not a physics limit.
+
+Set `margin = 0.002`: the analytic sensitivities carry ~3% median error, which
+on a 5 milli-pu excursion is ~0.15 milli-pu, so 2 milli-pu is >10x the headroom
+needed.
+
+---
+
 ## Phase 0.4: fast radial power flow + analytic sensitivities
 
 Replaces the `pandapower.runpp` call and the finite-difference sensitivity
