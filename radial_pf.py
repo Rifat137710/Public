@@ -76,6 +76,7 @@ class RadialTopology:
     n_bus: int
     slack: int
     parent: np.ndarray
+    order: np.ndarray
     branch_z_pu: np.ndarray
     zpath: np.ndarray
     s_base_mva: float
@@ -178,6 +179,7 @@ def build_topology(net, s_base_mva: float = 1.0) -> RadialTopology:
         n_bus=n_bus,
         slack=slack,
         parent=parent,
+        order=order,
         branch_z_pu=branch_z,
         zpath=zpath,
         s_base_mva=float(s_base_mva),
@@ -266,22 +268,12 @@ class RadialPowerFlow:
         s = np.asarray(p_inj_pu, float) + 1j * np.asarray(q_inj_pu, float)
         s = s.astype(complex, copy=True)
         s[self.topo.slack] = 0.0
-        i_bus = np.conj(s / v)
-        # Subtree sum: descendants matrix is A.T, and A[b] has 1s on the path,
-        # so accumulate by walking children -> parents in reverse BFS order.
-        j = i_bus.copy()
-        order = np.argsort(np.abs(self.topo.zpath.diagonal()))  # any parent-before-child order
-        del order
+        # Backward sweep: the current in the branch entering bus b is the sum of
+        # injections over b's subtree. Walking the BFS order in reverse visits
+        # every child before its parent, so one pass suffices.
+        j = np.conj(s / v)
         par = self.topo.parent
-        # reverse BFS: process buses by decreasing depth
-        depth = np.zeros(self.topo.n_bus, dtype=int)
-        for b in range(self.topo.n_bus):
-            d, node = 0, b
-            while par[node] != -1:
-                node = par[node]
-                d += 1
-            depth[b] = d
-        for b in np.argsort(-depth):
+        for b in self.topo.order[::-1]:
             p = par[b]
             if p != -1:
                 j[p] += j[b]

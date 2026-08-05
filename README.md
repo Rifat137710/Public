@@ -7,6 +7,49 @@
 | `lagrangian.py` | 0.2 | Corrected CMDP dual-variable controller |
 | `test_lagrangian.py` | 0.2 | Reproduces the multiplier defect; validates the fix |
 | `telemetry.py` | 0.3 | Per-episode instrumentation + post-hoc health report |
+| `safesac_patch.py` | — | Drop-in patches wiring all of the above into the notebook |
+| `test_integration.py` | — | Patched `run_pf` / sensitivities vs pandapower |
+| `regression_lock.py`, `golden/` | 0.1 | Freezes the published numbers before anything changes |
+
+## How to apply
+
+```python
+import safesac_patch
+safesac_patch.apply_all(globals(), d_step=0.01)   # after all definition blocks
+CONFIG["sensitivity_refresh_steps"] = 1           # per-step refresh is now cheap
+```
+
+Then, **before retraining**, re-evaluate from the existing checkpoints and:
+
+```bash
+python regression_lock.py --check results/patch7_v2_main_results.csv
+```
+
+A pass means the solver swap did not move the published numbers, so any later
+change is attributable to retraining rather than to the swap. Use
+`patch_sensitivities(analytic_dv=False)` for a machine-exact comparison that
+isolates the power-flow swap from the ~3% linearisation error.
+
+### Integration test results
+
+```
+run_pf vs pandapower, 150 scenarios x 2 feeders
+  v_pu     max err 4.7e-09 pu     p_loss   max err 1.9e-08 MW
+  angle    max err 1.8e-07 deg    loading  max err 6.4e-10 pu
+  p_ext    max err 1.2e-07 MW
+    (bounded by pandapower's own default tolerance_mva=1e-8, not by the solver)
+
+compute_grid_sensitivities vs shipped finite difference
+  analytic   dV/dP median rel  3.6% / 2.6%   dL/dP max 5e-14
+  fd_fast    dV/dP max 4.7e-13 pu/kW         dL/dP max 5e-14
+
+run_pf 122-143 us (was 32-35 ms, ~250x)
+```
+
+`patch_lagrangian` and `patch_projection_telemetry` are **not** covered by
+these tests — they touch torch code that needs the full training stack. Their
+check is the first instrumented run: assert `agent.lag.health().ok` and read
+the new `lam` column.
 
 ---
 
