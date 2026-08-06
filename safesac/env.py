@@ -303,6 +303,24 @@ class ChargingFeederEnv:
             self.active_evs[st_idx] = keep
         return penalty
 
+    def pending_user_penalty(self) -> float:
+        """The user penalty that would be levied if every connected EV left now.
+
+        Used as the shaping potential: charging reduces it, so the agent gets
+        immediate credit for penalty it is avoiding rather than waiting up to 84
+        steps for the departure that would otherwise reveal it.
+        """
+        total = 0.0
+        for evs in self.active_evs:
+            for ev in evs:
+                shortfall_kwh = max(0.0, ev.soc_target - ev.soc) * ev.battery_capacity_kwh
+                total += (
+                    shortfall_kwh**2
+                    if self.cfg.reward.user_penalty_quadratic
+                    else shortfall_kwh
+                )
+        return total
+
     def fleet_aggregates(self) -> np.ndarray:
         out = np.zeros((self.n_stations, 4))
         for st_idx, evs in enumerate(self.active_evs):
@@ -406,6 +424,11 @@ class ChargingFeederEnv:
         return self._maybe_normalize(obs), {"raw_obs": obs.copy()}
 
     def step(self, action):
+        r = self.cfg.reward
+        shaping_on = r.shaping_weight != 0.0
+        # Potential of state s, before anything in this transition happens.
+        phi_prev = -self.pending_user_penalty() if shaping_on else 0.0
+
         p_target, q_target = self._denormalize_action(action)
         p_ramped = self._apply_ramp(p_target, self._prev_p_kw)
         q_ramped = self._apply_ramp(q_target, self._prev_q_kvar)
@@ -443,6 +466,13 @@ class ChargingFeederEnv:
             )
         self._last_pf = pf
 
+        # Potential of s', measured BEFORE arrivals are drawn. An arriving
+        # vehicle adds its whole shortfall^2 to the pending penalty -- about
+        # -0.45 of shaped reward, ~120 times an episode -- which the controller
+        # cannot influence. Including it would bury the charging signal under
+        # exogenous noise.
+        phi_next = -self.pending_user_penalty() if shaping_on else 0.0
+
         self.current_step += 1
         if self.current_step < self.scenario.n_steps:
             self._update_exogenous()
@@ -453,6 +483,20 @@ class ChargingFeederEnv:
             obs = self._build_observation(pf)
         else:
             obs = np.zeros(self.obs_dim, dtype=np.float32)
+
+        if shaping_on:
+            # F = gamma * Phi(s') - Phi(s). Potential-based, so the optimal
+            # policy is unchanged; only the credit timing moves.
+            shaping = r.shaping_gamma * phi_next - phi_prev
+            scaled = (
+                r.shaping_weight
+                * r.weight_user
+                * shaping
+                / max(r.scale_user, 1e-9)
+                / max(r.reward_scale, 1e-9)
+            )
+            reward += scaled
+            components["shaping"] = shaping
 
         self._prev_p_kw = realized_p
         self._prev_q_kvar = realized_q

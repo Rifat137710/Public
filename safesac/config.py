@@ -142,6 +142,43 @@ class RewardConfig:
     steps while 34 vehicles wait to charge. Neither setting learns.
     """
 
+    shaping_weight: float = 0.0
+    """Potential-based reward shaping on the pending user penalty.
+
+    The entire reward signal is the departure penalty: doing nothing scores
+    -34.49 against uncoordinated charging's -2.24, and the whole gap is
+    ``total_user_penalty`` (68 979 vs 467). That penalty is quadratic in kWh
+    shortfall -- about 841 for one unserved vehicle -- and arrives in a single
+    step, up to 84 steps after the charging decisions that determined it. SAC
+    does not solve the credit assignment: 500 episodes peak at SoC met 0.137
+    around episode 150 and then decline to 0.048, while a constant "charge if
+    anyone needs it" policy reaches 0.816.
+
+    The potential is the penalty that *would* be levied if every connected
+    vehicle departed now, so charging earns immediate credit for the penalty it
+    is avoiding. Being potential-based (Ng, Harada & Russell 1999) it leaves the
+    optimal policy unchanged -- the same guarantee as `reward_scale`, so the
+    weight cannot manufacture a result, only change how fast the optimum is
+    found. 0.0 keeps the thesis's reward exactly.
+    """
+
+    shaping_gamma: float = 1.0
+    """Discount inside the shaping term, ``F = shaping_gamma * Phi(s') - Phi(s)``.
+
+    Ng et al. state the invariance with the agent's own gamma, but at 0.99 the
+    residual ``(gamma - 1) * Phi`` dominates: Phi is the pending penalty, of
+    order -60 000, so the drift is about +600 per step and *rewards holding
+    unmet demand*. Measured, it inverts the ordering the shaping exists to
+    sharpen -- shaping sum 156 388 for doing nothing against 116 439 for
+    charging everything. At 1.0 the drift vanishes and the ordering is correct
+    and monotone in service: 80 577 / 89 561 / 101 939 for zero / droop /
+    uncoordinated.
+
+    The cost is that invariance becomes exact for the undiscounted episodic
+    return and approximate for gamma = 0.99. That is the better trade: the term
+    being dropped is precisely the perverse one.
+    """
+
     include_loss_term: bool = True
     user_penalty_quadratic: bool = True
     degradation_usd_per_kwh: float = 0.040
@@ -245,7 +282,9 @@ class ExperimentConfig:
                 size_per_station_std=evs_per_station * 0.20,
             ),
             scenario=ScenarioConfig(load_scale=0.40),
-            reward=RewardConfig(include_loss_term=False, reward_scale=100.0),
+            reward=RewardConfig(
+                include_loss_term=False, reward_scale=100.0, shaping_weight=1.0
+            ),
         )
 
     @classmethod
