@@ -96,6 +96,24 @@ class AgentHParams:
     lambda_max: Optional[float] = None
     """Hard anti-windup cap. Belt-and-braces next to `dual_update`."""
 
+    autotune_alpha: bool = True
+    """Whether the entropy temperature is learned.
+
+    SAC's auto-tuner chases a target entropy of ``-dim(A)``, which assumes the
+    optimum is not on the action bounds. Here it is: the best policy charges at
+    full rate, so actions sit near +-1. The tanh change-of-variables term
+    ``-log(1 - tanh(z)^2)`` then inflates the log-density -- measured at +13.4
+    on average, against a Gaussian part that is small -- so log pi exceeds the
+    threshold on 46 % of states and the tuner reads a saturated policy as
+    "insufficient entropy". It raises alpha, that pushes the policy off the
+    bounds, performance drops, and the loop repeats.
+
+    Every setting tried diverged or pinned: uncapped alpha reached 19.4 (thesis
+    SAC-Lag) and 8.7 (after rescaling); capped at 1.0 it pins against the cap
+    and the entropy term swamps the task. Fixing alpha removes the loop, at the
+    cost of one hyperparameter chosen by sweep and reported.
+    """
+
     alpha_ceiling: Optional[float] = None
     """Audit A1/B5. The thesis capped the entropy temperature at 1.0, but only
     from Patch 6 onward -- so `safesac_*_v3` trained under the cap and
@@ -392,13 +410,16 @@ class SACLagAgent(BaseAgent):
         actor_loss.backward()
         self.actor_optim.step()
 
-        alpha_loss = -(self.log_alpha * (log_prob.detach() + self.target_entropy)).mean()
-        self.alpha_optim.zero_grad()
-        alpha_loss.backward()
-        self.alpha_optim.step()
-        if self.hp.alpha_ceiling is not None:
-            with torch.no_grad():
-                self.log_alpha.data.clamp_(max=math.log(self.hp.alpha_ceiling))
+        if self.hp.autotune_alpha:
+            alpha_loss = -(self.log_alpha * (log_prob.detach() + self.target_entropy)).mean()
+            self.alpha_optim.zero_grad()
+            alpha_loss.backward()
+            self.alpha_optim.step()
+            if self.hp.alpha_ceiling is not None:
+                with torch.no_grad():
+                    self.log_alpha.data.clamp_(max=math.log(self.hp.alpha_ceiling))
+        else:
+            alpha_loss = torch.zeros((), device=self.device)
 
         with torch.no_grad():
             cv = float(qc_new.mean().item()) - self.hp.constraint_threshold

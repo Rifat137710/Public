@@ -491,3 +491,67 @@ def test_lambda_max_caps_the_multiplier():
     for _ in range(10_000):
         agent.update_dual_from_episode(1.0)
     assert agent.lambda_lagrange == 10.0
+
+
+def test_fixed_alpha_does_not_move():
+    """Audit A1/B5, third failure mode: the entropy tuner cannot be used here.
+
+    SAC's target entropy of -dim(A) assumes the optimum is interior. This task's
+    optimum is on the action bounds -- charge at full rate -- and the tanh
+    change-of-variables term then inflates log pi (measured: +13.4 of a +7.5
+    mean, exceeding the threshold on 46 % of states). The tuner reads that as
+    too little entropy and raises alpha, which pushes the policy off the bounds.
+    Uncapped it reached 19.4 and 8.7; capped at 1.0 it pins. Fixing alpha is the
+    minimal escape.
+    """
+    hp = AgentHParams(
+        autotune_alpha=False, init_alpha=0.003, batch_size=8, buffer_size=64
+    )
+    agent = SACLagAgent(OBS_DIM, ACTION_DIM, hp=hp, device="cpu", seed=0)
+    assert agent.alpha == pytest.approx(0.003)
+
+    rng = np.random.default_rng(0)
+    for _ in range(32):
+        agent.add_to_replay(
+            rng.normal(size=OBS_DIM).astype(np.float32),
+            rng.uniform(-0.999, 0.999, ACTION_DIM).astype(np.float32),
+            -1.0, 0.0,
+            rng.normal(size=OBS_DIM).astype(np.float32), 0.0,
+        )
+    for _ in range(100):
+        agent.train_step()
+    assert agent.alpha == pytest.approx(0.003), "fixed alpha must not drift"
+
+
+def test_tanh_correction_dominates_the_log_density_near_the_bounds():
+    """The mechanism behind the alpha divergence, isolated.
+
+    `GaussianActor.sample` returns
+    ``log N(z) - sum log(1 - tanh(z)^2 + 1e-6)``. The second term is what SAC's
+    entropy tuner sees as "too little entropy", and near the action bounds it
+    dominates: it is bounded below by 0 and reaches +13.8 per dimension. With 8
+    dimensions that is up to +110 against a target entropy of -8, so a policy
+    that has correctly learned to charge at full rate is read as needing *more*
+    exploration. Measured on a real run: log pi averaged +7.49, of which +13.42
+    was this term, exceeding the threshold on 46 % of states.
+    """
+    from safesac.learned import GaussianActor
+
+    actor = GaussianActor(OBS_DIM, ACTION_DIM, hidden_dim=32, n_hidden=2)
+    torch.manual_seed(0)
+    obs = torch.zeros(1, OBS_DIM)
+
+    def correction(z_value: float) -> float:
+        a = torch.tanh(torch.full((1, ACTION_DIM), z_value))
+        return float(-torch.log(1.0 - a.pow(2) + 1e-6).sum(-1))
+
+    interior = correction(0.0)      # actions at the middle of the range
+    saturated = correction(4.0)     # actions pinned near +-1
+
+    assert interior == pytest.approx(0.0, abs=1e-4)
+    assert saturated > 8.0, "saturation alone exceeds -target_entropy"
+    assert saturated > 30 * max(interior, 1e-6)
+
+    # And it is monotone in how saturated the action is.
+    values = [correction(z) for z in (0.0, 1.0, 2.0, 3.0, 4.0)]
+    assert values == sorted(values)
