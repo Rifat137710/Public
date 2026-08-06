@@ -11,7 +11,7 @@ torch = pytest.importorskip("torch")
 
 from safesac.config import ExperimentConfig
 from safesac.env import ChargingFeederEnv, StateNormalizer
-from safesac.learned import AgentHParams, SACLagAgent, SafeSACLagAgent
+from safesac.learned import AgentHParams, SACLagAgent, SafeSACLagAgent  # noqa: F401
 from safesac.train import ConvergenceDetector, TrainConfig, train
 
 SMALL = AgentHParams(batch_size=32, buffer_size=2000, warmup_random_steps=0)
@@ -107,3 +107,23 @@ def test_resume_picks_up_where_it_stopped(tmp_path):
 
     assert res2.n_episodes_completed == 0  # already at the budget
     assert agent2.update_step == agent.update_step
+
+
+def test_training_loop_drives_the_episodic_dual(tmp_path):
+    """`train` must call the episodic dual update once per episode."""
+    cfg = ExperimentConfig.stage1("weak")
+    env = _env(cfg)
+    hp = AgentHParams(
+        batch_size=32, buffer_size=2000, warmup_random_steps=0,
+        dual_update="realised", cost_limit_episode=0.0, lr_lambda_episode=1000.0,
+    )
+    agent = SACLagAgent(env.obs_dim, env.action_dim, hp=hp, device="cpu", seed=0)
+    calls = []
+    original = agent.update_dual_from_episode
+    agent.update_dual_from_episode = lambda c: (calls.append(c), original(c))[1]
+
+    tc = TrainConfig(max_episodes=2, run_label="dual", checkpoint_every=99, verbose=False)
+    res = train(agent, env, cfg, tc, out_dir=None)
+
+    assert len(calls) == 2
+    assert calls == [h.realised_cost for h in res.history]

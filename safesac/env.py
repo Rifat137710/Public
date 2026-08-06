@@ -175,6 +175,7 @@ def compute_reward(cfg, p_kw_per_station, p_loss_mw: float, retail_price: float,
     scales = {"cost": r.scale_cost, "user": r.scale_user, "deg": r.scale_deg, "loss": r.scale_loss}
 
     reward = -sum(weights[k] * components[k] / max(scales[k], 1e-9) for k in components)
+    reward /= max(r.reward_scale, 1e-9)
     return float(reward), components
 
 
@@ -429,7 +430,10 @@ class ChargingFeederEnv:
 
         terminated = False
         if not pf.converged:
-            reward = -self.cfg.reward.pf_failure_penalty
+            # Scaled like every other reward term, so its relative size is fixed.
+            reward = -self.cfg.reward.pf_failure_penalty / max(
+                self.cfg.reward.reward_scale, 1e-9
+            )
             components = {"cost": 0.0, "user": user_penalty, "deg": 0.0, "loss": 0.0}
             terminated = True
         else:

@@ -397,3 +397,97 @@ def test_sensitivity_refresh_cadence_is_configurable():
         counts[steps] = cache.n_refreshes
 
     assert counts == {1: 288, 12: 24, 288: 1}
+
+
+# --- audit A2, second failure mode: dual-variable windup --------------------
+
+
+def test_cost_critic_dual_integrates_without_bound():
+    """The thesis's dual update has no anti-windup, and Q_C is biased.
+
+    lambda ascends on `Q_C - d` at every gradient step -- 72 000 times over a
+    250-episode run. Measured on a projection arm whose realised cost is
+    identically zero, Q_C still reached 10.3 and lambda 270; one seed hit
+    Q_C = 152.8 and lambda = 1888. At that point `lambda * (Q_C - d)` dwarfs the
+    reward and idling is optimal, which is what collapsed SoC met to ~0.02.
+    """
+    hp = AgentHParams(batch_size=8, buffer_size=64, dual_update="cost_critic")
+    agent = SACLagAgent(OBS_DIM, ACTION_DIM, hp=hp, device="cpu", seed=0)
+
+    # Hold the cost critic at a fixed positive value: lr 0 so it never learns
+    # its way back down. This is the standing bias the real runs exhibited.
+    with torch.no_grad():
+        agent.cost_critic.net[-1].bias.fill_(0.5)
+    agent.cost_critic_optim = torch.optim.Adam(agent.cost_critic.parameters(), lr=0.0)
+
+    rng = np.random.default_rng(0)
+    for _ in range(32):
+        agent.add_to_replay(
+            rng.normal(size=OBS_DIM).astype(np.float32),
+            rng.uniform(-1, 1, ACTION_DIM).astype(np.float32),
+            0.0, 0.0,                      # zero reward AND zero *realised* cost
+            rng.normal(size=OBS_DIM).astype(np.float32), 0.0,
+        )
+
+    trace = []
+    for _ in range(300):
+        agent.train_step()
+        trace.append(agent.lambda_lagrange)
+
+    # Realised cost is identically zero, yet lambda climbs -- and does not
+    # decelerate, because nothing bounds it. In the real 250-episode runs this
+    # is what carried lambda to 1888.
+    assert trace[-1] > 0.05
+    assert trace[-1] > trace[149] > trace[49] > 0.0
+    growth_early = trace[149] - trace[49]
+    growth_late = trace[-1] - trace[149]
+    assert growth_late >= growth_early, "no saturation: the integrator is unbounded"
+
+
+def test_realised_dual_stays_put_when_nothing_is_violated():
+    """The fix: ascend on measured episode cost, which the projection zeroes."""
+    hp = AgentHParams(dual_update="realised", cost_limit_episode=0.01,
+                      lr_lambda_episode=0.5)
+    agent = SACLagAgent(OBS_DIM, ACTION_DIM, hp=hp, device="cpu", seed=0)
+
+    for _ in range(500):
+        agent.update_dual_from_episode(0.0)
+    assert agent.lambda_lagrange == 0.0
+
+    # A persistent overshoot moves it to O(1), not O(1000).
+    for _ in range(100):
+        agent.update_dual_from_episode(0.03)
+    assert agent.lambda_lagrange == pytest.approx(1.0, abs=1e-6)
+
+    # And it decays once the constraint is met again.
+    for _ in range(100):
+        agent.update_dual_from_episode(0.0)
+    assert agent.lambda_lagrange == pytest.approx(0.5, abs=1e-6)
+
+
+def test_realised_dual_ignores_the_per_step_path():
+    """With the episodic dual selected, train_step must not touch lambda."""
+    hp = AgentHParams(batch_size=8, buffer_size=64, dual_update="realised")
+    agent = SACLagAgent(OBS_DIM, ACTION_DIM, hp=hp, device="cpu", seed=0)
+    with torch.no_grad():
+        agent.cost_critic.net[-1].bias.fill_(5.0)
+
+    rng = np.random.default_rng(0)
+    for _ in range(32):
+        agent.add_to_replay(
+            rng.normal(size=OBS_DIM).astype(np.float32),
+            rng.uniform(-1, 1, ACTION_DIM).astype(np.float32),
+            0.0, 0.0,
+            rng.normal(size=OBS_DIM).astype(np.float32), 0.0,
+        )
+    for _ in range(50):
+        agent.train_step()
+    assert agent.lambda_lagrange == 0.0
+
+
+def test_lambda_max_caps_the_multiplier():
+    hp = AgentHParams(dual_update="realised", lambda_max=10.0)
+    agent = SACLagAgent(OBS_DIM, ACTION_DIM, hp=hp, device="cpu", seed=0)
+    for _ in range(10_000):
+        agent.update_dual_from_episode(1.0)
+    assert agent.lambda_lagrange == 10.0

@@ -130,6 +130,18 @@ class RewardConfig:
     scale_deg: float = 1.0
     scale_loss: float = 1.0
 
+    reward_scale: float = 1.0
+    """Divides the whole reward. A pure rescaling: it leaves the optimal policy
+    identical and changes only the conditioning of the optimisation.
+
+    It exists because SAC's entropy temperature is scale-sensitive and this
+    reward is large -- about -10 per step, -3000 per episode, against the O(1)
+    rewards SAC's defaults assume. Left at 1.0 the temperature diverges (the
+    thesis reached alpha = 19.4); capped at 1.0 it pins against the cap and the
+    entropy term swamps the task, giving a policy that discharges on 28 % of
+    steps while 34 vehicles wait to charge. Neither setting learns.
+    """
+
     include_loss_term: bool = True
     user_penalty_quadratic: bool = True
     degradation_usd_per_kwh: float = 0.040
@@ -233,7 +245,7 @@ class ExperimentConfig:
                 size_per_station_std=evs_per_station * 0.20,
             ),
             scenario=ScenarioConfig(load_scale=0.40),
-            reward=RewardConfig(include_loss_term=False),
+            reward=RewardConfig(include_loss_term=False, reward_scale=100.0),
         )
 
     @classmethod

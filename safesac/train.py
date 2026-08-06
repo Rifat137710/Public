@@ -189,6 +189,11 @@ def train(
 
         mean_step_ms = 1000.0 * (time.perf_counter() - ep_t0) / max(1, n_steps)
 
+        # Episodic dual ascent, if the agent uses it. Must come after the
+        # episode, since it is the *measured* cost that drives it.
+        if hasattr(agent, "update_dual_from_episode"):
+            agent.update_dual_from_episode(realised_cost)
+
         if has_projection:
             d_calls = agent.stats.n_calls - proj0[0]
             inf_rate = (agent.stats.n_infeasible - proj0[1]) / d_calls if d_calls else 0.0

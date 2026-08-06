@@ -67,6 +67,35 @@ class AgentHParams:
     sits below the 0.01 threshold on 73 % of steps, so
     ``lambda <- max(0, lambda + lr * (Q_C - 0.01))`` can never leave zero."""
 
+    dual_update: str = "cost_critic"
+    """Where the Lagrange multiplier's ascent signal comes from.
+
+    ``"cost_critic"`` is the thesis's scheme: lambda integrates
+    ``Q_C(s, pi(s)) - constraint_threshold`` on every gradient step. Q_C is a
+    bootstrapped, off-policy, extrapolating estimate, so any positive bias is
+    integrated without bound -- 72 000 steps over a 250-episode run. Measured:
+    on a projection arm whose realised cost is *identically zero*, Q_C still
+    climbs to 10.3 and lambda to 270; on one seed Q_C reaches 152.8 and lambda
+    1888. At that point the ``lambda * (Q_C - d)`` term dwarfs the reward and
+    the optimal policy is to idle, which is what SoC met ~ 0.02 was.
+
+    ``"realised"`` ascends on the *measured* episode cost instead, once per
+    episode. It is unbiased and on-policy: where the projection removes every
+    violation the signal is exactly zero and lambda correctly stays put.
+    """
+
+    cost_limit_episode: float = 0.01
+    """Per-episode budget in pu-steps of band excursion, for ``dual_update="realised"``.
+    Distinct from `constraint_threshold`, which is a bound on discounted cost-to-go."""
+
+    lr_lambda_episode: float = 0.5
+    """Episodic dual step. Sized so that a persistent 0.02 pu-step overshoot moves
+    lambda to O(1) over ~100 episodes -- there are ~288x fewer updates than in the
+    per-gradient-step scheme, so the per-step rate cannot carry over."""
+
+    lambda_max: Optional[float] = None
+    """Hard anti-windup cap. Belt-and-braces next to `dual_update`."""
+
     alpha_ceiling: Optional[float] = None
     """Audit A1/B5. The thesis capped the entropy temperature at 1.0, but only
     from Patch 6 onward -- so `safesac_*_v3` trained under the cap and
@@ -287,6 +316,26 @@ class SACLagAgent(BaseAgent):
 
     # -- learning ----------------------------------------------------------
 
+    def _clip_lambda(self, value: float) -> float:
+        value = max(0.0, value)
+        if self.hp.lambda_max is not None:
+            value = min(value, self.hp.lambda_max)
+        return value
+
+    def update_dual_from_episode(self, realised_cost: float) -> float:
+        """Ascend the multiplier on the measured episode cost.
+
+        No-op unless `dual_update == "realised"`. Called once per episode by
+        `safesac.train.train`, which is the only place the realised cost is known.
+        """
+        if self.hp.dual_update != "realised":
+            return self.lambda_lagrange
+        gap = float(realised_cost) - self.hp.cost_limit_episode
+        self.lambda_lagrange = self._clip_lambda(
+            self.lambda_lagrange + self.hp.lr_lambda_episode * gap
+        )
+        return self.lambda_lagrange
+
     def _polyak(self, target: nn.Module, source: nn.Module) -> None:
         with torch.no_grad():
             for tp, sp in zip(target.parameters(), source.parameters()):
@@ -353,7 +402,10 @@ class SACLagAgent(BaseAgent):
 
         with torch.no_grad():
             cv = float(qc_new.mean().item()) - self.hp.constraint_threshold
-        self.lambda_lagrange = max(0.0, self.lambda_lagrange + self.hp.lr_lambda * cv)
+        if self.hp.dual_update == "cost_critic":
+            self.lambda_lagrange = self._clip_lambda(
+                self.lambda_lagrange + self.hp.lr_lambda * cv
+            )
         self.quad_penalty = min(
             self.hp.quad_penalty_max,
             (self.update_step / max(1, self.hp.quad_penalty_warmup_steps))

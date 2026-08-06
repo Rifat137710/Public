@@ -44,8 +44,11 @@ ARMS = {"no_projection": False, "projection": True}
 def make_hparams() -> AgentHParams:
     """Identical for both arms -- that is the whole point."""
     return AgentHParams(
-        clamp_cost_critic=True,   # audit A2
-        alpha_ceiling=1.0,        # audit B5, applied to BOTH arms
+        clamp_cost_critic=True,   # audit A2: keeps Q_C off the lambda = 0 floor
+        dual_update="realised",   # audit A2: unbiased dual signal, no windup
+        cost_limit_episode=0.01,
+        lambda_max=100.0,         # anti-windup backstop
+        alpha_ceiling=None,       # unnecessary once the reward is scaled; see RewardConfig
         projection_skip_when_feasible=True,   # proven equivalent, just faster
     )
 
