@@ -188,70 +188,57 @@ shrinks or vanishes — that is the finding, and better to learn it now.*
 > | 3 | B1 reward | **done** — loss term off in `stage1()`. Objective is now service-dominated (user > cost > degradation), which is what the abstract claims. |
 > | 4 | B3 refresh cadence | **done** — `sensitivity_refresh_steps` is a config parameter with a test pinning {1: 288, 12: 24, 288: 1} refreshes/episode. Default stays 12 (hourly); the claim of per-step refresh was the error, not the value. |
 > | 5 | A4 exogenous | **done** — `evaluate.attributable()` reports paired excess over a zero-injection run with a 95 % CI. |
-> | 6 | A1 fair ablation | **runner done, pilot inconclusive at 80 episodes — rerunning at 250.** |
+> | 6 | A1 fair ablation | **done — see below** |
 >
-> **80-episode pilot, 3 seeds, arms identical but for the projection:**
+> #### Stage 1 fair ablation: the published +0.292 does not survive
+>
+> Three seeds, 200 episodes, arms identical but for the projection: same budget,
+> same seeds, same stabilisers, working dual in the arm where the constraint binds,
+> and a learner that demonstrably learns (SoC 0.217 unprojected against droop's 0.007).
 >
 > | arm | violations | attributable | SoC met | net cost | λ final |
 > |---|---|---|---|---|---|
-> | no projection | 0.0230 ± 0.019 | +0.0230 | 0.084 ± 0.06 | $273.14 | 17.2 ± 15.5 |
-> | projection | **0.0000 ± 0.000** | +0.0000 | 0.077 ± 0.05 | $187.21 | 124.8 ± 89.0 |
+> | no projection | 0.0557 ± 0.027 | +0.0557 | **0.217 ± 0.02** | $416.85 | 6.60 ± 2.78 |
+> | projection | **0.0000 ± 0.000** | +0.0000 | 0.089 ± 0.05 | $255.19 | 0.000 |
 >
-> **Safety result is real and clean.** The projection removes violations entirely,
-> 0.0230 → 0.0000, and because the idle floor at this operating point is exactly zero
-> every one of those 0.0230 is attributable to the controller. This is the first time the
-> projection's safety benefit has been measured against a matched baseline.
+> **projection − no projection: violations −0.0557, SoC −0.1285.**
+> The thesis reports **+0.2921** for this contrast. The fair ablation does not merely
+> shrink the effect — **it reverses its sign.** The Stage 3 gate is met.
 >
-> **The service result is not yet decidable, and must not be read as a null.** Both arms
-> reach SoC ≈ 0.08 against uncoordinated's 0.804 — neither has learned the basic task.
-> Rewards are still non-monotonic at episode 80 and three of six runs were *worse* in
-> their final quarter. Comparing two under-trained policies says nothing about the
-> +0.292 claim, so the Stage 3 gate is **not** invoked on this. Rerunning at 250 episodes.
+> The result is coherent and is a better paper claim than the original. The projection
+> is not a free lunch: it converts violations into forgone service, buying a *hard*
+> guarantee (0.0000 with zero variance across seeds) at a measured cost of 0.128 SoC.
+> λ tells the story mechanically — it sits at exactly 0.000 in all three projected runs
+> because realised cost is identically zero, while the unprojected arm is throttled to
+> λ ≈ 6.6 trying and failing to satisfy the same budget.
 >
-> **λ is unstable enough to question the machinery.** Final values across three seeds in
-> the projection arm: 2.03 / 210.03 / 162.42 — while realised J_C is *identically zero*
-> in all three, because the projection prevents the violations. A multiplier running to
-> 210 with nothing to penalise is the extrapolation failure of audit A2 in its clearest
-> form: the sign is fixed, the magnitude is still noise.
+> **Pareto set at this operating point:**
 >
-> **Three training defects had to be cleared before the ablation could mean anything.**
-> Each was found by a longer run exposing the previous fix, and each is a genuine defect
-> in the thesis's training loop rather than a tuning preference:
->
-> | # | defect | evidence | fix |
+> | method | violations | SoC met | net cost |
 > |---|---|---|---|
-> | 1 | λ pinned at zero | cost critic averages −0.74 on a non-negative target; below threshold on 73 % of steps | `clamp_cost_critic` |
-> | 2 | dual-variable windup | λ → 1888 while realised cost is *identically zero*; no anti-windup on 72 000 integrator steps | `dual_update="realised"` |
-> | 3 | entropy temperature unusable | log π = +7.49 mean, above the +8 threshold on 46 % of states, of which the tanh term contributes +13.42 | `autotune_alpha=False` + swept α |
+> | zero (idle) | 0.0000 | 0.000 | $0 |
+> | droop (IEEE 1547) | 0.0000 | 0.007 | $63 |
+> | **SafeSAC (projection)** | **0.0000** | **0.089** | $255 |
+> | SAC-Lag (no projection) | 0.0557 | 0.217 | $417 |
+> | uncoordinated | 0.0626 | 0.804 | $686 |
 >
-> Defect 3 is worth stating carefully in the paper, because it is a property of the *task*,
-> not of the implementation: SAC's target entropy of −dim(A) assumes an interior optimum,
-> and this task's optimum is on the action bounds (charge at full rate). The tanh
-> change-of-variables term then makes a correctly-saturated policy look under-explored.
-> Every setting tried diverged (19.4 in the thesis, 8.7 after reward rescaling) or pinned
-> against its cap (1.0).
+> Non-dominated: uncoordinated, SAC-Lag, SafeSAC. **Under a hard zero-violation
+> requirement, the learned+projected controller delivers 13× droop's service** — which
+> is the defensible claim, and it repairs audit B4 (droop out-performing the method on
+> safety) by making them tie on safety and separating them on service.
 >
-> **α sweep** (80 episodes, seed 0, unprojected arm only — never on the projected-vs-
-> unprojected contrast, which would invalidate the ablation):
+> What is still unknown is whether 0.089 is *good*. Nothing here establishes the
+> achievable frontier at zero violations, so the MPC oracle from Stage 5 is now on the
+> critical path rather than a nice-to-have: without it there is no way to say whether the
+> projection costs 0.128 of service because the physics demands it or because the
+> controller is weak.
 >
-> | α | violations | SoC met |
-> |---|---|---|
-> | 0.001 | 0.0542 | 0.022 |
-> | **0.003** | **0.0080** | **0.114** |
-> | 0.010 | 0.0007 | 0.056 |
-> | 0.030 | 0.0111 | 0.046 |
-> | 0.100 | 0.0108 | 0.078 |
->
-> Reference: uncoordinated 0.0625 / 0.816, droop 0.0000 / 0.005. The best learned policy
-> sits 23× above droop on service at near-equal safety — the right shape, weak magnitude.
-> The response is flat across two decades of α, which says α is no longer the binding
-> constraint. `scripts/budget_probe.py` tests whether the remainder is training budget.
->
-> **Gate 1 is split in two,** because the original wording conflates two claims that
-> measurably come apart. *1a: λ leaves zero in every run.* *1b: λ tracks realised J_C.*
-> A cost critic fitted where violations are rare can push λ up while J_C stays at zero —
-> observed at 0.81 with J_C ≈ 0. Reporting λ alone as evidence of constraint satisfaction
-> is the same error the thesis made, in the opposite direction.
+> **Gate 1 outcome.** *1a — λ leaves zero wherever the constraint binds:* **PASS** (all
+> three unprojected runs; the projected runs correctly hold λ = 0 because realised cost is
+> identically zero — an earlier version of this criterion wrongly scored that a failure).
+> *1b — λ tracks realised J_C:* **WEAK**, mean correlation +0.079 over the three runs with
+> any violation. λ responds to the budget, not to the fine structure of the cost, so it
+> should be reported as a control signal and never as evidence of constraint satisfaction.
 
 ---
 

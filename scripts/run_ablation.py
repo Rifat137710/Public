@@ -198,8 +198,13 @@ def main() -> int:
         for seed, r in results["arms"][arm].items():
             lam = np.asarray(r["lambda_trace"], dtype=float)
             jc = np.asarray(r["realised_cost_trace"], dtype=float)
+            # Gate 1a applies only where the constraint is actually binding.
+            # In the projection arm realised cost is identically zero, so
+            # lambda = 0 is the *correct* dual response, not a failure.
+            binding = float(jc.mean()) > 1e-9
             engaged = float(lam[-1]) > 1e-6
-            lam_engaged &= engaged
+            if binding:
+                lam_engaged &= engaged
             if jc.std() > 1e-12 and lam.std() > 1e-12:
                 rho = float(np.corrcoef(lam, jc)[0, 1])
             else:
@@ -211,14 +216,16 @@ def main() -> int:
             }
             print(f"  {arm:<16} seed {seed}:  lambda_final={lam[-1]:8.4f}  "
                   f"mean J_C={jc.mean():7.4f}  corr(lambda, J_C)={rho:+.3f}"
-                  f"{'' if engaged else '   <-- PINNED AT ZERO'}")
+                  f"{'' if engaged or not binding else '   <-- PINNED AT ZERO'}"
+                  f"{'   (no violations: lambda = 0 is correct)' if not binding else ''}")
 
     informative = [
         c["corr_lambda_vs_realised_cost"]
         for c in correlations.values()
         if c["realised_cost_mean"] > 1e-6
     ]
-    print(f"\nGate 1a -- lambda leaves zero in every run: {'PASS' if lam_engaged else 'FAIL'}")
+    print(f"\nGate 1a -- lambda leaves zero wherever the constraint binds: "
+          f"{'PASS' if lam_engaged else 'FAIL'}")
     if informative:
         print(f"Gate 1b -- lambda vs realised cost, mean corr over runs with any "
               f"violation: {np.mean(informative):+.3f} (n={len(informative)})")
