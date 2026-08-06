@@ -214,6 +214,39 @@ shrinks or vanishes — that is the finding, and better to learn it now.*
 > 210 with nothing to penalise is the extrapolation failure of audit A2 in its clearest
 > form: the sign is fixed, the magnitude is still noise.
 >
+> **Three training defects had to be cleared before the ablation could mean anything.**
+> Each was found by a longer run exposing the previous fix, and each is a genuine defect
+> in the thesis's training loop rather than a tuning preference:
+>
+> | # | defect | evidence | fix |
+> |---|---|---|---|
+> | 1 | λ pinned at zero | cost critic averages −0.74 on a non-negative target; below threshold on 73 % of steps | `clamp_cost_critic` |
+> | 2 | dual-variable windup | λ → 1888 while realised cost is *identically zero*; no anti-windup on 72 000 integrator steps | `dual_update="realised"` |
+> | 3 | entropy temperature unusable | log π = +7.49 mean, above the +8 threshold on 46 % of states, of which the tanh term contributes +13.42 | `autotune_alpha=False` + swept α |
+>
+> Defect 3 is worth stating carefully in the paper, because it is a property of the *task*,
+> not of the implementation: SAC's target entropy of −dim(A) assumes an interior optimum,
+> and this task's optimum is on the action bounds (charge at full rate). The tanh
+> change-of-variables term then makes a correctly-saturated policy look under-explored.
+> Every setting tried diverged (19.4 in the thesis, 8.7 after reward rescaling) or pinned
+> against its cap (1.0).
+>
+> **α sweep** (80 episodes, seed 0, unprojected arm only — never on the projected-vs-
+> unprojected contrast, which would invalidate the ablation):
+>
+> | α | violations | SoC met |
+> |---|---|---|
+> | 0.001 | 0.0542 | 0.022 |
+> | **0.003** | **0.0080** | **0.114** |
+> | 0.010 | 0.0007 | 0.056 |
+> | 0.030 | 0.0111 | 0.046 |
+> | 0.100 | 0.0108 | 0.078 |
+>
+> Reference: uncoordinated 0.0625 / 0.816, droop 0.0000 / 0.005. The best learned policy
+> sits 23× above droop on service at near-equal safety — the right shape, weak magnitude.
+> The response is flat across two decades of α, which says α is no longer the binding
+> constraint. `scripts/budget_probe.py` tests whether the remainder is training budget.
+>
 > **Gate 1 is split in two,** because the original wording conflates two claims that
 > measurably come apart. *1a: λ leaves zero in every run.* *1b: λ tracks realised J_C.*
 > A cost critic fitted where violations are rare can push λ up while J_C stays at zero —
