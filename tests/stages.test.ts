@@ -12,6 +12,12 @@
 import { runEpisode } from '../src/sim/live.js';
 import { droop, placeholderController, uncoordinated } from '../src/sim/controllers.js';
 import { STAGES } from '../src/content/stages.js';
+import {
+  OBJECTIVES,
+  buildFindings,
+  onePagerHtml,
+  pickVerdict,
+} from '../src/content/debrief.js';
 
 let passed = 0;
 let failed = 0;
@@ -142,6 +148,96 @@ check(
   'so the trap is genuinely baited — it wins on every column shown',
   others.every((r) => trap.violationRate <= r.violationRate && trap.netCostUsd < r.netCostUsd) &&
     trap.socMet < 0.02,
+);
+
+console.log('\nThe debrief');
+
+type EpisodeResult = (typeof results)['droop'];
+
+const dot = (id: string, label: string, r: EpisodeResult, mine = false) => ({
+  id,
+  label,
+  violationRate: r.violationRate,
+  socMet: r.socMet,
+  provenance: r.provenance,
+  mine,
+});
+
+const candidate = (id: string, label: string, r: EpisodeResult) => ({
+  id,
+  label,
+  violationRate: r.violationRate,
+  netCostUsd: r.netCostUsd,
+  socMet: r.socMet,
+  provenance: r.provenance,
+});
+
+const dots = [
+  dot('manual', 'You', results.uncoordinated, true),
+  dot('uncoordinated', 'Uncoordinated', results.uncoordinated),
+  dot('droop', 'Droop (IEEE 1547)', results.droop),
+  dot('sac-lag', 'SAC-Lag (plain deep RL)', results.sacLag),
+  dot('safesac', 'SafeSAC', results.safeSac),
+];
+
+const trapCandidates = [
+  candidate('droop', 'Droop (IEEE 1547)', results.droop),
+  candidate('safesac', 'SafeSAC', results.safeSac),
+  candidate('sac-lag-shift', 'SAC-Lag (trained on a strong grid)', results.shifted),
+];
+
+check(
+  'the eight objectives are all present and in order',
+  OBJECTIVES.length === 8 &&
+    OBJECTIVES.every((o, i) => o.id === `L${i + 1}`) &&
+    OBJECTIVES.every((o) => o.text.length > 40 && o.stage.startsWith('Stage')),
+);
+
+const debriefFindings = buildFindings(dots);
+check(
+  'a full run produces a finding for every beat of the arc',
+  debriefFindings.length === 5,
+  debriefFindings.map((f) => f.key).join(', '),
+);
+check(
+  'the stage 4 finding claims domination only when the run actually showed it',
+  (results.sacLag.violationRate > results.droop.violationRate &&
+    results.sacLag.socMet < results.droop.socMet) ===
+    (debriefFindings.find((f) => f.key === 'sac-lag')?.headline ===
+      'Intelligence was not the missing ingredient'),
+);
+
+// A learner who skipped stages must not be told about findings they never saw.
+check(
+  'findings that did not happen are absent rather than asserted',
+  buildFindings(dots.filter((d) => d.id === 'manual')).length === 1 &&
+    buildFindings([]).length === 0,
+);
+
+const trapVerdict = pickVerdict(trapCandidates, 'sac-lag-shift');
+check(
+  'picking the trap is named as serving nobody',
+  trapVerdict !== null && trapVerdict.headline.endsWith('served nobody'),
+  trapVerdict?.headline,
+);
+const safeVerdict = pickVerdict(trapCandidates, 'safesac');
+check(
+  'picking SafeSAC gets the other verdict, not the same scolding',
+  safeVerdict !== null && !safeVerdict.headline.endsWith('served nobody'),
+  safeVerdict?.headline,
+);
+check('no pick yields no verdict', pickVerdict(trapCandidates, null) === null);
+
+const onePager = onePagerHtml(dots, debriefFindings, trapVerdict, 'weak', 0.5, '2026-01-01 00:00');
+check(
+  'the one-page export carries the numbers rather than a template',
+  onePager.includes(results.droop.violationRate.toFixed(3)) &&
+    onePager.includes(results.safeSac.socMet.toFixed(3)) &&
+    onePager.includes('<!doctype html>'),
+);
+check(
+  'and flags the stand-ins, since it leaves the building',
+  onePager.includes('labelled stand-ins'),
 );
 
 console.log(`\n${passed} passed, ${failed} failed`);

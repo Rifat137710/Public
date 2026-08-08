@@ -26,6 +26,7 @@ import { VoltageProfile } from './ui/VoltageProfile.js';
 import { ParetoMap, type Dot } from './ui/ParetoMap.js';
 import { StageCard } from './ui/StageCard.js';
 import { Leaderboard, type Candidate } from './ui/Leaderboard.js';
+import { Debrief } from './ui/Debrief.js';
 
 const SLIDER_LIMIT_KW = 800;
 const SPEEDS = [1, 4, 16, 64] as const;
@@ -72,7 +73,7 @@ const CONTROLLERS: Record<string, Controller> = {
 const COMPARABLE = [uncoordinated, droop, sacLag, safeSac];
 const TRAP_CANDIDATES = [droop, sacLag, safeSac, sacLagShifted];
 
-type Phase = 'brief' | 'running' | 'reveal' | 'sandbox';
+type Phase = 'brief' | 'running' | 'reveal' | 'debrief' | 'sandbox';
 
 export default function App() {
   const [stageIndex, setStageIndex] = useState(0);
@@ -208,14 +209,20 @@ export default function App() {
   }, [stage, rebuild]);
 
   const nextStage = useCallback(() => {
+    // The arc does not end on the stage 6 reveal. Six stages produce a sequence of
+    // moments; the debrief is where they are consolidated into something retained.
     if (stageIndex >= STAGES.length - 1) {
-      setPhase('sandbox');
-      rebuild();
+      setPhase('debrief');
       return;
     }
     setStageIndex((n) => n + 1);
     setPhase('brief');
-  }, [stageIndex, rebuild]);
+  }, [stageIndex]);
+
+  const openSandbox = useCallback(() => {
+    setPhase('sandbox');
+    rebuild();
+  }, [rebuild]);
 
   const skipToSandbox = useCallback(() => {
     setPhase('sandbox');
@@ -630,8 +637,19 @@ export default function App() {
             vMinPu: sim.finalTotals().vMinPu,
             dots,
           })}
-          actionLabel={stageIndex >= STAGES.length - 1 ? 'Open the sandbox' : 'Next stage'}
+          actionLabel={stageIndex >= STAGES.length - 1 ? 'See your debrief' : 'Next stage'}
           onAction={nextStage}
+        />
+      )}
+
+      {phase === 'debrief' && (
+        <Debrief
+          dots={dots}
+          candidates={candidates}
+          pick={pick}
+          grid={grid}
+          loadScale={loadScale}
+          onAction={openSandbox}
         />
       )}
     </div>

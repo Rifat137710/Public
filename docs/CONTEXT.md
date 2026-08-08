@@ -404,6 +404,23 @@ Consequences:
 - No webinar recording watched. The 2026 kick-off slides were read in full; spoken content unread.
 - `bit.ly/4igbnPi` unresolved.
 
+### Deployment — read this before touching the workflow
+
+The live site is **https://rifat137710.github.io/Public/** and it deploys from **`main`**, not from
+the feature branch. Enabling Pages with "GitHub Actions" as the source creates a protected
+`github-pages` environment whose deployment-branch policy allows **only the default branch**. Runs 1–3
+built green and then failed in the `deploy` job in under a second, with no runner assigned and no logs
+— that signature means the job was never dispatched, i.e. environment protection, not a build error.
+
+Development stays on `claude/hello-vj564a`; shipping is `git push origin claude/hello-vj564a:main`
+(a fast-forward, no force). Verify with `actions_list` on `deploy.yml` — the `deploy` job must show a
+`runner_id` and steps, not a one-second failure.
+
+Egress from the session also blocks `*.github.io`, so the deployed page **cannot be fetched from here**.
+Trust the workflow conclusion instead: `actions/deploy-pages@v4` reports success only once the
+deployment is serving. Visual checking is done against a local `vite preview` with Playwright, never
+against the live URL.
+
 Local tooling notes: no `pdftotext`/`poppler`; system `cryptography` is broken (pyo3 panic), so Python
 PDF work runs from a venv at
 `/tmp/claude-0/-home-user-Public/e7002dc9-9fa4-55e6-af4a-2b37b9d88d33/scratchpad/venv`
