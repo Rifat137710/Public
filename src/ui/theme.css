@@ -369,9 +369,15 @@ select.ctl {
   position: absolute;
   top: 9px;
   height: 8px;
-  background: color-mix(in srgb, var(--limit) 55%, transparent);
   border-radius: 2px;
   pointer-events: none;
+  /* Red means the safety layer intervened. A shortfall that is merely the fleet's own
+     physical limit is not a curtailment and must not be dressed up as one. */
+  background: color-mix(in srgb, var(--ink-3) 55%, transparent);
+}
+
+.slider-gap[data-cause='safety'] {
+  background: color-mix(in srgb, var(--limit) 55%, transparent);
 }
 
 .slider-safe {
@@ -411,9 +417,13 @@ input[type='range']::-moz-range-thumb {
 }
 
 .station-value .curtailed {
-  color: var(--limit);
+  color: var(--ink-3);
   display: block;
   font-size: 0.68rem;
+}
+
+.station-value .curtailed[data-cause='safety'] {
+  color: var(--limit);
 }
 
 /* ------------------------------------------------------------ scorecard */
@@ -473,4 +483,189 @@ input[type='range']::-moz-range-thumb {
   * {
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ------------------------------------------------------- stage overlay */
+
+.stage-flag {
+  font-size: 0.78rem;
+  color: var(--ink-2);
+  text-align: right;
+  max-width: 30rem;
+}
+
+.stage-flag b {
+  display: block;
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(6, 9, 13, 0.86);
+  display: grid;
+  place-items: center;
+  padding: 2rem 1.5rem;
+  overflow-y: auto;
+  z-index: 20;
+}
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line-2);
+  border-top: 3px solid var(--accent);
+  border-radius: 6px;
+  max-width: 40rem;
+  padding: 1.9rem 2.1rem 1.6rem;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+}
+
+.card[data-tone='reveal'] {
+  border-top-color: var(--warn);
+}
+
+.card-eyebrow {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 0.7rem;
+}
+
+.card[data-tone='reveal'] .card-eyebrow {
+  color: var(--warn);
+}
+
+.card-title {
+  font-size: 1.55rem;
+  line-height: 1.2;
+  font-weight: 600;
+  margin: 0 0 1rem;
+  text-wrap: balance;
+}
+
+.card-body {
+  margin: 0 0 0.85rem;
+  color: var(--ink-2);
+  max-width: 62ch;
+}
+
+.card-actions {
+  display: flex;
+  gap: 0.7rem;
+  align-items: center;
+  margin-top: 1.4rem;
+}
+
+button.ctl.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #06201C;
+  font-weight: 600;
+  padding: 0.45rem 1.2rem;
+}
+
+button.ctl.primary:hover:not(:disabled) {
+  background: #5FC4B2;
+  border-color: #5FC4B2;
+}
+
+button.ctl.quiet {
+  background: transparent;
+  border-color: transparent;
+  color: var(--ink-3);
+}
+
+button.ctl.quiet:hover:not(:disabled) {
+  background: transparent;
+  border-color: var(--line-2);
+  color: var(--ink-2);
+}
+
+.map-locked {
+  opacity: 0.55;
+}
+
+/* --------------------------------------------------------- leaderboard */
+
+.leaderboard table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.86rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.leaderboard caption {
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  padding-bottom: 0.75rem;
+}
+
+.leaderboard th {
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  font-weight: 600;
+  border-bottom: 1px solid var(--line-2);
+  padding: 0 0.5rem 0.4rem 0;
+}
+
+.leaderboard td {
+  border-bottom: 1px solid var(--line);
+  padding: 0.6rem 0.5rem 0.6rem 0;
+  color: var(--ink-2);
+  vertical-align: middle;
+}
+
+.leaderboard td:first-child {
+  color: var(--ink);
+}
+
+.leaderboard .num {
+  text-align: right;
+  font-family: var(--mono);
+}
+
+.leaderboard tr[data-chosen='true'] td {
+  background: rgba(79, 179, 162, 0.09);
+}
+
+.leaderboard tr[data-collapsed='true'] td:first-child {
+  color: var(--limit);
+}
+
+.leaderboard .best {
+  color: var(--accent);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.leaderboard .zero {
+  color: var(--limit);
+  font-weight: 700;
+}
+
+.leaderboard .star {
+  color: var(--warn);
+}
+
+.leaderboard .your-pick {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
 }

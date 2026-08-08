@@ -4,12 +4,13 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "test": "tsx tests/physics.test.ts",
+    "test": "tsx tests/physics.test.ts && tsx tests/stages.test.ts",
     "calibrate": "tsx scripts/calibrate.ts",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "compare": "tsx scripts/compare.ts"
+    "compare": "tsx scripts/compare.ts",
+    "test:stages": "tsx tests/stages.test.ts"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

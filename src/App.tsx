@@ -4,9 +4,12 @@
  * One screen, three registers: the village you feel it in, the console you measure it
  * with, and the map that shows where your decision sits among the alternatives. No
  * navigation, because the whole point is relating the three to each other at once.
+ *
+ * The six-stage arc drives which of those registers is visible when. Controls appear as
+ * a stage needs them; a learner handed every option at once explores none of them.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LiveSim, runEpisode } from './sim/live.js';
 import { STATION_BUSES, type GridKind } from './sim/network.js';
 import { V_LOWER } from './sim/projection.js';
@@ -17,38 +20,68 @@ import {
   uncoordinated,
   type Controller,
 } from './sim/controllers.js';
+import { STAGES, unlockedBy, type Unlock } from './content/stages.js';
 import { Village } from './ui/Village.js';
 import { VoltageProfile } from './ui/VoltageProfile.js';
 import { ParetoMap, type Dot } from './ui/ParetoMap.js';
+import { StageCard } from './ui/StageCard.js';
+import { Leaderboard, type Candidate } from './ui/Leaderboard.js';
 
 const SLIDER_LIMIT_KW = 800;
 const SPEEDS = [1, 4, 16, 64] as const;
 
-const REFERENCE_CONTROLLERS: Controller[] = [
+const sacLag = placeholderController({
+  id: 'sac-lag',
+  label: 'SAC-Lag (plain deep RL)',
+  eagerness: 0.85,
+  backoffPu: 0.952,
+  arbitrage: true,
+  usesProjection: false,
+});
+
+const safeSac = placeholderController({
+  id: 'safesac',
+  label: 'SafeSAC',
+  eagerness: 0.95,
+  backoffPu: 0.948,
+  arbitrage: false,
+  usesProjection: true,
+});
+
+/**
+ * The stage-6 trap: an agent trained on a stiff grid and deployed on this one. It holds
+ * a near-perfect safety record and turns a profit, by declining to charge anybody.
+ */
+const sacLagShifted = placeholderController({
+  id: 'sac-lag-shift',
+  label: 'SAC-Lag (trained on a strong grid)',
+  eagerness: 0,
+  backoffPu: 0.9,
+  arbitrage: true,
+  usesProjection: false,
+});
+
+const CONTROLLERS: Record<string, Controller> = {
   uncoordinated,
   droop,
-  placeholderController({
-    id: 'sac-lag',
-    label: 'SAC-Lag (plain deep RL)',
-    eagerness: 0.85,
-    backoffPu: 0.952,
-    arbitrage: true,
-    usesProjection: false,
-  }),
-  placeholderController({
-    id: 'safesac',
-    label: 'SafeSAC',
-    eagerness: 0.95,
-    backoffPu: 0.948,
-    arbitrage: false,
-    usesProjection: true,
-  }),
-];
+  'sac-lag': sacLag,
+  safesac: safeSac,
+  'sac-lag-shift': sacLagShifted,
+};
+
+const COMPARABLE = [uncoordinated, droop, sacLag, safeSac];
+const TRAP_CANDIDATES = [droop, sacLag, safeSac, sacLagShifted];
+
+type Phase = 'brief' | 'running' | 'reveal' | 'sandbox';
 
 export default function App() {
+  const [stageIndex, setStageIndex] = useState(0);
+  const [phase, setPhase] = useState<Phase>('brief');
+  const [pick, setPick] = useState<string | null>(null);
+
   const [grid, setGrid] = useState<GridKind>('weak');
   const [loadScale, setLoadScale] = useState(0.5);
-  const [projection, setProjection] = useState(true);
+  const [projection, setProjection] = useState(false);
   const [commands, setCommands] = useState<number[]>([0, 0, 0, 0]);
   const [speed, setSpeed] = useState<number>(16);
   const [playing, setPlaying] = useState(false);
@@ -56,52 +89,87 @@ export default function App() {
   const [dots, setDots] = useState<Dot[]>([]);
   const [, forceRender] = useState(0);
 
+  const stage = STAGES[Math.min(stageIndex, STAGES.length - 1)];
+  const inArc = phase !== 'sandbox';
+  const unlocked: Set<Unlock> = useMemo(
+    () => (inArc ? unlockedBy(stageIndex) : new Set(['map', 'projection', 'grid', 'loadScale', 'compare', 'margin'] as Unlock[])),
+    [inArc, stageIndex],
+  );
+
   const simRef = useRef<LiveSim | null>(null);
   if (simRef.current === null) simRef.current = new LiveSim({ grid, loadScale });
+  const sim = simRef.current;
 
-  // Rebuild the world when a scenario knob moves. The learner's accumulated dots stay,
-  // because comparing a weak-grid run with a strong-grid one is the point.
-  useEffect(() => {
+  const commandsRef = useRef(commands);
+  commandsRef.current = commands;
+
+  const rebuild = useCallback(() => {
     simRef.current = new LiveSim({ grid, loadScale });
     setCommands([0, 0, 0, 0]);
     setPlaying(false);
     forceRender((n) => n + 1);
   }, [grid, loadScale]);
 
-  const sim = simRef.current;
-  const commandsRef = useRef(commands);
-  commandsRef.current = commands;
+  useEffect(() => {
+    rebuild();
+  }, [rebuild]);
 
-  const finishRun = useCallback(() => {
-    const totals = sim.finalTotals();
-    setDots((prior) => [
-      ...prior.filter((d) => d.id !== 'manual'),
-      {
-        id: 'manual',
-        label: 'You',
-        violationRate: totals.violationRate,
-        socMet: totals.socMet,
-        provenance: 'human',
-        mine: true,
-      },
-    ]);
-  }, [sim]);
+  const activeController: Controller | null =
+    inArc && stage.mode === 'watch' && stage.controllerId
+      ? CONTROLLERS[stage.controllerId] ?? null
+      : null;
 
-  const advance = useCallback(() => {
-    if (sim.finished) {
-      setPlaying(false);
+  const recordDot = useCallback(
+    (id: string, label: string, provenance: string, mine: boolean) => {
+      const totals = sim.finalTotals();
+      setDots((prior) => [
+        ...prior.filter((d) => d.id !== id),
+        {
+          id,
+          label,
+          violationRate: totals.violationRate,
+          socMet: totals.socMet,
+          provenance,
+          mine,
+        },
+      ]);
+      return totals;
+    },
+    [sim],
+  );
+
+  const onDayComplete = useCallback(() => {
+    setPlaying(false);
+    if (!inArc) {
+      recordDot('manual', 'You', 'human', true);
       return;
     }
-    sim.advance(commandsRef.current, projection);
-    if (sim.finished) {
-      setPlaying(false);
-      finishRun();
+    if (activeController) {
+      recordDot(activeController.id, activeController.label, activeController.provenance, false);
+    } else {
+      recordDot('manual', 'You', 'human', true);
     }
-    forceRender((n) => n + 1);
-  }, [sim, projection, finishRun]);
+    setPhase('reveal');
+  }, [inArc, activeController, recordDot]);
 
-  // Playback clock. Steps are emitted on a wall-clock accumulator rather than one per
-  // frame, so the day runs at the same rate on a 60 Hz and a 120 Hz display.
+  const stepOnce = useCallback(() => {
+    if (sim.finished) return;
+    if (activeController) {
+      sim.advanceWith(activeController, stage.projection ?? activeController.usesProjection);
+    } else {
+      sim.advance(commandsRef.current, projection);
+    }
+  }, [sim, activeController, stage.projection, projection]);
+
+  const advance = useCallback(() => {
+    if (sim.finished) return;
+    stepOnce();
+    if (sim.finished) onDayComplete();
+    forceRender((n) => n + 1);
+  }, [sim, stepOnce, onDayComplete]);
+
+  // Playback clock. Steps run on a wall-clock accumulator rather than one per frame, so
+  // the day takes the same time on a 60 Hz and a 120 Hz display.
   useEffect(() => {
     if (!playing) return;
     let raf = 0;
@@ -109,26 +177,21 @@ export default function App() {
     let carry = 0;
 
     const tick = (now: number): void => {
-      const elapsed = (now - previous) / 1000;
+      carry += ((now - previous) / 1000) * speed;
       previous = now;
-      carry += elapsed * speed;
       let budget = 0;
-      while (carry >= 1 && budget < 40) {
+      while (carry >= 1 && budget < 40 && !sim.finished) {
         carry -= 1;
         budget++;
-        if (sim.finished) break;
-        sim.advance(commandsRef.current, projection);
+        stepOnce();
       }
-      if (sim.finished) {
-        setPlaying(false);
-        finishRun();
-      }
+      if (sim.finished) onDayComplete();
       forceRender((n) => n + 1);
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [playing, speed, sim, projection, finishRun]);
+  }, [playing, speed, sim, stepOnce, onDayComplete]);
 
   const reset = useCallback(() => {
     sim.reset();
@@ -136,6 +199,28 @@ export default function App() {
     setPlaying(false);
     forceRender((n) => n + 1);
   }, [sim]);
+
+  const beginStage = useCallback(() => {
+    if (stage.projection !== undefined) setProjection(stage.projection);
+    rebuild();
+    setPhase('running');
+    if (stage.mode === 'watch') setPlaying(true);
+  }, [stage, rebuild]);
+
+  const nextStage = useCallback(() => {
+    if (stageIndex >= STAGES.length - 1) {
+      setPhase('sandbox');
+      rebuild();
+      return;
+    }
+    setStageIndex((n) => n + 1);
+    setPhase('brief');
+  }, [stageIndex, rebuild]);
+
+  const skipToSandbox = useCallback(() => {
+    setPhase('sandbox');
+    rebuild();
+  }, [rebuild]);
 
   const runReference = useCallback(
     (controller: Controller) => {
@@ -155,11 +240,48 @@ export default function App() {
     [grid, loadScale],
   );
 
-  // Keyboard. Everything reachable without a mouse, which the accessibility criterion
-  // asks for and which also makes a clean take for the video.
+  // Stage 6 needs all four candidates scored on the same day before anything is shown.
+  const candidates: Candidate[] = useMemo(() => {
+    if (!inArc || stage.mode !== 'choose') return [];
+    return TRAP_CANDIDATES.map((c) => {
+      const r = runEpisode(c, { grid: 'weak', loadScale: 0.5 });
+      return {
+        id: c.id,
+        label: c.label,
+        violationRate: r.violationRate,
+        netCostUsd: r.netCostUsd,
+        socMet: r.socMet,
+        provenance: c.provenance,
+      };
+    });
+  }, [inArc, stage.mode]);
+
+  const choose = useCallback(
+    (id: string) => {
+      setPick(id);
+      const chosen = candidates.find((c) => c.id === id);
+      if (chosen) {
+        setDots((prior) => [
+          ...prior.filter((d) => d.id !== chosen.id),
+          {
+            id: chosen.id,
+            label: chosen.label,
+            violationRate: chosen.violationRate,
+            socMet: chosen.socMet,
+            provenance: chosen.provenance,
+            mine: false,
+          },
+        ]);
+      }
+      setPhase('reveal');
+    },
+    [candidates],
+  );
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
-      if (event.target instanceof HTMLInputElement && event.key !== 'Escape') return;
+      if (event.target instanceof HTMLInputElement) return;
+      if (phase !== 'running' && phase !== 'sandbox') return;
       switch (event.key) {
         case ' ':
           event.preventDefault();
@@ -171,11 +293,11 @@ export default function App() {
           break;
         case 'p':
         case 'P':
-          setProjection((v) => !v);
+          if (unlocked.has('projection')) setProjection((v) => !v);
           break;
         case 'g':
         case 'G':
-          setGrid((v) => (v === 'weak' ? 'strong' : 'weak'));
+          if (unlocked.has('grid')) setGrid((v) => (v === 'weak' ? 'strong' : 'weak'));
           break;
         case 'r':
         case 'R':
@@ -189,17 +311,21 @@ export default function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [advance, reset]);
+  }, [advance, reset, phase, unlocked]);
 
-  const preview = projection ? sim.preview(commands) : { safeKw: sim.clampToFleet(commands), relaxed: false };
+  const preview = projection
+    ? sim.preview(commands)
+    : { safeKw: sim.clampToFleet(commands), relaxed: false };
   const displayed = sim.last?.voltages ?? sim.background;
   const totals = sim.totals();
   const step = Math.min(sim.step, STEPS_PER_DAY - 1);
   const tier = priceTier(step);
-
   const worstBus = sim.last?.vMinBus ?? 18;
   const worstV = sim.last?.vMin ?? sim.background[18];
   const outOfBand = sim.last?.violations ?? 0;
+
+  const manualDriving = phase === 'sandbox' || (inArc && stage.mode === 'manual');
+  const showChoice = inArc && stage.mode === 'choose' && phase === 'running';
 
   return (
     <div className="app">
@@ -213,32 +339,39 @@ export default function App() {
           {tier} · ${sim.price.toFixed(2)}/kWh
         </span>
 
-        <div className="transport">
-          <button className="ctl" onClick={() => setPlaying((p) => !p)} disabled={sim.finished}>
-            {playing ? 'Pause' : 'Play'}
-          </button>
-          <button className="ctl" onClick={advance} disabled={playing || sim.finished}>
-            Step
-          </button>
-          <button className="ctl" onClick={reset}>
-            Reset
-          </button>
-          {SPEEDS.map((s) => (
-            <button
-              key={s}
-              className="ctl"
-              data-active={speed === s}
-              onClick={() => setSpeed(s)}
-            >
-              ×{s}
+        {!showChoice && (
+          <div className="transport">
+            <button className="ctl" onClick={() => setPlaying((p) => !p)} disabled={sim.finished}>
+              {playing ? 'Pause' : 'Play'}
             </button>
-          ))}
-        </div>
+            <button className="ctl" onClick={advance} disabled={playing || sim.finished}>
+              Step
+            </button>
+            <button className="ctl" onClick={reset}>
+              Reset
+            </button>
+            {SPEEDS.map((s) => (
+              <button key={s} className="ctl" data-active={speed === s} onClick={() => setSpeed(s)}>
+                ×{s}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="spacer" />
-        <span className="hint">
-          {sim.finished ? 'Day complete — your dot is on the map' : `${sim.last?.connected ?? 0} vehicles plugged in`}
-        </span>
+
+        {inArc ? (
+          <span className="stage-flag">
+            <b>
+              Stage {stage.n}/6 · {stage.eyebrow}
+            </b>
+            {stage.task}
+          </span>
+        ) : (
+          <span className="stage-flag">
+            <b>Sandbox</b> Everything unlocked. Try to beat SafeSAC.
+          </span>
+        )}
       </header>
 
       <div className="main">
@@ -264,124 +397,144 @@ export default function App() {
         </div>
 
         <div className="console">
-          <section className="section">
-            <h2>Voltage profile</h2>
-            <VoltageProfile
-              voltages={displayed}
-              ghost={sim.last?.backgroundVoltages}
-              focusBus={focusBus}
-              onFocusBus={setFocusBus}
-            />
-            <p className="hint">
-              Solid: now. Dotted: before this step's command.
-            </p>
-          </section>
+          {showChoice ? (
+            <Leaderboard candidates={candidates} chosen={pick} onChoose={choose} />
+          ) : (
+            <>
+              <section className="section">
+                <h2>Voltage profile</h2>
+                <VoltageProfile
+                  voltages={displayed}
+                  ghost={sim.last?.backgroundVoltages}
+                  focusBus={focusBus}
+                  onFocusBus={setFocusBus}
+                />
+                <p className="hint">Solid: now. Dotted: before this step's command.</p>
+              </section>
 
-          <section className="section">
-            <h2>Your dispatch</h2>
-            {STATION_BUSES.map((bus, k) => {
-              const cap = sim.capabilities[k];
-              const raw = commands[k];
-              const safe = preview.safeKw[k];
-              const curtailed = Math.abs(raw - safe) > 1;
-              const toPct = (kw: number) => ((kw + SLIDER_LIMIT_KW) / (2 * SLIDER_LIMIT_KW)) * 100;
+              <section className="section">
+                <h2>{manualDriving ? 'Your dispatch' : `${activeController?.label ?? ''} is driving`}</h2>
+                {STATION_BUSES.map((bus, k) => {
+                  const cap = sim.capabilities[k];
+                  const raw = manualDriving ? commands[k] : (sim.last?.rawKw[k] ?? 0);
+                  const safe = manualDriving ? preview.safeKw[k] : (sim.last?.safeKw[k] ?? 0);
+                  const curtailed = Math.abs(raw - safe) > 1;
+                  const toPct = (kw: number) =>
+                    ((kw + SLIDER_LIMIT_KW) / (2 * SLIDER_LIMIT_KW)) * 100;
 
-              return (
-                <div
-                  className="station"
-                  key={bus}
-                  onMouseEnter={() => setFocusBus(bus)}
-                  onMouseLeave={() => setFocusBus(null)}
-                >
-                  <div className="station-name">
-                    <b>Station {k + 1}</b>
-                    bus {bus} · {cap?.connected ?? 0} EV
-                  </div>
-
-                  <div className="slider-wrap">
-                    <div className="slider-track" />
+                  return (
                     <div
-                      className="slider-available"
-                      style={{
-                        left: `${toPct(cap?.maxDrawKw ?? 0)}%`,
-                        width: `${toPct(cap?.maxInjectKw ?? 0) - toPct(cap?.maxDrawKw ?? 0)}%`,
-                      }}
-                    />
-                    {curtailed && (
-                      <div
-                        className="slider-gap"
-                        style={{
-                          left: `${Math.min(toPct(raw), toPct(safe))}%`,
-                          width: `${Math.abs(toPct(raw) - toPct(safe))}%`,
-                        }}
-                      />
+                      className="station"
+                      key={bus}
+                      onMouseEnter={() => setFocusBus(bus)}
+                      onMouseLeave={() => setFocusBus(null)}
+                    >
+                      <div className="station-name">
+                        <b>Station {k + 1}</b>
+                        bus {bus} · {cap?.connected ?? 0} EV
+                      </div>
+
+                      <div className="slider-wrap">
+                        <div className="slider-track" />
+                        <div
+                          className="slider-available"
+                          style={{
+                            left: `${toPct(cap?.maxDrawKw ?? 0)}%`,
+                            width: `${toPct(cap?.maxInjectKw ?? 0) - toPct(cap?.maxDrawKw ?? 0)}%`,
+                          }}
+                        />
+                        {curtailed && (
+                          <div
+                            className="slider-gap"
+                            data-cause={projection ? 'safety' : 'fleet'}
+                            style={{
+                              left: `${Math.min(toPct(raw), toPct(safe))}%`,
+                              width: `${Math.abs(toPct(raw) - toPct(safe))}%`,
+                            }}
+                          />
+                        )}
+                        <div className="slider-safe" style={{ left: `calc(${toPct(safe)}% - 1.5px)` }} />
+                        <input
+                          type="range"
+                          min={-SLIDER_LIMIT_KW}
+                          max={SLIDER_LIMIT_KW}
+                          step={10}
+                          value={raw}
+                          disabled={!manualDriving}
+                          aria-label={`Station ${k + 1} at bus ${bus}, kilowatts, negative is charging`}
+                          onChange={(e) => {
+                            const next = commands.slice();
+                            next[k] = Number(e.target.value);
+                            setCommands(next);
+                          }}
+                        />
+                      </div>
+
+                      <div className="station-value">
+                        {safe.toFixed(0)} kW
+                        {curtailed && (
+                          <span className="curtailed" data-cause={projection ? 'safety' : 'fleet'}>
+                            asked {raw.toFixed(0)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+                <p className="hint">
+                  Negative charges, positive sends power back. The green mark is what
+                  actually gets executed —{' '}
+                  {projection
+                    ? 'the safety layer curtails anything that would push a bus out of band.'
+                    : 'with no safety layer running, the only limit is what the plugged-in vehicles can physically take.'}
+                </p>
+              </section>
+
+              {(unlocked.has('projection') || unlocked.has('grid')) && (
+                <section className="section">
+                  <h2>Scenario</h2>
+                  <div className="row">
+                    {unlocked.has('projection') && (
+                      <button
+                        className="ctl"
+                        data-active={projection}
+                        onClick={() => setProjection((v) => !v)}
+                      >
+                        Safety projection {projection ? 'ON' : 'OFF'}
+                      </button>
                     )}
-                    <div className="slider-safe" style={{ left: `calc(${toPct(safe)}% - 1.5px)` }} />
-                    <input
-                      type="range"
-                      min={-SLIDER_LIMIT_KW}
-                      max={SLIDER_LIMIT_KW}
-                      step={10}
-                      value={raw}
-                      aria-label={`Station ${k + 1} at bus ${bus}, kilowatts, negative is charging`}
-                      onChange={(e) => {
-                        const next = commands.slice();
-                        next[k] = Number(e.target.value);
-                        setCommands(next);
-                      }}
-                    />
-                  </div>
-
-                  <div className="station-value">
-                    {safe.toFixed(0)} kW
-                    {curtailed && (
-                      <span className="curtailed">asked {raw.toFixed(0)}</span>
+                    {unlocked.has('grid') && (
+                      <button
+                        className="ctl"
+                        data-active={grid === 'weak'}
+                        onClick={() => setGrid(grid === 'weak' ? 'strong' : 'weak')}
+                      >
+                        {grid === 'weak' ? 'Weak feeder' : 'Strong feeder'}
+                      </button>
+                    )}
+                    {unlocked.has('loadScale') && (
+                      <select
+                        className="ctl"
+                        value={loadScale}
+                        onChange={(e) => setLoadScale(Number(e.target.value))}
+                        aria-label="Load scale"
+                      >
+                        <option value={0.3}>Load 0.30</option>
+                        <option value={0.5}>Load 0.50</option>
+                        <option value={0.7}>Load 0.70</option>
+                      </select>
                     )}
                   </div>
-                </div>
-              );
-            })}
-            <p className="hint">
-              Negative charges, positive sends power back. The green mark is what the
-              safety layer will actually execute.
-            </p>
-          </section>
-
-          <section className="section">
-            <h2>Scenario</h2>
-            <div className="row">
-              <button
-                className="ctl"
-                data-active={projection}
-                onClick={() => setProjection((v) => !v)}
-              >
-                Safety projection {projection ? 'ON' : 'OFF'}
-              </button>
-              <button
-                className="ctl"
-                data-active={grid === 'weak'}
-                onClick={() => setGrid(grid === 'weak' ? 'strong' : 'weak')}
-              >
-                {grid === 'weak' ? 'Weak feeder' : 'Strong feeder'}
-              </button>
-              <select
-                className="ctl"
-                value={loadScale}
-                onChange={(e) => setLoadScale(Number(e.target.value))}
-                aria-label="Load scale"
-              >
-                <option value={0.3}>Load 0.30</option>
-                <option value={0.5}>Load 0.50</option>
-                <option value={0.7}>Load 0.70</option>
-              </select>
-            </div>
-          </section>
-
+                </section>
+              )}
+            </>
+          )}
         </div>
       </div>
 
       <div className="bottom">
         <div className="bottom-left">
+          {!showChoice && (
           <section className="section">
             <h2>Your run so far</h2>
             <dl className="scorecard">
@@ -413,32 +566,74 @@ export default function App() {
               </div>
             </dl>
           </section>
+          )}
 
-          <section className="section">
-            <h2>Compare against</h2>
-            <div className="row">
-              {REFERENCE_CONTROLLERS.map((c) => (
-                <button key={c.id} className="ctl" onClick={() => runReference(c)}>
-                  {c.label}
-                </button>
-              ))}
-            </div>
-            {REFERENCE_CONTROLLERS.some(
-              (c) => c.provenance === 'placeholder' && dots.some((d) => d.id === c.id),
-            ) && (
-              <p className="provenance-note">
-                * SAC-Lag and SafeSAC are labelled stand-ins, not the trained agents —
-                their recorded episodes are still to be exported from the thesis notebook.
-              </p>
-            )}
-          </section>
+          {unlocked.has('compare') && !showChoice && (
+            <section className="section">
+              <h2>Compare against</h2>
+              <div className="row">
+                {COMPARABLE.map((c) => (
+                  <button key={c.id} className="ctl" onClick={() => runReference(c)}>
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {dots.some((d) => d.provenance === 'placeholder') && (
+            <p className="provenance-note">
+              * SAC-Lag and SafeSAC are labelled stand-ins, not the trained agents — their
+              recorded episodes are still to be exported from the thesis notebook.
+            </p>
+          )}
         </div>
 
-        <div className="map-wrap">
-          <h2>The map — every run you finish leaves a dot</h2>
-          <ParetoMap dots={dots} />
-        </div>
+        {unlocked.has('map') ? (
+          <div className="map-wrap">
+            <h2>The map — every run you finish leaves a dot</h2>
+            <ParetoMap dots={dots} />
+          </div>
+        ) : (
+          <div className="map-wrap map-locked">
+            <h2>The map</h2>
+            <p className="hint">
+              Finish your own day first. Your dot goes down before you see how anyone else
+              did.
+            </p>
+          </div>
+        )}
       </div>
+
+      {inArc && phase === 'brief' && (
+        <StageCard
+          eyebrow={`Stage ${stage.n} of 6 · ${stage.eyebrow}`}
+          title={stage.title}
+          paragraphs={stage.brief}
+          actionLabel={stage.mode === 'manual' ? 'Take the controls' : stage.mode === 'choose' ? 'Show me the table' : 'Watch it run'}
+          onAction={beginStage}
+          secondary={
+            stage.n === 1 ? { label: 'Skip to free play', onClick: skipToSandbox } : undefined
+          }
+        />
+      )}
+
+      {inArc && phase === 'reveal' && (
+        <StageCard
+          tone="reveal"
+          eyebrow={`Stage ${stage.n} of 6 · ${stage.eyebrow}`}
+          title={stage.revealTitle}
+          paragraphs={stage.reveal({
+            violationRate: sim.finalTotals().violationRate,
+            socMet: sim.finalTotals().socMet,
+            netCostUsd: sim.finalTotals().netCostUsd,
+            vMinPu: sim.finalTotals().vMinPu,
+            dots,
+          })}
+          actionLabel={stageIndex >= STAGES.length - 1 ? 'Open the sandbox' : 'Next stage'}
+          onAction={nextStage}
+        />
+      )}
     </div>
   );
 }
