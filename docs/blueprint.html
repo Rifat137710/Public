@@ -886,8 +886,8 @@
       </tr>
       <tr>
         <td><strong>Safety projection</strong></td><td>On / Off</td>
-        <td>Run the identical trained agent with the physics removed</td>
-        <td>Service falls 0.569 → 0.277. <strong>The intelligence was never the differentiator</strong></td>
+        <td>Execute SafeSAC's raw commands unfiltered, then compare its dot with SAC-Lag's</td>
+        <td>How often and how hard the filter was intervening — and that the agent trained <em>with</em> it reaches twice the service at the same safety. <strong>The intelligence was never the differentiator</strong></td>
       </tr>
       <tr>
         <td><strong>Grid strength</strong></td><td>Weak / Strong</td>
@@ -1115,7 +1115,8 @@
       <span class="beat">Physics restored · 5 min</span>
       <h4>The same agent, with the network put back in</h4>
       <p>SafeSAC: same SAC backbone, same training budget, plus a safety projection rebuilt every control step from voltage sensitivities measured on the live network. Service <strong class="win">0.277 → 0.569</strong> at statistically identical safety (p&nbsp;=&nbsp;0.86, Cohen's d&nbsp;=&nbsp;2.04 on the service gain).</p>
-      <p><strong>Then the learner toggles the projection off and watches the same agent slide back to the dominated point.</strong> That toggle is your thesis, in one gesture, with nothing to read.</p>
+      <p>The projection was in the loop <em>while SafeSAC was trained</em>. That is what makes this a different policy rather than the same policy behind a filter — and it is why the comparison that matters is SafeSAC against SAC-Lag, not SafeSAC against itself.</p>
+      <p><strong>The toggle shows the filter working, not a collapse.</strong> Turn the projection off and SafeSAC's raw commands are executed unfiltered: the station-1 handle jumps from &minus;54.13&nbsp;kW to the full &minus;80, the voltage profile drops through the red line, and the learner sees exactly how often and how hard the safety layer had been intervening all along. The permanent record of what it bought is on the Map — two dots, SAC-Lag and SafeSAC, at the same safety and twice the service.</p>
       <p>The station-1 readout does the rest: raw &minus;80&nbsp;kW in, <strong>&minus;54.13&nbsp;kW</strong> out on the weak grid, &minus;80.00&nbsp;kW out on the strong. Same policy, same request, different physics, different command.</p>
     </div>
   </div>
