@@ -145,9 +145,6 @@ input {
 }
 
 .village-readout {
-  position: absolute;
-  right: 1rem;
-  top: 1rem;
   font-family: var(--mono);
   font-size: 0.76rem;
   color: var(--ink-2);
@@ -777,4 +774,102 @@ button.ctl.quiet:hover:not(:disabled) {
     grid-column: 2;
     padding-bottom: 0.15rem;
   }
+}
+
+/* ------------------------------------------------------- the street card */
+
+.village canvas { cursor: crosshair; }
+
+.village-hud {
+  position: absolute;
+  right: 1rem;
+  top: 1rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.6rem;
+  max-width: calc(100% - 2rem);
+}
+
+.street-card {
+  width: 100%;
+  min-width: 15rem;
+  background: rgba(10, 14, 19, 0.9);
+  border: 1px solid var(--line-2);
+  border-left: 2px solid var(--accent);
+  border-radius: 4px;
+  padding: 0.65rem 0.85rem 0.75rem;
+  backdrop-filter: blur(3px);
+}
+
+.street-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.8rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  margin-bottom: 0.5rem;
+}
+
+.street-head b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.street-close {
+  background: none;
+  border: none;
+  color: var(--ink-3);
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0 0.15rem;
+  cursor: pointer;
+}
+
+.street-close:hover { color: var(--ink); }
+
+.street-card dl {
+  margin: 0;
+  display: grid;
+  gap: 0.28rem 0.9rem;
+}
+
+.street-card dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: baseline;
+}
+
+.street-card dt {
+  font-size: 0.74rem;
+  color: var(--ink-3);
+}
+
+.street-card dd {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.street-card dd.bad { color: var(--limit); }
+
+.street-hint {
+  font-family: var(--sans);
+  font-size: 0.66rem;
+  color: var(--accent);
+  margin-left: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+@media (max-width: 900px) {
+  .village-hud { right: 0.6rem; top: 0.6rem; gap: 0.45rem; }
+  .street-card { min-width: 11rem; }
 }

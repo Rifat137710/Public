@@ -22,6 +22,10 @@ export interface VillageFrame {
   timeMs: number;
   /** Bus the console is currently highlighting, if any. */
   focusBus: number | null;
+  /** Street the operator has clicked to inspect. Persists until they pick another. */
+  selectedBus?: number | null;
+  /** Station index currently being dragged, so it can be drawn as held. */
+  draggingStation?: number | null;
   /** Honours prefers-reduced-motion: lamps hold steady instead of flickering. */
   reducedMotion?: boolean;
 }
@@ -45,15 +49,25 @@ function daylight(dayFraction: number): number {
   return Math.max(0, Math.sin((Math.PI * (hour - 5)) / 15)) ** 0.7;
 }
 
-export function drawVillage(
-  ctx: CanvasRenderingContext2D,
+/**
+ * Where each bus lands on the canvas.
+ *
+ * Extracted from the draw call because the village is an input surface, not only a
+ * picture: clicking a street has to resolve to a bus, and that means the same transform
+ * has to be available outside the renderer. Two copies of this arithmetic would drift,
+ * and the drift would show up as a click landing on the wrong house.
+ */
+export interface VillageProjection {
+  x(place: BusPlace): number;
+  y(place: BusPlace): number;
+}
+
+export function projectVillage(
   width: number,
   height: number,
-  frame: VillageFrame,
-): void {
-  const light = daylight(frame.dayFraction);
-  const bounds = layoutBounds(frame.places);
-
+  places: readonly BusPlace[],
+): VillageProjection {
+  const bounds = layoutBounds(places);
   const padX = 46;
   const padTop = 30;
   const padBottom = 54;
@@ -64,15 +78,55 @@ export function drawVillage(
   // read as a place rather than a diagram; the vertical stretch is capped so the
   // laterals never separate into unrelated stripes.
   const scaleX = (width - padX * 2) / spanX;
-  const scaleY = Math.min(
-    (height - padTop - padBottom) / spanY,
-    scaleX * 1.9,
-  );
+  const scaleY = Math.min((height - padTop - padBottom) / spanY, scaleX * 1.9);
   const offsetX = padX - bounds.minX * scaleX;
   const offsetY = padTop - bounds.minY * scaleY;
 
-  const px = (p: BusPlace): number => offsetX + p.ix * scaleX;
-  const py = (p: BusPlace): number => offsetY + p.iy * scaleY;
+  return {
+    x: (p) => offsetX + p.ix * scaleX,
+    y: (p) => offsetY + p.iy * scaleY,
+  };
+}
+
+/**
+ * The bus nearest a point, or null if the click landed on empty ground. The generous
+ * radius is deliberate — this is a street you are pointing at, not a hit target, and
+ * demanding pixel accuracy on a pole would make the world feel like a form.
+ */
+export function busAt(
+  width: number,
+  height: number,
+  places: readonly BusPlace[],
+  sx: number,
+  sy: number,
+  radius = 34,
+): number | null {
+  const proj = projectVillage(width, height, places);
+  let best: number | null = null;
+  let bestD2 = radius * radius;
+  for (const place of places) {
+    const dx = sx - proj.x(place);
+    // Aim at the houses and the pole head rather than the ground anchor.
+    const dy = sy - (proj.y(place) - 8);
+    const d2 = dx * dx + dy * dy;
+    if (d2 < bestD2) {
+      bestD2 = d2;
+      best = place.bus;
+    }
+  }
+  return best;
+}
+
+export function drawVillage(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  frame: VillageFrame,
+): void {
+  const light = daylight(frame.dayFraction);
+  const proj = projectVillage(width, height, frame.places);
+  const px = (p: BusPlace): number => proj.x(p);
+  const py = (p: BusPlace): number => proj.y(p);
 
   // Sky and ground.
   const sky = ctx.createLinearGradient(0, 0, 0, height);
@@ -105,6 +159,10 @@ export function drawVillage(
     const isStation = STATION_BUSES.includes(place.bus);
     const isPv = PV_BUSES.includes(place.bus);
 
+    // The inspected street is marked under everything else, so it reads as ground the
+    // operator has walked to rather than a badge stuck on top of the houses.
+    if (place.bus === frame.selectedBus) drawSelection(ctx, x, y, v);
+
     drawHouses(ctx, x, y, place, v, light, frame.timeMs, frame.reducedMotion ?? false);
     drawPole(ctx, x, y, v);
 
@@ -112,6 +170,7 @@ export function drawVillage(
     if (isStation) {
       const k = STATION_BUSES.indexOf(place.bus);
       drawCharger(ctx, x, y, frame.stationKw[k] ?? 0, place.bus === frame.focusBus);
+      drawStationGrip(ctx, x, y, k === frame.draggingStation);
     }
     if (place.bus === 1) drawSubstation(ctx, x, y);
   }
@@ -132,6 +191,64 @@ function findParent(places: readonly BusPlace[], place: BusPlace): BusPlace | un
     }
   }
   return best;
+}
+
+/** The street the operator is inspecting: a pool of light on the ground under it. */
+function drawSelection(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  v: number,
+): void {
+  const colour = v < 0.95 ? '228, 119, 107' : '79, 179, 162';
+  const glow = ctx.createRadialGradient(x + 14, y + 3, 1, x + 14, y + 3, 34);
+  glow.addColorStop(0, `rgba(${colour}, 0.26)`);
+  glow.addColorStop(1, `rgba(${colour}, 0)`);
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(x + 14, y + 3, 34, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = `rgba(${colour}, 0.85)`;
+  ctx.lineWidth = 1.3;
+  ctx.beginPath();
+  ctx.ellipse(x + 14, y + 4, 26, 8, 0, 0, Math.PI * 2);
+  ctx.stroke();
+}
+
+/**
+ * A handle on each charging station. The stations are the only things in the village the
+ * operator can actually move, so they are the only things that advertise being grabbable.
+ */
+function drawStationGrip(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  held: boolean,
+): void {
+  ctx.strokeStyle = held ? 'rgba(120, 214, 196, 0.95)' : 'rgba(126, 160, 172, 0.5)';
+  ctx.lineWidth = held ? 1.7 : 1.2;
+  ctx.beginPath();
+  for (let i = 0; i < 3; i++) {
+    const gy = y - 30 + i * 3.5;
+    ctx.moveTo(x - 12, gy);
+    ctx.lineTo(x - 5, gy);
+  }
+  ctx.stroke();
+
+  if (held) {
+    ctx.beginPath();
+    ctx.moveTo(x - 8.5, y - 38);
+    ctx.lineTo(x - 5.5, y - 34);
+    ctx.lineTo(x - 11.5, y - 34);
+    ctx.closePath();
+    ctx.moveTo(x - 8.5, y - 15);
+    ctx.lineTo(x - 5.5, y - 19);
+    ctx.lineTo(x - 11.5, y - 19);
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(120, 214, 196, 0.9)';
+    ctx.fill();
+  }
 }
 
 function drawPole(ctx: CanvasRenderingContext2D, x: number, y: number, v: number): void {

@@ -10,7 +10,7 @@
  * time the trunk branches, the new lateral gets its own lane.
  */
 
-import { BRANCHES, N_BUS } from '../sim/network.js';
+import { BRANCHES, N_BUS, NOMINAL_LOAD_KW } from '../sim/network.js';
 
 export interface BusPlace {
   bus: number;
@@ -142,3 +142,18 @@ export function flickerFor(
   const noise = Math.sin(phase) * Math.sin(phase * 2.3 + 1.1) * Math.sin(phase * 0.7);
   return severity * Math.max(0, noise) * 0.5;
 }
+
+/**
+ * The one layout everything shares.
+ *
+ * The renderer, the hit-testing and the console readout all have to agree about where
+ * bus 18 is; building it three times would let them disagree.
+ */
+export const PLACES: readonly BusPlace[] = buildLayout(NOMINAL_LOAD_KW);
+
+/** Electrical depth from the substation, for "how far down the line is this?". */
+export function depthOf(bus: number): number {
+  return PLACES.find((p) => p.bus === bus)?.col ?? 0;
+}
+
+export const MAX_DEPTH = PLACES.reduce((m, p) => Math.max(m, p.col), 0);

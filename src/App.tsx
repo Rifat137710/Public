@@ -11,7 +11,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LiveSim, runEpisode } from './sim/live.js';
-import { STATION_BUSES, type GridKind } from './sim/network.js';
+import { NOMINAL_LOAD_KW, STATION_BUSES, type GridKind } from './sim/network.js';
 import { V_LOWER } from './sim/projection.js';
 import { STEPS_PER_DAY, clockOf, priceTier } from './sim/profiles.js';
 import {
@@ -22,6 +22,7 @@ import {
 } from './sim/controllers.js';
 import { STAGES, unlockedBy, type Unlock } from './content/stages.js';
 import { Village } from './ui/Village.js';
+import { MAX_DEPTH, depthOf } from './ui/layout.js';
 import { VoltageProfile } from './ui/VoltageProfile.js';
 import { ParetoMap, type Dot } from './ui/ParetoMap.js';
 import { StageCard } from './ui/StageCard.js';
@@ -87,6 +88,7 @@ export default function App() {
   const [speed, setSpeed] = useState<number>(16);
   const [playing, setPlaying] = useState(false);
   const [focusBus, setFocusBus] = useState<number | null>(null);
+  const [selectedBus, setSelectedBus] = useState<number | null>(null);
   const [dots, setDots] = useState<Dot[]>([]);
   const [, forceRender] = useState(0);
 
@@ -390,7 +392,21 @@ export default function App() {
             dayFraction={step / STEPS_PER_DAY}
             focusBus={focusBus}
             animate
+            selectedBus={selectedBus}
+            onSelectBus={setSelectedBus}
+            onHoverBus={setFocusBus}
+            requestKw={commands}
+            onDragStation={
+              manualDriving
+                ? (k, kw) => {
+                    const next = commands.slice();
+                    next[k] = Math.max(-SLIDER_LIMIT_KW, Math.min(SLIDER_LIMIT_KW, Math.round(kw / 10) * 10));
+                    setCommands(next);
+                  }
+                : undefined
+            }
           />
+          <div className="village-hud">
           <div className="village-readout">
             worst bus <b>{worstBus}</b> at{' '}
             <b className={worstV < V_LOWER ? 'bad' : undefined}>{worstV.toFixed(4)} pu</b>
@@ -400,6 +416,49 @@ export default function App() {
             </span>
             <br />
             solar {sim.solarKw.toFixed(0)} kW per array
+          </div>
+
+          {selectedBus !== null && (
+            <div className="street-card">
+              <div className="street-head">
+                Street at bus <b>{selectedBus}</b>
+                <button
+                  className="street-close"
+                  onClick={() => setSelectedBus(null)}
+                  aria-label="Stop inspecting this street"
+                >
+                  ×
+                </button>
+              </div>
+              <dl>
+                <div>
+                  <dt>Voltage</dt>
+                  <dd className={(displayed[selectedBus] ?? 1) < V_LOWER ? 'bad' : undefined}>
+                    {(displayed[selectedBus] ?? 1).toFixed(4)} pu
+                  </dd>
+                </div>
+                <div>
+                  <dt>Down the line</dt>
+                  <dd>
+                    {depthOf(selectedBus)} of {MAX_DEPTH} poles
+                  </dd>
+                </div>
+                <div>
+                  <dt>Demand</dt>
+                  <dd>{(NOMINAL_LOAD_KW[selectedBus] ?? 0).toFixed(0)} kW</dd>
+                </div>
+                {STATION_BUSES.includes(selectedBus) && (
+                  <div>
+                    <dt>Station</dt>
+                    <dd>
+                      {(sim.last?.safeKw[STATION_BUSES.indexOf(selectedBus)] ?? 0).toFixed(0)} kW
+                      {manualDriving && <span className="street-hint">drag it</span>}
+                    </dd>
+                  </div>
+                )}
+              </dl>
+            </div>
+          )}
           </div>
         </div>
 

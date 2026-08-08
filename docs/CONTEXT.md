@@ -393,6 +393,37 @@ are fixed in one place. Then `export_all(...)`. Produces:
 
 ---
 
+### Settled on 8 Aug: platform, judging, and how the entry is actually seen
+
+Checked against `docs/source/` because the "is a 2D browser app really a *metaverse* entry?" question
+came up. It is settled, verbatim:
+
+- **Kick-off FAQ 9** — *"Can our project be a mobile or web-based simulation, or does it have to be
+  VR/AR? Yes, simulations can be developed in 2D or 3D environments and may run on desktop, web,
+  mobile, or immersive platforms (e.g., VR/AR). The key evaluation focus is on the interactivity,
+  innovation, and learning effectiveness, **not the platform**."* A 2D browser entry is explicitly in
+  scope. Do not re-litigate this.
+- **Judging criteria (official rules)** — sums to 100%, and **none of it scores 3D, immersion,
+  avatars, or platform**: Effectiveness of Simulation-Based Learning **25%**; Creativity &
+  Innovation **20%**; Educational Impact / Learning Effectiveness **20%**; UI/UX and Engagement
+  **15%**; Integration of AI, Gamification and/or Adaptive Learning **10%**; Sustainability,
+  Accessibility, and/or Ethical Considerations **10%**.
+- **FAQ 12 — the one that reorders priorities.** *"Evaluation is based **entirely on the PowerPoint
+  and video submission**. Make sure your video clearly showcases features, interactions, and value,
+  **as the judges will not have access to live demos**."* Judges never click the URL. The deployed app
+  is the thing being *filmed*, not the thing being judged. The video and the five slides are the
+  actual deliverable.
+- **FAQ 13** — source code and platform links still go *into the PowerPoint*, so the public URL is
+  still required; it just is not the evaluation surface.
+- Video length per the rules is **5–7 minutes**; the 6:30 target is in range.
+
+Consequence: interface work is justified by how well it *films* and by the 40% that is simulation
+effectiveness plus engagement — not by immersion for its own sake. The deck's slide-3 definition of
+the metaverse ("a shared, immersive, persistent 3D virtual space") describes the field, not the
+entry constraint; FAQ 9 exists because entrants asked exactly that.
+
+---
+
 ## 7. Environment constraints
 
 Session egress policy **blocks all direct web access** — `metaversereality.ieee.org`, YouTube,
