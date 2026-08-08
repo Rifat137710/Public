@@ -12,7 +12,7 @@
 
 import { STATION_BUSES } from '../src/sim/network.js';
 import { checkDeliverability, buildFleet } from '../src/sim/fleet.js';
-import { runEpisode, type EpisodeResult, type ScenarioOptions } from '../src/sim/episode.js';
+import { runEpisode, type EpisodeResult, type ScenarioOptions } from '../src/sim/live.js';
 import {
   droop,
   placeholderController,
