@@ -1,0 +1,1065 @@
+<title>Bus 18 — Build Blueprint</title>
+<style>
+  :root {
+    --paper:      #F1F3F4;
+    --surface:    #FFFFFF;
+    --surface-2:  #E8ECEE;
+    --ink:        #14181C;
+    --ink-2:      #4A555E;
+    --ink-3:      #74818B;
+    --rule:       #D3D9DC;
+    --rule-2:     #BAC3C8;
+    --accent:     #0F6E63;
+    --accent-dim: #0F6E6318;
+    --copper:     #A2551C;
+    --copper-dim: #A2551C16;
+    --limit:      #A82A20;
+    --limit-dim:  #A82A2014;
+    --shadow:     0 1px 2px #14181C0F, 0 8px 24px #14181C0A;
+
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:      #0F1316;
+      --surface:    #161C20;
+      --surface-2:  #1D252A;
+      --ink:        #E3E8EA;
+      --ink-2:      #A3B0B7;
+      --ink-3:      #78878F;
+      --rule:       #283238;
+      --rule-2:     #3A464E;
+      --accent:     #4FB3A2;
+      --accent-dim: #4FB3A21F;
+      --copper:     #D38B52;
+      --copper-dim: #D38B521C;
+      --limit:      #E58275;
+      --limit-dim:  #E5827518;
+      --shadow:     0 1px 2px #00000040, 0 8px 24px #00000030;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper:      #0F1316;
+    --surface:    #161C20;
+    --surface-2:  #1D252A;
+    --ink:        #E3E8EA;
+    --ink-2:      #A3B0B7;
+    --ink-3:      #78878F;
+    --rule:       #283238;
+    --rule-2:     #3A464E;
+    --accent:     #4FB3A2;
+    --accent-dim: #4FB3A21F;
+    --copper:     #D38B52;
+    --copper-dim: #D38B521C;
+    --limit:      #E58275;
+    --limit-dim:  #E5827518;
+    --shadow:     0 1px 2px #00000040, 0 8px 24px #00000030;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.65;
+    margin: 0;
+    padding: 0 1.25rem 6rem;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 54rem; margin: 0 auto; }
+
+  /* ---------- masthead ---------- */
+
+  .masthead { padding: 3.5rem 0 0; }
+
+  .band {
+    display: block;
+    height: 6px;
+    width: 100%;
+    margin-bottom: 2.25rem;
+    background: linear-gradient(
+      to right,
+      var(--limit) 0 4%,
+      var(--accent-dim) 4% 96%,
+      var(--limit) 96% 100%
+    );
+    border-radius: 1px;
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0 0 1rem;
+  }
+
+  h1 {
+    font-family: var(--serif);
+    font-size: clamp(2.4rem, 6vw, 3.4rem);
+    font-weight: 400;
+    line-height: 1.05;
+    letter-spacing: -0.015em;
+    margin: 0 0 0.5rem;
+    text-wrap: balance;
+  }
+
+  .standfirst {
+    font-family: var(--serif);
+    font-size: 1.25rem;
+    line-height: 1.45;
+    color: var(--ink-2);
+    margin: 0 0 1.75rem;
+    max-width: 40ch;
+    text-wrap: balance;
+  }
+
+  .docmeta {
+    font-family: var(--mono);
+    font-size: 0.76rem;
+    color: var(--ink-3);
+    line-height: 1.9;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    padding: 0.85rem 0;
+    margin-bottom: 2.5rem;
+  }
+  .docmeta b { color: var(--ink-2); font-weight: 600; }
+
+  /* ---------- sections ---------- */
+
+  section { margin: 0 0 3.5rem; }
+
+  h2 {
+    font-family: var(--serif);
+    font-size: 1.7rem;
+    font-weight: 400;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    margin: 0 0 0.35rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid var(--ink);
+    text-wrap: balance;
+  }
+
+  h2 .num {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.12em;
+    color: var(--accent);
+    display: block;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+  }
+
+  h3 {
+    font-family: var(--sans);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    margin: 2.25rem 0 0.75rem;
+  }
+
+  h4 {
+    font-family: var(--sans);
+    font-size: 1rem;
+    font-weight: 650;
+    margin: 1.5rem 0 0.4rem;
+    color: var(--ink);
+  }
+
+  p { margin: 0 0 1rem; max-width: 68ch; }
+  ul, ol { max-width: 68ch; padding-left: 1.25rem; margin: 0 0 1rem; }
+  li { margin-bottom: 0.4rem; }
+  li::marker { color: var(--ink-3); }
+
+  strong { font-weight: 650; }
+  em { font-style: italic; }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.86em;
+    background: var(--surface-2);
+    padding: 0.1em 0.36em;
+    border-radius: 3px;
+  }
+
+  a { color: var(--accent); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
+
+  /* ---------- tables ---------- */
+
+  .scroll { overflow-x: auto; margin: 0 0 1.5rem; }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 30rem;
+    font-size: 0.88rem;
+    font-variant-numeric: tabular-nums;
+  }
+
+  caption {
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    padding-bottom: 0.6rem;
+  }
+
+  th {
+    text-align: left;
+    font-weight: 650;
+    font-size: 0.72rem;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+    border-bottom: 1.5px solid var(--rule-2);
+    padding: 0.5rem 0.75rem 0.5rem 0;
+    vertical-align: bottom;
+  }
+
+  td {
+    border-bottom: 1px solid var(--rule);
+    padding: 0.6rem 0.75rem 0.6rem 0;
+    vertical-align: top;
+    color: var(--ink-2);
+  }
+
+  td:first-child { color: var(--ink); }
+  tbody tr:last-child td { border-bottom: 1.5px solid var(--rule-2); }
+
+  .num-col { text-align: right; font-family: var(--mono); font-size: 0.84rem; }
+  .win { color: var(--accent); font-weight: 650; }
+  .lose { color: var(--limit); font-weight: 650; }
+
+  /* ---------- callouts ---------- */
+
+  .note {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent);
+    border-radius: 3px;
+    padding: 1.1rem 1.25rem;
+    margin: 0 0 1.5rem;
+    box-shadow: var(--shadow);
+  }
+  .note.alert { border-left-color: var(--limit); }
+  .note.copper { border-left-color: var(--copper); }
+  .note > :last-child { margin-bottom: 0; }
+  .note p { max-width: 64ch; }
+
+  .note-label {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--accent);
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+  .note.alert .note-label { color: var(--limit); }
+  .note.copper .note-label { color: var(--copper); }
+
+  /* ---------- answer grid ---------- */
+
+  .qa {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+    border-top: 1px solid var(--rule);
+    margin-bottom: 1.5rem;
+  }
+  .qa-row {
+    display: grid;
+    grid-template-columns: minmax(11rem, 15rem) 1fr;
+    gap: 1.5rem;
+    padding: 0.95rem 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .qa-q { font-weight: 650; font-size: 0.92rem; color: var(--ink); }
+  .qa-a { color: var(--ink-2); font-size: 0.94rem; }
+  .qa-a > :last-child { margin-bottom: 0; }
+  @media (max-width: 640px) {
+    .qa-row { grid-template-columns: 1fr; gap: 0.35rem; }
+  }
+
+  /* ---------- wireframe ---------- */
+
+  .wire {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 1.25rem;
+    overflow-x: auto;
+    margin: 0 0 0.75rem;
+    box-shadow: var(--shadow);
+  }
+  .wire pre {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    line-height: 1.5;
+    margin: 0;
+    color: var(--ink-2);
+    white-space: pre;
+  }
+
+  .cap {
+    font-size: 0.8rem;
+    color: var(--ink-3);
+    max-width: 62ch;
+    margin: 0 0 1.75rem;
+  }
+
+  /* ---------- manifest ---------- */
+
+  .manifest {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    line-height: 1.75;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 1.1rem 1.25rem;
+    overflow-x: auto;
+    margin: 0 0 1.5rem;
+    box-shadow: var(--shadow);
+  }
+  .manifest .dir { color: var(--accent); }
+  .manifest .cmt { color: var(--ink-3); }
+
+  /* ---------- stat strip ---------- */
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+    gap: 1px;
+    background: var(--rule);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 0 0 1.75rem;
+  }
+  .stat { background: var(--surface); padding: 1rem 1.1rem; }
+  .stat dt {
+    font-family: var(--mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 0.3rem;
+  }
+  .stat dd {
+    margin: 0;
+    font-family: var(--serif);
+    font-size: 1.55rem;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+  }
+  .stat dd span { font-size: 0.8rem; font-family: var(--sans); color: var(--ink-3); }
+
+  /* ---------- stage cards ---------- */
+
+  .stage {
+    display: grid;
+    grid-template-columns: 3.25rem 1fr;
+    gap: 1.25rem;
+    padding: 1.4rem 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  .stage:first-of-type { border-top: 1px solid var(--rule); }
+  .stage-n {
+    font-family: var(--serif);
+    font-size: 2rem;
+    line-height: 1;
+    color: var(--rule-2);
+    font-variant-numeric: tabular-nums;
+  }
+  .stage h4 { margin-top: 0; }
+  .stage p { margin-bottom: 0.6rem; font-size: 0.94rem; }
+  .stage p:last-child { margin-bottom: 0; }
+  .beat {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--copper);
+    display: block;
+    margin-bottom: 0.25rem;
+  }
+  @media (max-width: 560px) {
+    .stage { grid-template-columns: 1fr; gap: 0.25rem; }
+    .stage-n { font-size: 1.25rem; }
+  }
+
+  /* ---------- mermaid ---------- */
+
+  pre.mermaid {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 1.5rem 1rem;
+    margin: 0 0 0.75rem;
+    overflow-x: auto;
+    text-align: center;
+    box-shadow: var(--shadow);
+  }
+
+  /* ---------- checklist ---------- */
+
+  .check { list-style: none; padding-left: 0; }
+  .check li {
+    padding-left: 1.9rem;
+    position: relative;
+    margin-bottom: 0.55rem;
+  }
+  .check li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0.42em;
+    width: 0.85rem;
+    height: 0.85rem;
+    border: 1.5px solid var(--rule-2);
+    border-radius: 2px;
+    background: var(--surface);
+  }
+
+  /* ---------- misc ---------- */
+
+  .kicker {
+    font-family: var(--serif);
+    font-size: 1.15rem;
+    line-height: 1.5;
+    color: var(--ink);
+    border-left: 3px solid var(--copper);
+    padding-left: 1.1rem;
+    margin: 1.75rem 0;
+    max-width: 52ch;
+  }
+
+  hr {
+    border: 0;
+    border-top: 1px solid var(--rule);
+    margin: 2.5rem 0;
+  }
+
+  .footer {
+    font-family: var(--mono);
+    font-size: 0.74rem;
+    color: var(--ink-3);
+    border-top: 1px solid var(--rule);
+    padding-top: 1.5rem;
+    margin-top: 4rem;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+</style>
+
+<div class="wrap">
+
+<header class="masthead">
+  <span class="band"></span>
+  <p class="eyebrow">IEEE Metaverse Grand Challenge 2026 · Sustainable Smart Cities &amp; Urban Innovation</p>
+  <h1>Bus&nbsp;18</h1>
+  <p class="standfirst">Build blueprint for a browser-based weak-feeder operator trainer, derived from the SafeSAC thesis.</p>
+  <div class="docmeta">
+    <b>Prepared</b> 8 August 2026 · <b>Entrant</b> Md. Rifat Rahman, BUET EEE (solo)<br>
+    <b>Entry closes</b> 15 Aug 2026 23:59 EDT — <b>09:59 on 16 Aug, Dhaka time</b><br>
+    <b>Status</b> Blueprint for approval. Supersedes the earlier pipeline note. No build has started.
+  </div>
+</header>
+
+<div class="note alert">
+  <span class="note-label">Read this first</span>
+  <p>You said not to worry about the deadline. I am not letting it shrink the design — everything below is the full system. But <strong>seven days is a fact that changes the order of work, not its ambition</strong>, so this plan front-loads the things only you can do (data export, testers, the submission form) into today and tomorrow, and puts everything that is mine onto a critical path I can actually hold.</p>
+  <p>The single biggest risk is not code volume. It is that <strong>I cannot see the screen render.</strong> Every visual judgement has to come back through you. That is why the app deploys to a live URL on <em>day one</em>, not day five.</p>
+</div>
+
+<!-- ============================================================ -->
+<section>
+  <h2><span class="num">Section 01</span>Your seven questions, answered in one screen</h2>
+
+  <div class="qa">
+    <div class="qa-row">
+      <div class="qa-q">Will you make the whole visual system?</div>
+      <div class="qa-a">Yes. I write <strong>100% of the application code</strong> — physics, rendering, interface, content, deployment. You do not write a line unless you want to. What I cannot do is <em>see</em> it, <em>test it on humans</em>, <em>speak in the video</em>, or <em>press submit</em>.</div>
+    </div>
+    <div class="qa-row">
+      <div class="qa-q">How will you do it?</div>
+      <div class="qa-a">Ship a deployed, playable skeleton on day one, then thicken it daily against your eyes. Physics first and headless-tested, because a beautiful screen driven by wrong numbers is worth nothing here.</div>
+    </div>
+    <div class="qa-row">
+      <div class="qa-q">How large a system?</div>
+      <div class="qa-a">About <strong>30 source files, ~3,500 lines of TypeScript, one screen, three overlays, six stages</strong>, under 400&nbsp;KB gzipped including all thesis data. Deliberately small. Every line has to earn its place in a seven-day build.</div>
+    </div>
+    <div class="qa-row">
+      <div class="qa-q">What will learners learn?</div>
+      <div class="qa-a">Eight stated objectives (§5). The central one: <strong>a controller that reports the lowest violation rate can be the worst controller on the list</strong> — because it satisfied the constraint by refusing to operate. They learn to demand the service column.</div>
+    </div>
+    <div class="qa-row">
+      <div class="qa-q">What options does it have?</div>
+      <div class="qa-a">Seven controllers, two grids, three load scales, four live station set-points, a projection on/off toggle, an adjustable safety margin, a 288-step transport, and a full accessibility layer. Complete inventory in §4.</div>
+    </div>
+    <div class="qa-row">
+      <div class="qa-q">How does the backend fit in?</div>
+      <div class="qa-a">There is <strong>no backend.</strong> Your thesis already ran every expensive computation. It exports JSON; the browser does one matrix–vector product and one small projection. No server, no Python in the demo path, nothing that can fail mid-recording. §7.</div>
+    </div>
+    <div class="qa-row">
+      <div class="qa-q">What do you have to do?</div>
+      <div class="qa-a">Nine things, five of them today (§8). In order of urgency: <strong>open the Smartsheet form</strong>, run the notebook export, email IEEE about provenance, line up 8–10 testers, then look at what I deploy each evening and tell me what is ugly or wrong.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <h2><span class="num">Section 02</span>What we are actually building</h2>
+
+  <p><strong>Bus 18</strong> is a browser-based simulator in which one person plays the distribution operator of a rural feeder for one simulated day, then watches five automated controllers attempt the same day, and discovers by their own hand which of them is lying about being safe.</p>
+
+  <p>It is named after Baran–Wu <strong>bus 18</strong> — the station at the electrically weakest point of the feeder, the one your projection curtails from &minus;80&nbsp;kW to &minus;54.13&nbsp;kW while the strong grid passes the same request untouched. That single number is the entire thesis in miniature, and it is the moment the simulator is built to deliver.</p>
+
+  <h3>Is it a "metaverse"?</h3>
+
+  <p>The competition's own FAQ 9 settles this, and it is worth quoting exactly because it removes the temptation to spend a week on a game engine:</p>
+
+  <div class="note">
+    <span class="note-label">FAQ 9 — verbatim</span>
+    <p>"Simulations can be developed in 2D or 3D environments and may run on desktop, web, mobile, or immersive platforms (e.g. VR/AR). <strong>The key evaluation focus is on the interactivity, innovation, and learning effectiveness, not the platform.</strong>"</p>
+  </div>
+
+  <p>So the platform costs us nothing. What we <em>do</em> owe the word "metaverse" is earned three ways, and each is cheap:</p>
+
+  <ul>
+    <li><strong>A persistent place.</strong> The village is a continuous spatial world with real geography — the electrical distance from the substation is the visual distance across the screen. Voltage is rendered as light, so the physics is the landscape.</li>
+    <li><strong>An embodied role.</strong> You are not reading about an operator. You hold the set-points, and the lights go out on your watch.</li>
+    <li><strong>A shared record.</strong> The Pareto map accumulates dots. Your tester cohort's real attempts ship with the build as data, so every later visitor — including a judge — sees their own decision land inside a real population of prior decisions.</li>
+  </ul>
+
+  <div class="kicker">The four 2025 winners all built VR, because their subject was physical procedure training — hands, needles, wiring. Ours is a misconception about numbers. A headset would add cost, exclude viewers, and teach nothing extra. Rejecting VR here is a defensible pedagogical choice, and slide 4 will say so out loud.</div>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <h2><span class="num">Section 03</span>How large the system is</h2>
+
+  <dl class="stats">
+    <div class="stat"><dt>Source files</dt><dd>~30</dd></div>
+    <div class="stat"><dt>Lines of code</dt><dd>~3,500</dd></div>
+    <div class="stat"><dt>Screens</dt><dd>1 <span>+3 overlays</span></dd></div>
+    <div class="stat"><dt>Learning stages</dt><dd>6</dd></div>
+    <div class="stat"><dt>Bundle target</dt><dd>&lt;400 <span>KB gz</span></dd></div>
+    <div class="stat"><dt>Live math</dt><dd>2 <span>routines</span></dd></div>
+  </dl>
+
+  <p>Small on purpose. The expensive work — training four checkpoints, 25 shared-seed episodes per method, power-flow-in-the-loop sensitivity measurement — is <em>already done</em> and lives in your notebook. The browser inherits the results, not the workload.</p>
+
+  <h3>File manifest</h3>
+
+  <div class="manifest"><span class="dir">src/sim/</span>            <span class="cmt">the physics — headless, unit-tested, no DOM</span>
+  types.ts          <span class="cmt">units, bus/station ids, action + state shapes</span>
+  network.ts        <span class="cmt">33-bus Baran-Wu topology, R/X, station + PV buses</span>
+  sensitivities.ts  <span class="cmt">S^P, S^Q loaders; weak + strong; benchmark fallback</span>
+  voltage.ts        <span class="cmt">v = v0 + S^P·p + S^Q·q          &lt;- runs every frame</span>
+  projection.ts     <span class="cmt">Dykstra projection onto the band polytope</span>
+  fleet.ts          <span class="cmt">EV arrivals, dwell windows, SoC accounting</span>
+  episode.ts        <span class="cmt">recorded-controller playback</span>
+  clock.ts          <span class="cmt">288 steps x 5 min; play/pause/scrub/speed</span>
+  scoring.ts        <span class="cmt">violation rate, SoC met, net cost, Pareto position</span>
+
+<span class="dir">src/render/village/</span>  <span class="cmt">Canvas 2D, procedural — zero image assets</span>
+  scene.ts          <span class="cmt">isometric transform, camera, z-ordering</span>
+  draw.ts           <span class="cmt">substation, poles, spans, houses, chargers, PV</span>
+  light.ts          <span class="cmt">voltage -> luminance, flicker, blackout</span>
+
+<span class="dir">src/render/charts/</span>   <span class="cmt">hand-built SVG — no chart library</span>
+  VoltageProfile.tsx  <span class="cmt">|V| vs bus, 0.95/1.05 walls, ghost trace</span>
+  ParetoMap.tsx       <span class="cmt">safety-service scatter, accumulating dots</span>
+  Sparkline.tsx       <span class="cmt">SoC, price, aggregate station power</span>
+
+<span class="dir">src/ui/</span>
+  App.tsx  Console.tsx  Scorecard.tsx  StageCard.tsx
+  Debrief.tsx  Transport.tsx  Settings.tsx  A11y.tsx
+
+<span class="dir">src/content/</span>
+  stages.ts         <span class="cmt">the six-stage script: copy, gates, reveals</span>
+  glossary.ts       <span class="cmt">hover definitions: pu, R/X, SoC met, droop</span>
+
+<span class="dir">src/data/</span>         <span class="cmt">exported from your notebook (§7)</span>
+  sensitivities.json  topology.json  baseline.json
+  episodes/*.json     cohort.json
+
+<span class="dir">tests/</span>
+  physics.test.ts   <span class="cmt">reproduces Table 4.1, Table 5.3, Vmin 0.882 pu</span>
+</div>
+
+  <h3>Performance budget</h3>
+  <div class="scroll">
+  <table>
+    <caption>Targets, measured on a mid-range laptop and one mid-range Android phone</caption>
+    <thead><tr><th>Item</th><th class="num-col">Budget</th><th>Why it matters</th></tr></thead>
+    <tbody>
+      <tr><td>Frame time</td><td class="num-col">&lt; 16.7 ms</td><td>60 fps; a stuttering village reads as broken on video</td></tr>
+      <tr><td>Voltage solve</td><td class="num-col">&lt; 0.1 ms</td><td>One 33×4 matrix–vector product</td></tr>
+      <tr><td>Safety projection</td><td class="num-col">&lt; 1 ms</td><td>4 variables, ~70 constraints, Dykstra</td></tr>
+      <tr><td>Cold load, 4G</td><td class="num-col">&lt; 3 s</td><td>A judge who waits does not wait twice</td></tr>
+      <tr><td>Total payload</td><td class="num-col">&lt; 400 KB</td><td>Quantised + delta-encoded episode arrays</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <h2><span class="num">Section 04</span>The screen</h2>
+
+  <p>One screen. No navigation, no menus, no page transitions. Everything the learner needs is simultaneously visible, because the entire pedagogy is about <em>relating</em> three things to each other — and because a single unchanging frame is far easier to film for a 6&nbsp;minute 30&nbsp;second video.</p>
+
+  <div class="wire"><pre>┌──────────────────────────────────────────────────────────────────────────┐
+│  BUS 18      STAGE 4 of 6 · Plain deep RL      18:35   ▶ ⏸ ━━━━●━━━━ ×16 │
+├───────────────────────────────────────┬──────────────────────────────────┤
+│                                       │  |V| vs BUS INDEX          [pu]  │
+│    THE VILLAGE                        │ 1.05 ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ │
+│                                       │      ╲                           │
+│         ▲ substation  1.00 pu         │ 1.00  ╲___                       │
+│         ╷                             │           ╲‧‧‧‧ ghost: SafeSAC   │
+│      ╷──┴──╷──╷──╷──╷──╷──╷           │ 0.95 ─ ─ ─ ─╲─ ─ ─ ─ ─ ─ ─ ─ ─ ─ │
+│      ▢  ▢  ▢  ▣  ▢  ▣  ▤  ▤          │              ╲____▼ bus 18       │
+│     lit      dim    flicker  DARK     │ 0.90                             │
+│                                       │      0    8    16   24   32      │
+│      ⚡ stn1  ⚡ stn2  ⚡ stn3  ⚡ stn4 ├──────────────────────────────────┤
+│      ☀ pv6   ☀ pv13        ☀ pv30    │  CONTROLLER  ◉ SAC-Lag      ▾    │
+│                                       │  GRID        ◉ Weak  ○ Strong    │
+│  ── electrical distance ──────────▶   │  PROJECTION  ○ OFF   ● ON        │
+│                                       │                                  │
+│  bus 18 · 0.9425 pu · BELOW LIMIT     │  stn1 ▬▬▬●▬▬▬▬  -54 kW  (raw -80)│
+│                                       │  stn2 ▬▬▬▬▬●▬▬  -78 kW           │
+│                                       │  stn3 ▬▬▬▬▬●▬▬  -77 kW           │
+│                                       │  stn4 ▬▬▬▬●▬▬▬  -73 kW           │
+│                                       ├──────────────────────────────────┤
+│                                       │ VIOLATIONS 0.090   SoC MET 0.277 │
+│                                       │ COST $104.3        WORST 0.9425  │
+├───────────────────────────────────────┴──────────────────────────────────┤
+│  THE MAP — safety vs service        ○ you  ● uncoord  ● droop  ● SAC-Lag │
+│  SoC met ▲                                                               │
+│    0.6   │              ★ SafeSAC                                        │
+│    0.4   │        ○ you                                                  │
+│    0.2   │    ● SAC-Lag      ● droop            ● strong→weak (0.000) ✗  │
+│    0.0   └────────────────────────────────────────▶ violation rate       │
+└──────────────────────────────────────────────────────────────────────────┘</pre></div>
+  <p class="cap">Wireframe, not final art. Proportions are close to real: village ~55% of width, console ~45%, map a fixed strip along the bottom. At &lt;900&nbsp;px the columns stack and the map collapses to a tappable summary.</p>
+
+  <h3>The three registers, and why there are exactly three</h3>
+
+  <p>A learner has to <strong>feel</strong> a consequence, then <strong>measure</strong> it, then <strong>locate</strong> it among alternatives. Drop any one and the lesson fails: feeling alone is a cartoon, measurement alone is a spreadsheet, and comparison alone is somebody else's conclusion.</p>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Register</th><th>What it is</th><th>Its job</th><th>Judging criterion</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>The Village</strong></td>
+        <td>Isometric 2.5D feeder drawn on Canvas: substation, 33 poles along a radial trunk, houses, four EV stations at buses 18/22/25/33, rooftop PV at 6/13/30. <strong>Voltage is rendered as light</strong> — houses near the feeder end dim, then flicker, then go dark.</td>
+        <td>Feel it</td>
+        <td>UX &amp; engagement — 15%</td>
+      </tr>
+      <tr>
+        <td><strong>The Console</strong></td>
+        <td>Live <code>|V|</code> vs bus index with the 0.95 and 1.05&nbsp;pu walls drawn in red — your Figure 5.2, animated. A dotted ghost trace of what SafeSAC would have done on the same step. Four set-point sliders, controller picker, grid toggle, projection toggle, scorecard.</td>
+        <td>Measure it</td>
+        <td>Simulation effectiveness — 25%</td>
+      </tr>
+      <tr>
+        <td><strong>The Map</strong></td>
+        <td>The safety–service plane: violation rate on x, SoC met on y. <strong>Every attempt leaves a permanent dot — the learner's own lands first.</strong> By stage 6 the learner has rebuilt your Figure 6.6 with their own hands.</td>
+        <td>Locate it</td>
+        <td>Educational impact — 20%</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p><strong>Why voltage-as-light.</strong> "0.9425&nbsp;pu" means nothing to most of the audience, including some of the judges. A street going dark means something to everybody. The village carries the stakes so the console is free to carry the precision — and the learner builds the mapping between them in the first ninety seconds, unprompted.</p>
+
+  <h3>Complete control inventory</h3>
+
+  <div class="scroll">
+  <table>
+    <caption>Everything the learner can touch</caption>
+    <thead><tr><th>Control</th><th>Range / options</th><th>Default</th><th>Purpose</th></tr></thead>
+    <tbody>
+      <tr><td>Transport</td><td>Play · pause · step · scrub · ×1 / ×4 / ×16 / ×64 · jump to evening peak</td><td>×16</td><td>A 288-step day in ~20 s, or frame-by-frame at the moment it breaks</td></tr>
+      <tr><td>Controller</td><td>You · Uncoordinated · Droop (IEEE 1547) · SAC-Lag · <strong>SafeSAC</strong> · SAC-Lag strong→weak · SafeSAC strong→weak</td><td>You</td><td>All six thesis methods plus the human</td></tr>
+      <tr><td>Grid</td><td>Weak feeder · Strong feeder</td><td>Weak</td><td>The deployment-shift lesson</td></tr>
+      <tr><td>Safety projection</td><td>On · Off</td><td>On</td><td><strong>The money toggle.</strong> Same agent, physics removed, watch it fall back</td></tr>
+      <tr><td>Station set-points</td><td>4 × slider, &minus;80…+80 kW</td><td>0</td><td>Live in "You" mode; ghost handles show the agent's command otherwise</td></tr>
+      <tr><td>Load scale</td><td>0.30 · 0.50 · 0.70</td><td>0.50</td><td>0.50 is your thesis operating point; 0.70 shows why full load is infeasible</td></tr>
+      <tr><td>Safety margin</td><td>0.000 … 0.020 pu</td><td>0.010</td><td>Makes conservatism a dial, not a mystery</td></tr>
+      <tr><td>Overlays</td><td>Raw vs projected · ghost trace · per-bus sensitivity heat · PV output · house meters</td><td>ghost on</td><td>Progressive disclosure — off early, unlocked by stage</td></tr>
+      <tr><td>Accessibility</td><td>Colour-blind palette · numeric readout beside every colour · captions · reduced motion · keyboard-only · high contrast</td><td>auto-detect</td><td>Directly scored under the 10% criterion</td></tr>
+      <tr><td>Session</td><td>Seed · reset · replay · export my run (CSV + JSON)</td><td>seed 137710</td><td>Your thesis master seed. Reproducible for judges</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note copper">
+    <span class="note-label">Design rule</span>
+    <p>Controls appear when the stage needs them, not before. Stage 1 shows four sliders and nothing else — no controller list, no toggles, no map legend. A learner given every option at once explores none of them. By stage 5 the full console is live and it feels earned rather than dumped.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <h2><span class="num">Section 05</span>What the learner walks away knowing</h2>
+
+  <p>Eight objectives. Each is testable, each is tied to a stage, and each maps to one of the five pre/post concept questions we will run on your tester cohort. This table is also the raw material for slide 3.</p>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th></th><th>Objective — the learner can…</th><th>Taught in</th><th>Tested by</th></tr></thead>
+    <tbody>
+      <tr><td class="num-col">L1</td><td>Predict the direction and rough size of a voltage change from a power change: <code>ΔV ≈ (R·ΔP + X·ΔQ) / V₀</code></td><td>Stage 1</td><td>Q1</td></tr>
+      <tr><td class="num-col">L2</td><td>Explain why <strong>active</strong> power dominates voltage on a weak feeder where R ≈ X, while reactive dominates on transmission where X ≫ R</td><td>Stage 1–2</td><td>Q2</td></tr>
+      <tr><td class="num-col">L3</td><td>Read a voltage profile and identify the electrically weakest bus — and say why it is weakest</td><td>Stage 1</td><td>Q1</td></tr>
+      <tr><td class="num-col">L4</td><td>State the [0.95, 1.05] pu statutory band, and explain what a safety margin buys and costs</td><td>Stage 3</td><td>Q4</td></tr>
+      <tr><td class="num-col">L5</td><td>Distinguish a constraint satisfied by <em>operating safely</em> from one satisfied by <em>not operating at all</em></td><td>Stage 6</td><td>Q3</td></tr>
+      <tr><td class="num-col">L6</td><td>Critique any controller comparison by demanding the service column beside the safety column</td><td>Stage 4, 6</td><td>Q3</td></tr>
+      <tr><td class="num-col">L7</td><td>Explain deployment shift: why a policy trained on a strong grid can fail on a weak one</td><td>Stage 6</td><td>Q5</td></tr>
+      <tr><td class="num-col">L8</td><td>Describe what a safety projection does, and why it must be rebuilt from live sensitivities each step</td><td>Stage 5</td><td>Q4</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="kicker">L5 and L6 are the ones worth the entry. Everything else is teachable from a textbook. "The AI with the best safety number was the worst controller in the room" is a thing you have to be <em>caught</em> believing before you stop believing it.</div>
+
+  <h3>The one measurement worth designing the study around</h3>
+
+  <p>At stage 6 the learner is shown a leaderboard containing only <strong>violation rate</strong> and <strong>net cost</strong> — the two columns a manager would actually be handed. The strong→weak SAC-Lag agent tops both: violation 0.015, the best on the board, and net cost &minus;$38.2, the only <em>profitable</em> row. The learner picks a controller to deploy.</p>
+
+  <p>Then the third column appears. <strong>SoC met: 0.000.</strong> Not one vehicle charged, all day. And because your Monte-Carlo check confirmed that 100% of energy-service requests were physically deliverable at this operating point, the failure is unambiguously the controller's, not the demand's.</p>
+
+  <p>We record <strong>what fraction of testers picked it.</strong> If 7 of 9 engineering students choose the AI that serves nobody, that single number is stronger evidence than any pre/post delta — it demonstrates the misconception exists in exactly the population being taught. MedXperience took second place last year on n&nbsp;=&nbsp;9. Almost nobody brings numbers at all.</p>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <h2><span class="num">Section 06</span>The six stages</h2>
+
+  <p>Roughly 22 minutes end to end — the length that fits a lab session and a tester's patience. Each stage has an entry condition, a single idea, and a reveal.</p>
+
+  <div class="stage">
+    <div class="stage-n">1</div>
+    <div>
+      <span class="beat">You drive · 4 min</span>
+      <h4>Fail first, before you meet any solution</h4>
+      <p>Manual dispatch of four stations across a 288-step day. No controller menu, no map legend, no advice. You will overcharge and darken the feeder end, or you will play safe and send everyone home with an empty battery. Almost nobody threads it.</p>
+      <p><strong>Your dot lands on the Map before you have seen a single controller.</strong> This ordering is load-bearing and non-negotiable: you cannot be impressed by a solution to a problem you have not personally felt.</p>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="stage-n">2</div>
+    <div>
+      <span class="beat">Uncoordinated · 2 min</span>
+      <h4>Service without safety</h4>
+      <p>Everybody charges the instant they plug in. SoC met <span class="win">0.996</span> — near-perfect service. Violation rate <span class="lose">0.116</span>, and the village goes dark down the whole tail at the evening peak, exactly when EV arrivals collide with the disappearance of PV.</p>
+      <p>Reveal: the second dot on the Map, far right and near the top. The shape of the trade-off starts to exist.</p>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="stage-n">3</div>
+    <div>
+      <span class="beat">Droop, IEEE 1547 · 3 min</span>
+      <h4>Safety without service</h4>
+      <p>A fixed rule from the standard. Violations fall to <span class="win">0.052</span>, the best of any method in the study; the lights hold. SoC met collapses to <span class="lose">0.325</span> — the cars go home empty.</p>
+      <p>The margin slider unlocks here. Drag it and watch safety and service trade against each other in real time. Conservatism stops being a virtue and becomes a price.</p>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="stage-n">4</div>
+    <div>
+      <span class="beat">Plain deep RL · 4 min</span>
+      <h4>The credibility beat — the AI loses</h4>
+      <p>SAC-Lag, a fully-trained deep reinforcement learning agent: violations <span class="lose">0.090</span>, SoC met <span class="lose">0.277</span>. Its dot lands <em>below and to the right</em> of the droop dot.</p>
+      <p><strong>Strictly dominated by a rule from the 1970s. More violations and less service.</strong> The learner is told, plainly, that the obvious application of deep RL to this problem does not work.</p>
+      <p>This is the stage that buys the entry its credibility. A demo where the author's method wins every chart is a sales pitch. A demo that shows the fashionable technique failing first has earned the right to the next stage.</p>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="stage-n">5</div>
+    <div>
+      <span class="beat">Physics restored · 5 min</span>
+      <h4>The same agent, with the network put back in</h4>
+      <p>SafeSAC: same SAC backbone, same training budget, plus a safety projection rebuilt every control step from voltage sensitivities measured on the live network. Service <strong class="win">0.277 → 0.569</strong> at statistically identical safety (p&nbsp;=&nbsp;0.86, Cohen's d&nbsp;=&nbsp;2.04 on the service gain).</p>
+      <p><strong>Then the learner toggles the projection off and watches the same agent slide back to the dominated point.</strong> That toggle is your thesis, in one gesture, with nothing to read.</p>
+      <p>The station-1 readout does the rest: raw &minus;80&nbsp;kW in, <strong>&minus;54.13&nbsp;kW</strong> out on the weak grid, &minus;80.00&nbsp;kW out on the strong. Same policy, same request, different physics, different command.</p>
+    </div>
+  </div>
+
+  <div class="stage">
+    <div class="stage-n">6</div>
+    <div>
+      <span class="beat">The trap · 4 min</span>
+      <h4>Best safety score, zero cars charged</h4>
+      <p>A leaderboard with two columns: violation rate and net cost. Strong→weak SAC-Lag leads both — 0.015 violations, &minus;$38.2 cost. "Deploy it."</p>
+      <p>The third column arrives. <strong class="lose">SoC met: 0.000 ± 0.000.</strong> Then the replay: the agent's set-points, flat at zero, all day. It satisfied its constraint by refusing to do its job.</p>
+      <p>Debrief: the eight objectives, the learner's own Map with every dot they generated, their pick against the cohort's, and a one-page export they can keep.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <h2><span class="num">Section 07</span>The backend — and why there isn't one</h2>
+
+  <p>You asked not to overcomplicate this, and the good news is that the correct architecture <em>is</em> the simple one. Not as a compromise — as the genuinely right call, because your thesis already did all the hard computing.</p>
+
+  <pre class="mermaid">
+flowchart LR
+  subgraph T1["TIER A — offline, already done"]
+    N["thesis11.ipynb<br/>PyTorch · pandapower<br/>CVXPY · Tesla T4"]
+    E["export_thesis_artifacts.py"]
+    N --> E
+  end
+  subgraph T2["TIER B — live in the browser"]
+    V["voltage.ts<br/>v = v0 + S·u"]
+    P["projection.ts<br/>Dykstra"]
+    R["render + playback"]
+    V --> R
+    P --> V
+  end
+  E -->|"7 JSON files, under 400 KB"| T2
+  T2 --> G["GitHub Pages<br/>static, no login"]
+</pre>
+  <p class="cap">Tier A runs once, on your machine, and never again. Tier B is what a judge or a learner touches. Nothing crosses a network at runtime.</p>
+
+  <h3>What actually runs live</h3>
+
+  <p>Two routines. That is the whole runtime.</p>
+
+  <ol>
+    <li><strong>The voltage model.</strong> <code>v = v₀ + Sᴾ·p + Sᴼ·q</code> — a 33×4 matrix–vector product, about five lines of TypeScript, well under a tenth of a millisecond. This is the same linearised model your safety layer uses, so the simulator and the thesis agree by construction.</li>
+    <li><strong>The safety projection.</strong> Because the voltage model is linear in the command <code>u</code>, the feasible set <code>{u : 0.95 ≤ v₀ + S·u ≤ 1.05, u_min ≤ u ≤ u_max}</code> is a <em>polytope</em>. Projecting onto a polytope does not need a conic solver — Dykstra's alternating projection converges in sub-millisecond time for 4 variables and ~70 constraints. Same constraints, same 0.010 pu margin, same answer as your 8-variable SOCP.</li>
+  </ol>
+
+  <p>Everything else — the six controllers, the load and PV profiles, the EV arrivals, the price schedule — is <strong>array playback</strong>. Reading numbers you already computed. This is also why the demo physically cannot break mid-recording: there is no solver to fail, no server to time out, no Python in the path.</p>
+
+  <h3>The contract between the two tiers</h3>
+
+  <p><code>scripts/export_thesis_artifacts.py</code> is already written and sitting in the repo. Run <code>probe()</code> in your notebook <em>first</em> — it reports which of the expected globals actually exist, so any naming mismatch gets fixed in one place instead of seven. Then <code>export_all()</code>.</p>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th>File</th><th>Contents</th><th>Priority</th></tr></thead>
+    <tbody>
+      <tr><td><code>sensitivities.json</code></td><td>Sᴾ and Sᴼ, 33×4, both grids, plus the V–P dominance ratio</td><td class="lose">Blocking</td></tr>
+      <tr><td><code>topology.json</code></td><td>33 buses, line R/X, station buses 18/22/25/33, PV buses 6/13/30</td><td>High</td></tr>
+      <tr><td><code>baseline.json</code></td><td>v₀ per step ×288, load / PV / price series</td><td>High</td></tr>
+      <tr><td><code>episodes/*.json</code></td><td>Per-step actions and voltages for all six controllers</td><td>High</td></tr>
+      <tr><td><code>projection_probe.json</code></td><td>The identical &minus;80 kW request on both grids — Table 5.3</td><td>Medium</td></tr>
+      <tr><td><code>results.json</code></td><td>Table 6.1 aggregates</td><td>Already transcribed</td></tr>
+      <tr><td><code>*_actor.json</code></td><td>Actor MLP weights + normaliser stats</td><td>Stretch — enables a live policy</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note">
+    <span class="note-label">De-risked</span>
+    <p>The IEEE 33-bus Baran–Wu line data is a <strong>published standard benchmark</strong>. If the export stalls for any reason, I compute the sensitivity matrices from public R/X data and the build continues on schedule. Your export makes the numbers <em>yours</em>, which is better and which is what we want — but it is an improvement, not a dependency. <strong>I am not blocked waiting on it.</strong></p>
+  </div>
+
+  <h3>Verification gates — before I trust a single pixel</h3>
+
+  <p>The physics module ships only when it independently reproduces three published numbers from your own thesis:</p>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Test</th><th>Must reproduce</th><th>Source</th></tr></thead>
+    <tbody>
+      <tr><td>Base case, weak feeder at full load</td><td class="num-col">V<sub>min</sub> = 0.882 pu, loss 338.6 kW</td><td>Fig. 4.3</td></tr>
+      <tr><td>Base case, strong feeder at full load</td><td class="num-col">V<sub>min</sub> = 0.913 pu, loss 202.7 kW</td><td>Fig. 4.3</td></tr>
+      <tr><td>Sensitivity at station 1 (bus 18)</td><td class="num-col">|∂V/∂P| = 9.08×10⁻⁵ pu/kW</td><td>Table 4.1</td></tr>
+      <tr><td>Dominance ratio, weak mean</td><td class="num-col">1.27 – 1.28</td><td>Gate 1 / Table 4.1</td></tr>
+      <tr><td>Projection, &minus;80 kW at station 1</td><td class="num-col">&minus;54.13 kW weak, &minus;80.00 kW strong</td><td>Table 5.3</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>These run as automated tests in CI, headless, on every commit. If any drifts, the build fails loudly rather than quietly teaching something false. <strong>A simulator that misrepresents your own results would be worse than no entry at all</strong> — this is the one place I will not trade rigour for speed.</p>
+
+  <div class="note copper">
+    <span class="note-label">One open physics question — flagging it rather than guessing</span>
+    <p>Table 5.3's &minus;80 kW is a <em>discharge</em> request, and the thesis says the weak grid curtails it "because the strong network can absorb the injection without breaching the voltage band." Which wall of the band binds at that operating point — the 0.95 floor or the 1.05 ceiling — I cannot determine from the text alone. Reproducing Table 5.3 with your exported sensitivities settles it in about ten minutes, and it changes one sentence of stage-5 narration. It does not change any of the architecture above.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <h2><span class="num">Section 08</span>Who does what, and when</h2>
+
+  <div class="scroll">
+  <table>
+    <caption>The split</caption>
+    <thead><tr><th>Mine</th><th>Yours</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>All application code — physics, rendering, UI, content, tests<br>Deployment and the public URL<br>The five slides, written and built<br>The video script, shot by shot<br>The study instruments and the statistics<br>All documentation</td>
+        <td>Run the notebook export<br>Open the Smartsheet form and report what it wants<br>Email IEEE about provenance<br>Recruit and run 8–10 testers<br><strong>Look at the build daily and tell me what is wrong</strong><br>Record your voice for the video<br>Press submit</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Seven-day schedule</h3>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Day</th><th>Mine</th><th>Yours</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Sat 8 Aug</strong><br>today</td><td>Blueprint. Then start the physics module against benchmark data.</td><td class="lose"><strong>Open the Smartsheet form.</strong> Run <code>probe()</code>. Email IEEE. Message your testers.</td></tr>
+      <tr><td><strong>Sun 9 Aug</strong></td><td>Physics passing all five verification gates. Village renders. <strong>First deploy — live URL by evening.</strong></td><td>Send <code>sensitivities.json</code>. Look at the URL. Tell me what looks wrong.</td></tr>
+      <tr><td><strong>Mon 10 Aug</strong></td><td>Console, sliders, voltage profile with ghost trace, scorecard. Playable.</td><td>Play it. Send the remaining exports. Confirm tester slots.</td></tr>
+      <tr><td><strong>Tue 11 Aug</strong></td><td>Six stages, Pareto map, debrief, accessibility pass. Feature-complete.</td><td>Full playthrough. Line up testers for tomorrow.</td></tr>
+      <tr><td><strong>Wed 12 Aug</strong></td><td>Fix whatever testing exposes. Polish. Bake the cohort dots in.</td><td class="lose"><strong>Run the 8–10 testers.</strong> ~25 min each. Send me the raw sheets.</td></tr>
+      <tr><td><strong>Thu 13 Aug</strong></td><td>Analyse the study. Write all five slides. Lock the video script.</td><td>Review the slides. Record the screen capture I direct.</td></tr>
+      <tr><td><strong>Fri 14 Aug</strong></td><td>Final edits, captions, the read-it-aloud pass on every slide.</td><td>Record voice-over. Edit to 6:30. Export MP4.</td></tr>
+      <tr><td><strong>Sat 15 Aug</strong></td><td>Buffer. Freeze the URL. Final check of every link.</td><td class="lose"><strong>Submit — early in the day, not at 09:59.</strong></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note alert">
+    <span class="note-label">The critical path runs through you, not me</span>
+    <p>Three items have no slack and I cannot do any of them: <strong>the Smartsheet form</strong> (still never opened — we do not know whether the video is uploaded or linked, or what the size cap is, and that decides how the video is exported), <strong>the tester session on Wednesday</strong>, and <strong>your voice on Friday</strong>. Everything else can compress. These cannot.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <h2><span class="num">Section 09</span>Software and hardware</h2>
+
+  <h3>Hardware — you almost certainly already have all of it</h3>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Item</th><th>Requirement</th><th>Note</th></tr></thead>
+    <tbody>
+      <tr><td>Laptop / desktop</td><td>Anything from the last ~6 years, 8 GB RAM</td><td>For editing, testing and recording. The app itself is light</td></tr>
+      <tr><td>GPU</td><td class="win">None</td><td>Only your thesis training needed one, and that is finished</td></tr>
+      <tr><td>Microphone</td><td>A cheap USB mic, or wired earbuds</td><td>Beats a laptop mic decisively. Record in a small room with soft furnishings, not a bathroom</td></tr>
+      <tr><td>Display for testing</td><td>1280×720 or larger</td><td>The layout's minimum target</td></tr>
+      <tr><td>VR headset</td><td class="win">None. Deliberately</td><td>Requiring one would <em>hurt</em> the accessibility criterion</td></tr>
+      <tr><td>Server / cloud</td><td class="win">None</td><td>GitHub Pages is free and static</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Software — everything free, most already installed</h3>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Tool</th><th>For</th><th>Who installs</th></tr></thead>
+    <tbody>
+      <tr><td>Node.js 22 LTS + npm</td><td>Build toolchain</td><td>Mine, here. Yours only if you want to run it locally</td></tr>
+      <tr><td>Git + GitHub</td><td>Source, and the free public URL</td><td>Already set up</td></tr>
+      <tr><td>Chrome or Firefox</td><td>Running and recording the sim</td><td>Have it</td></tr>
+      <tr><td>Python 3.12 + your notebook env</td><td>The one-time data export</td><td>Already working</td></tr>
+      <tr><td><strong>OBS Studio</strong></td><td>Screen + voice capture</td><td class="lose">You — install today</td></tr>
+      <tr><td><strong>Audacity</strong></td><td>Noise removal, levelling</td><td class="lose">You — install today</td></tr>
+      <tr><td>Shotcut <em>or</em> DaVinci Resolve</td><td>Cutting to 6:30, titles, MP4 export</td><td>You. Shotcut if you have never edited before</td></tr>
+      <tr><td>PowerPoint or Google Slides</td><td>The five slides</td><td>Have it</td></tr>
+      <tr><td>A plain sheet (Google Sheets)</td><td>Tester responses</td><td>I will send the template</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p><strong>Total software cost: zero.</strong> Nothing here has a licence, a trial, or a watermark on export — check Shotcut over Resolve if disk space is tight, Resolve is a 3&nbsp;GB download.</p>
+
+  <h3>What the learner needs</h3>
+  <p>A browser. That is the whole requirement, and slide 5 will say exactly that. It runs on a phone. No install, no login, no headset, no account — which is both an accessibility argument and a hard requirement of the submission rules, since the platform link must open without a login.</p>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <h2><span class="num">Section 10</span>Scope ladder and risks</h2>
+
+  <p>Agreed in advance, so that if a day slips we cut from a list instead of panicking.</p>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Tier</th><th>Contents</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Core</strong><br>ships no matter what</td><td>Village · voltage profile · 4 sliders · projection toggle · controllers 1–5 · Pareto map · all six stages · deployed URL</td><td class="win">Committed</td></tr>
+      <tr><td><strong>Standard</strong><br>expected</td><td>Weak/strong toggle · margin slider · stage-6 trap · debrief · sensitivity heat · CSV export · full accessibility pass · cohort dots</td><td>Planned</td></tr>
+      <tr><td><strong>Stretch</strong><br>cut first</td><td>Live actor MLP in-browser · mobile layout · adaptive difficulty · printable certificate · multi-day scenarios</td><td>If time allows</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Risk register</h3>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Risk</th><th>Severity</th><th>Mitigation</th></tr></thead>
+    <tbody>
+      <tr><td>I cannot see the rendering</td><td class="lose">High</td><td>Deploy day one; you review every evening; wireframe approved before code</td></tr>
+      <tr><td>Smartsheet form has an unexpected requirement</td><td class="lose">High</td><td><strong>Open it today.</strong> This is the only unknown that could invalidate finished work</td></tr>
+      <tr><td>Notebook export stalls</td><td>Medium</td><td>Public Baran–Wu benchmark fallback, already scoped. Not blocking</td></tr>
+      <tr><td>Fewer than 8 testers</td><td>Medium</td><td>n = 5 still reportable; MedXperience placed 2nd on n = 9. Report honestly whatever n we get</td></tr>
+      <tr><td>Video runs long</td><td>Medium</td><td>Shot list is timed to 6:30 against a 7:00 cap. Stage 2 and 3 compress first</td></tr>
+      <tr><td>Provenance question from judges</td><td>Medium</td><td>Email IEEE today; disclose the thesis as cited prior research on slide 5</td></tr>
+      <tr><td>Egress blocked in my session</td><td>Low</td><td>Already the case and already worked around. Affects research, not the build</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note alert">
+    <span class="note-label">The provenance item, stated plainly</span>
+    <p>Your thesis was certified at BUET in June 2026. FAQ 8 and the entry warranty both bar work "previously published, released or distributed." The submitted artefact is a <em>new simulator built for this competition</em>, with the thesis disclosed and cited as underlying prior research — which is normal and defensible practice. But <strong>get it in writing.</strong> One short email to <code>metaversechallenge@ieee.org</code> today removes the only issue in this project that could cost you the entry after all the work is done.</p>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <h2><span class="num">Section 11</span>Definition of done</h2>
+
+  <ul class="check">
+    <li>Physics reproduces all five thesis numbers in automated tests</li>
+    <li>Six stages playable start to finish without a dead end or a soft-lock</li>
+    <li>Public URL loads in under 3 seconds with no login, on a phone and a laptop</li>
+    <li>Keyboard-only operation works; every colour has a numeric equivalent beside it</li>
+    <li>8–10 testers run; pre/post scored; SUS computed; <strong>stage-6 pick rate recorded</strong></li>
+    <li>Five slides, hard cap respected, slide 4 mapping explicitly to the six judging criteria</li>
+    <li>MP4 between 6:00 and 6:55, captioned, with the URL held on screen long enough to read</li>
+    <li>Submitted with at least a day in hand</li>
+  </ul>
+
+  <div class="kicker">The thesis found that plain deep reinforcement learning is beaten by a rule from the 1970s, and that restoring the network physics is what turns it around. Bus 18 does not tell anyone that. It arranges for them to find it out, in about twenty minutes, with their own hands on the set-points.</div>
+
+  <p class="footer">
+    Bus 18 · build blueprint · 8 August 2026<br>
+    Source of truth for state: <code>docs/CONTEXT.md</code> · this document: <code>docs/blueprint.html</code><br>
+    Repo <code>rifat137710/Public</code>, branch <code>claude/hello-vj564a</code>
+  </p>
+</section>
+
+</div>

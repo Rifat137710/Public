@@ -420,3 +420,39 @@ via OpenCV (invert dark-background codes before decoding).
 - [ ] **User:** run `probe()` in the notebook, then export `sensitivities.json` (highest priority file)
 - [ ] **User:** recruit 8–10 testers
 - [ ] Decide: start with engine, or mock the screen layout first for approval — *awaiting user's answer*
+
+## 9. The blueprint (8 Aug 2026)
+
+Full build blueprint written to **`docs/blueprint.html`** (committed) and published at
+`https://claude.ai/code/artifact/196efff1-cbe6-4c54-a978-670fd161dbcf`. It supersedes the earlier
+visual-system/pipeline artifact. Covers: system scope and file manifest (~30 files, ~3,500 LOC),
+the one-screen wireframe, the full control inventory, eight learning objectives L1–L8 mapped to
+stages and assessment questions, the six-stage arc beat by beat, the two-tier backend, the five
+physics verification gates, the seven-day schedule, hardware/software list, scope ladder and risk
+register.
+
+**Deadline reality:** entry closes 15 Aug 2026 23:59 EDT = **09:59 on 16 Aug, Dhaka time**. Seven
+days from the blueprint date.
+
+### Numbers verified from the thesis text on 8 Aug (use these, they are checked)
+
+- 288 steps × 5 min = one day (§4.5, `T = 288`, `Δt = 5 min`)
+- EV stations at **buses 18, 22, 25, 33** (Fig. 4.2, 1-indexed); Table 4.1 lists the same as
+  pandapower indices 17, 21, 24, 32. PV at buses **6, 13, 30**.
+- Weak-grid `|∂V/∂P|` at bus 17: **9.08e−5 pu/kW**; bus 21: 2.46e−5; bus 24: 2.55e−5; bus 32: 5.71e−5.
+  Weak mean `|∂V/∂P|` = 4.95e−5, `|∂V/∂Q|` = 3.87e−5 → ratio-of-means **1.280**; Gate 1 reports **1.271**.
+  Quote as "1.27–1.28".
+- Base case at **full** load: weak Vmin **0.882 pu**, loss **338.6 kW**; strong Vmin **0.913 pu**,
+  loss **202.7 kW**. Full load is already infeasible in [0.95, 1.05] — this is *why* experiments run
+  at load scale 0.50.
+- Fleet: 287 arrivals, bimodal; battery σ 15 kWh clipped [30, 100]; arrival SoC [0.15, 0.55]; target
+  SoC [0.70, 0.90]; dwell [2, 12] h, mean 7 h; 80% opt into V2G; 22 kW ceiling; η = 0.92.
+- **Monte-Carlo check: 100% of energy-service requests are physically deliverable within dwell at the
+  operating point.** Therefore unmet service reflects *control decisions, not infeasible demand*.
+  This is what makes `SoC met = 0.000` damning rather than excusable — load-bearing for stage 6.
+- Projection: 8 variables, CVXPY + CLARABEL; infeasible → curtail; **3 consecutive failures → freeze
+  to a safe default**. Applied to the environment-facing action during both collection and evaluation;
+  the policy gradient is taken w.r.t. the *unprojected* action — a safety filter, not a differentiable layer.
+- Sign convention: **negative = discharge/injection**. Table 5.3's −80 kW is a V2G discharge request.
+  *Unresolved:* which wall of the band binds at that operating point. Reproducing Table 5.3 from the
+  exported sensitivities settles it; it changes one sentence of stage-5 narration and nothing structural.
