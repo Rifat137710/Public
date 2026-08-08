@@ -1,0 +1,812 @@
+<title>Bus 18 — Tester Session Pack</title>
+<style>
+  :root {
+    --paper:      #F1F3F4;
+    --surface:    #FFFFFF;
+    --surface-2:  #E8ECEE;
+    --ink:        #14181C;
+    --ink-2:      #4A555E;
+    --ink-3:      #74818B;
+    --rule:       #D3D9DC;
+    --rule-2:     #BAC3C8;
+    --accent:     #0F6E63;
+    --accent-dim: #0F6E6318;
+    --copper:     #A2551C;
+    --copper-dim: #A2551C16;
+    --limit:      #A82A20;
+    --limit-dim:  #A82A2014;
+    --shadow:     0 1px 2px #14181C0F, 0 8px 24px #14181C0A;
+
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, "Cascadia Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:      #0F1316;
+      --surface:    #161C20;
+      --surface-2:  #1D252A;
+      --ink:        #E3E8EA;
+      --ink-2:      #A3B0B7;
+      --ink-3:      #78878F;
+      --rule:       #283238;
+      --rule-2:     #3A464E;
+      --accent:     #4FB3A2;
+      --accent-dim: #4FB3A21F;
+      --copper:     #D38B52;
+      --copper-dim: #D38B521C;
+      --limit:      #E58275;
+      --limit-dim:  #E5827518;
+      --shadow:     0 1px 2px #00000040, 0 8px 24px #00000030;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --paper:      #0F1316;
+    --surface:    #161C20;
+    --surface-2:  #1D252A;
+    --ink:        #E3E8EA;
+    --ink-2:      #A3B0B7;
+    --ink-3:      #78878F;
+    --rule:       #283238;
+    --rule-2:     #3A464E;
+    --accent:     #4FB3A2;
+    --accent-dim: #4FB3A21F;
+    --copper:     #D38B52;
+    --copper-dim: #D38B521C;
+    --limit:      #E58275;
+    --limit-dim:  #E5827518;
+    --shadow:     0 1px 2px #00000040, 0 8px 24px #00000030;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.6;
+    margin: 0;
+    padding: 3rem 1.25rem 6rem;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .wrap { max-width: 54rem; margin: 0 auto; }
+
+  /* ------------------------------------------------------------ masthead */
+
+  .masthead {
+    border-top: 3px solid var(--accent);
+    padding-top: 1.4rem;
+    margin-bottom: 2.6rem;
+  }
+
+  .kicker {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 0.7rem;
+  }
+
+  h1 {
+    font-family: var(--serif);
+    font-size: clamp(2rem, 5vw, 2.9rem);
+    line-height: 1.08;
+    font-weight: 600;
+    margin: 0 0 0.7rem;
+    text-wrap: balance;
+    letter-spacing: -0.012em;
+  }
+
+  .standfirst {
+    font-family: var(--serif);
+    font-size: 1.14rem;
+    color: var(--ink-2);
+    margin: 0;
+    max-width: 40rem;
+  }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1.6rem;
+    margin-top: 1.5rem;
+    font-family: var(--mono);
+    font-size: 0.73rem;
+    color: var(--ink-3);
+    letter-spacing: 0.04em;
+  }
+
+  .meta b { color: var(--ink-2); font-weight: 500; }
+
+  /* -------------------------------------------------------------- blocks */
+
+  h2 {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 3.4rem 0 1.1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  h3 {
+    font-family: var(--serif);
+    font-size: 1.28rem;
+    font-weight: 600;
+    margin: 0 0 0.45rem;
+    line-height: 1.25;
+    text-wrap: balance;
+  }
+
+  p { margin: 0 0 0.85rem; }
+  p:last-child { margin-bottom: 0; }
+
+  .lede { color: var(--ink-2); max-width: 42rem; }
+
+  /* ------------------------------------------------------ the alarm block */
+
+  .alarm {
+    border: 1px solid var(--limit);
+    border-left-width: 4px;
+    background: var(--limit-dim);
+    border-radius: 3px;
+    padding: 1.4rem 1.6rem;
+    margin: 2rem 0;
+  }
+
+  .alarm .kicker { color: var(--limit); }
+  .alarm h3 { color: var(--limit); }
+  .alarm p { color: var(--ink-2); }
+  .alarm strong { color: var(--ink); }
+
+  /* --------------------------------------------------------- timing spine */
+
+  .spine { margin-top: 1.6rem; }
+
+  .beat {
+    display: grid;
+    grid-template-columns: 4.6rem 1fr;
+    gap: 0 1.5rem;
+    position: relative;
+    padding-bottom: 2.1rem;
+  }
+
+  .beat::before {
+    content: "";
+    position: absolute;
+    left: 4.6rem;
+    top: 0.55rem;
+    bottom: 0;
+    width: 1px;
+    background: var(--rule);
+    transform: translateX(-0.75rem);
+  }
+
+  .beat:last-child::before { display: none; }
+
+  .clock {
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    color: var(--accent);
+    text-align: right;
+    padding-top: 0.15rem;
+    font-variant-numeric: tabular-nums;
+    position: relative;
+  }
+
+  .clock::after {
+    content: "";
+    position: absolute;
+    right: -0.98rem;
+    top: 0.55rem;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+
+  .dur {
+    display: block;
+    color: var(--ink-3);
+    font-size: 0.68rem;
+    letter-spacing: 0.05em;
+    margin-top: 0.1rem;
+  }
+
+  .beat-body > * + * { margin-top: 0.8rem; }
+
+  /* three registers: say / do / record */
+
+  .say {
+    font-family: var(--serif);
+    font-size: 1.06rem;
+    color: var(--ink);
+    border-left: 2px solid var(--accent);
+    padding: 0.15rem 0 0.15rem 1rem;
+    margin: 0;
+  }
+
+  .say + .say { margin-top: 0.7rem; }
+
+  .do {
+    color: var(--ink-2);
+    margin: 0;
+  }
+
+  .do code, .inline-code {
+    font-family: var(--mono);
+    font-size: 0.86em;
+    background: var(--surface-2);
+    padding: 0.08em 0.36em;
+    border-radius: 3px;
+    color: var(--ink);
+  }
+
+  .record {
+    background: var(--copper-dim);
+    border: 1px solid var(--copper);
+    border-radius: 3px;
+    padding: 0.9rem 1.1rem;
+  }
+
+  .record .tag {
+    font-family: var(--mono);
+    font-size: 0.64rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--copper);
+    display: block;
+    margin-bottom: 0.45rem;
+  }
+
+  .record p { color: var(--ink-2); margin: 0; }
+
+  .fill {
+    display: inline-block;
+    min-width: 3.5rem;
+    border-bottom: 1px solid var(--rule-2);
+    margin: 0 0.15rem;
+  }
+
+  .fill-lg { min-width: 100%; height: 1.5rem; display: block; margin-top: 0.4rem; }
+
+  /* -------------------------------------------------------------- tables */
+
+  .scroll { overflow-x: auto; margin: 1.2rem 0; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.92rem;
+    min-width: 32rem;
+  }
+
+  th {
+    text-align: left;
+    font-family: var(--mono);
+    font-size: 0.64rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    font-weight: 600;
+    border-bottom: 1px solid var(--rule-2);
+    padding: 0 0.7rem 0.5rem 0;
+    vertical-align: bottom;
+  }
+
+  td {
+    border-bottom: 1px solid var(--rule);
+    padding: 0.6rem 0.7rem 0.6rem 0;
+    color: var(--ink-2);
+    vertical-align: top;
+  }
+
+  td:first-child { color: var(--ink); }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .score-col { width: 4.5rem; }
+
+  /* ------------------------------------------------------------ questions */
+
+  .q {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: 1.2rem 1.4rem;
+    box-shadow: var(--shadow);
+  }
+
+  .qlist { display: flex; flex-direction: column; gap: 1rem; margin-top: 1.2rem; }
+
+  .qnum {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    display: block;
+    margin-bottom: 0.35rem;
+  }
+
+  .qtext { font-family: var(--serif); font-size: 1.08rem; margin: 0 0 0.8rem; }
+
+  .rubric {
+    font-size: 0.86rem;
+    color: var(--ink-2);
+    border-top: 1px dashed var(--rule-2);
+    padding-top: 0.7rem;
+    margin: 0;
+  }
+
+  .rubric b { color: var(--ink); font-weight: 600; }
+  .rubric span { font-family: var(--mono); font-size: 0.78rem; color: var(--accent); }
+
+  /* ---------------------------------------------------------------- likert */
+
+  .likert {
+    display: flex;
+    gap: 0.35rem;
+    align-items: center;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--ink-3);
+    white-space: nowrap;
+  }
+
+  .box {
+    width: 1.35rem;
+    height: 1.35rem;
+    border: 1px solid var(--rule-2);
+    border-radius: 2px;
+    display: inline-block;
+  }
+
+  ul, ol { margin: 0 0 0.9rem; padding-left: 1.25rem; color: var(--ink-2); }
+  li { margin-bottom: 0.4rem; }
+  li::marker { color: var(--ink-3); }
+  strong { color: var(--ink); }
+
+  a { color: var(--accent); }
+
+  footer {
+    margin-top: 4rem;
+    padding-top: 1.3rem;
+    border-top: 1px solid var(--rule);
+    font-size: 0.84rem;
+    color: var(--ink-3);
+  }
+
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  @media (max-width: 620px) {
+    .beat { grid-template-columns: 1fr; gap: 0.4rem; }
+    .beat::before { display: none; }
+    .clock { text-align: left; }
+    .clock::after { display: none; }
+  }
+
+  @media print {
+    body { background: #fff; padding: 0; font-size: 11.5pt; }
+    .q, .record, .alarm { break-inside: avoid; }
+    .beat { break-inside: avoid; }
+    h2 { break-after: avoid; }
+    footer { break-before: avoid; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="kicker">Bus 18 · user study · facilitator pack</p>
+    <h1>Run one session, eight times</h1>
+    <p class="standfirst">
+      Everything needed to sit a tester down, run them through the trainer, and come away
+      with data that means something. Read the alarm on this page before you run the first
+      one — a single careless sentence destroys the study's most valuable measurement.
+    </p>
+    <div class="meta">
+      <span><b>Target</b> 8–10 testers</span>
+      <span><b>Per session</b> ~32 min</span>
+      <span><b>Needs</b> a laptop, this pack, a pen</span>
+      <span><b>Collects</b> pre/post score, the pick, SUS</span>
+    </div>
+  </header>
+
+  <div class="alarm">
+    <p class="kicker">Read this first</p>
+    <h3>Never mention that stage 6 is a trap</h3>
+    <p>
+      The single most valuable number in this study is <strong>how many testers deploy the
+      controller that serves nobody</strong>. It only counts if they walk into it honestly.
+    </p>
+    <p>
+      So: do not say "trap", "trick", "be careful", "look closely", or "are you sure?".
+      Do not raise an eyebrow. If they ask <em>"is this a trick question?"</em>, answer
+      <strong>"Just pick the one you'd actually deploy."</strong> and nothing more.
+      If you slip, write it on the sheet — a contaminated session is still usable data
+      as long as you know it was contaminated.
+    </p>
+  </div>
+
+  <h2>Before the first session</h2>
+  <p class="lede">
+    Set the laptop up once and reuse it. Open
+    <span class="inline-code">https://rifat137710.github.io/Public/</span>
+    in a normal browser window, full screen, sound off. Reload between testers so each one
+    starts at stage 1 with an empty map. Print one copy of the two instrument pages per
+    tester; the script you keep.
+  </p>
+  <p class="lede">
+    Recruit engineers or engineering students — the point is to show the misconception
+    exists <em>in the population being taught</em>, so people who already know power systems
+    are the right audience, not the wrong one.
+  </p>
+
+  <h2>The session</h2>
+
+  <div class="spine">
+
+    <div class="beat">
+      <div class="clock">00:00<span class="dur">2 min</span></div>
+      <div class="beat-body">
+        <h3>Consent and framing</h3>
+        <p class="say">
+          "This is a browser simulator about running an electricity grid with a lot of
+          electric cars on it. I'll ask you five questions before, you'll play for about
+          fifteen minutes, then the same five questions after. Nothing is recorded, nothing
+          has your name on it, and you can stop at any point. There's no right answer I'm
+          looking for — if it's confusing, that's a fact about my design, not about you."
+        </p>
+        <p class="do">
+          Do <strong>not</strong> explain voltage, feeders, or what the sliders do. The
+          trainer has to teach that itself; if you teach it, the pre/post delta measures you.
+        </p>
+        <div class="record">
+          <span class="tag">Record</span>
+          <p>
+            Tester ID <span class="fill"></span> · background:
+            power systems / other engineering / non-engineering <span class="fill"></span>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="beat">
+      <div class="clock">02:00<span class="dur">5 min</span></div>
+      <div class="beat-body">
+        <h3>Pre-test — the five questions</h3>
+        <p class="do">
+          Hand them the question sheet. Let them write. Say <em>"say 'don't know' if you
+          don't know, it's genuinely useful"</em> — a blank and a guess score the same, but
+          knowing which it was helps.
+        </p>
+        <p class="do">
+          Do not react to answers. No nodding, no "good". Score later, not now.
+        </p>
+      </div>
+    </div>
+
+    <div class="beat">
+      <div class="clock">07:00<span class="dur">12 min</span></div>
+      <div class="beat-body">
+        <h3>Stages 1 to 5 — they drive, then they watch</h3>
+        <p class="say">
+          "Read the card, then do what it says. Think out loud if you can — tell me what
+          you're looking at and what you expect to happen."
+        </p>
+        <p class="do">
+          Stage 1 is the one that matters most: they run the feeder themselves with no help
+          and almost certainly fail. <strong>Let them fail.</strong> If they ask what to do,
+          say <em>"whatever you think is right — you'll find out in a minute."</em>
+        </p>
+        <p class="do">
+          They can speed the day up with the <code>×16</code> and <code>×64</code> buttons.
+          Point that out once if they haven't found it by stage 2.
+        </p>
+        <div class="record">
+          <span class="tag">Record — anything they say out loud</span>
+          <p>
+            Especially at the stage 4 reveal, when the neural network loses to the 1547 rule.
+            Surprise here is the entry's core claim landing.
+          </p>
+          <span class="fill-lg"></span>
+          <span class="fill-lg"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="beat">
+      <div class="clock">19:00<span class="dur">3 min</span></div>
+      <div class="beat-body">
+        <h3>Stage 6 — the measurement</h3>
+        <p class="say">
+          "Here's a procurement table. Pick the one you'd put on a real feeder."
+        </p>
+        <p class="do">
+          Say nothing else. Do not answer questions about the columns beyond re-reading what
+          is on screen.
+          <strong>Write down their choice and their reason before they click.</strong>
+          Once they click, the third column appears and the moment is gone.
+        </p>
+        <div class="record">
+          <span class="tag">Record — before they click</span>
+          <p>
+            Chose: droop / SAC-Lag / SafeSAC / SAC-Lag&nbsp;strong-grid <span class="fill"></span><br>
+            Hesitated? yes / no <span class="fill"></span> · Reason in their words:
+          </p>
+          <span class="fill-lg"></span>
+          <span class="fill-lg"></span>
+          <p style="margin-top:0.6rem">Reaction after the third column appears: <span class="fill"></span></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="beat">
+      <div class="clock">22:00<span class="dur">2 min</span></div>
+      <div class="beat-body">
+        <h3>The debrief screen</h3>
+        <p class="do">
+          Let them read it and scroll. Do not narrate it. If they reach for the
+          "Save one-page summary" button, let them — that is the behaviour we hoped for, so
+          note it.
+        </p>
+        <div class="record">
+          <span class="tag">Record</span>
+          <p>Did they download the summary unprompted? yes / no <span class="fill"></span></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="beat">
+      <div class="clock">24:00<span class="dur">5 min</span></div>
+      <div class="beat-body">
+        <h3>Post-test — the same five questions</h3>
+        <p class="do">
+          Same sheet, blank copy. Do not let them see their pre-test answers.
+        </p>
+      </div>
+    </div>
+
+    <div class="beat">
+      <div class="clock">29:00<span class="dur">3 min</span></div>
+      <div class="beat-body">
+        <h3>SUS and the open question</h3>
+        <p class="do">
+          Ten statements, agree-to-disagree. Then one question asked out loud:
+        </p>
+        <p class="say">"What surprised you?"</p>
+        <div class="record">
+          <span class="tag">Record — verbatim, not paraphrased</span>
+          <span class="fill-lg"></span>
+          <span class="fill-lg"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="beat">
+      <div class="clock">32:00<span class="dur">1 min</span></div>
+      <div class="beat-body">
+        <h3>Close</h3>
+        <p class="say">
+          "Last thing — was there anything that was broken, confusing, or annoying? Be
+          harsh, it's more useful than being kind."
+        </p>
+        <p class="do">Thank them. Reload the page for the next tester.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <h2>Instrument 1 — the five concept questions</h2>
+  <p class="lede">
+    Asked identically before and after. Score <span class="inline-code">0–2</span> each,
+    <span class="inline-code">0–10</span> total, marked afterwards against the rubric — never
+    in front of the tester.
+  </p>
+
+  <div class="qlist">
+
+    <div class="q">
+      <span class="qnum">Q1</span>
+      <p class="qtext">
+        When an electricity feeder is heavily loaded, what happens to the voltage along it —
+        and which quantity drives that change?
+      </p>
+      <p class="rubric">
+        <span>2</span> — voltage <b>falls</b>, and it falls further the <b>further you are from
+        the substation</b>; driven by current through line impedance.
+        <span>1</span> — voltage falls, no mechanism or no distance dependence.
+        <span>0</span> — voltage rises, unchanged, or don't know.
+      </p>
+    </div>
+
+    <div class="q">
+      <span class="qnum">Q2</span>
+      <p class="qtext">
+        On a weak rural feeder where resistance and reactance are roughly equal, does
+        <em>active</em> power or <em>reactive</em> power have more effect on voltage? Why?
+      </p>
+      <p class="rubric">
+        <span>2</span> — <b>active</b>, because with R ≈ X the R·ΔP term is comparable to or
+        larger than X·ΔQ, unlike transmission where X ≫ R.
+        <span>1</span> — active, without the R ≈ X reasoning.
+        <span>0</span> — reactive, or don't know.
+      </p>
+    </div>
+
+    <div class="q">
+      <span class="qnum">Q3</span>
+      <p class="qtext">
+        A control system reports the lowest violation rate of every method tested. What
+        would you check before trusting that number?
+      </p>
+      <p class="rubric">
+        <span>2</span> — <b>what it cost in service</b> — whether it achieved safety by doing
+        its job well or by not operating.
+        <span>1</span> — generic scepticism: test conditions, sample size, cherry-picking.
+        <span>0</span> — nothing to check, or don't know.
+        <em>This is the question the entry exists to move.</em>
+      </p>
+    </div>
+
+    <div class="q">
+      <span class="qnum">Q4</span>
+      <p class="qtext">
+        Name two reasons a grid operator might refuse a request to send power from a parked
+        car back into the network.
+      </p>
+      <p class="rubric">
+        <span>2</span> — any two of: it would push a bus <b>above</b> the upper voltage limit;
+        the car's battery is at its floor; the driver needs the charge; thermal or equipment
+        limits; battery degradation cost.
+        <span>1</span> — one valid reason.
+        <span>0</span> — none, or don't know.
+      </p>
+    </div>
+
+    <div class="q">
+      <span class="qnum">Q5</span>
+      <p class="qtext">
+        Why might a controller that worked well on a strong urban grid fail when deployed on
+        a weak rural one?
+      </p>
+      <p class="rubric">
+        <span>2</span> — it learned on a system where its actions barely moved voltage, so its
+        policy is <b>calibrated to the wrong sensitivity</b>; on a weak feeder the same action
+        has a much larger effect.
+        <span>1</span> — "the conditions are different" without the mechanism.
+        <span>0</span> — it wouldn't, or don't know.
+      </p>
+    </div>
+
+  </div>
+
+  <h2>Instrument 2 — SUS</h2>
+  <p class="lede">
+    The standard ten-item System Usability Scale, unmodified except that "the system" is named.
+    <strong>1 = strongly disagree, 5 = strongly agree.</strong> Hand it over; do not read the
+    items aloud.
+  </p>
+
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr><th style="width:2.2rem"></th><th>Statement</th><th style="width:11rem">1 &nbsp; 2 &nbsp; 3 &nbsp; 4 &nbsp; 5</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="num">1</td><td>I think I would like to use Bus 18 frequently.</td><td><span class="likert"><i class="box"></i><i class="box"></i><i class="box"></i><i class="box"></i><i class="box"></i></span></td></tr>
+        <tr><td class="num">2</td><td>I found Bus 18 unnecessarily complex.</td><td><span class="likert"><i class="box"></i><i class="box"></i><i class="box"></i><i class="box"></i><i class="box"></i></span></td></tr>
+        <tr><td class="num">3</td><td>I thought Bus 18 was easy to use.</td><td><span class="likert"><i class="box"></i><i class="box"></i><i class="box"></i><i class="box"></i><i class="box"></i></span></td></tr>
+        <tr><td class="num">4</td><td>I think I would need the support of a technical person to use Bus 18.</td><td><span class="likert"><i class="box"></i><i class="box"></i><i class="box"></i><i class="box"></i><i class="box"></i></span></td></tr>
+        <tr><td class="num">5</td><td>I found the various functions in Bus 18 were well integrated.</td><td><span class="likert"><i class="box"></i><i class="box"></i><i class="box"></i><i class="box"></i><i class="box"></i></span></td></tr>
+        <tr><td class="num">6</td><td>I thought there was too much inconsistency in Bus 18.</td><td><span class="likert"><i class="box"></i><i class="box"></i><i class="box"></i><i class="box"></i><i class="box"></i></span></td></tr>
+        <tr><td class="num">7</td><td>I would imagine most people would learn to use Bus 18 very quickly.</td><td><span class="likert"><i class="box"></i><i class="box"></i><i class="box"></i><i class="box"></i><i class="box"></i></span></td></tr>
+        <tr><td class="num">8</td><td>I found Bus 18 very cumbersome to use.</td><td><span class="likert"><i class="box"></i><i class="box"></i><i class="box"></i><i class="box"></i><i class="box"></i></span></td></tr>
+        <tr><td class="num">9</td><td>I felt very confident using Bus 18.</td><td><span class="likert"><i class="box"></i><i class="box"></i><i class="box"></i><i class="box"></i><i class="box"></i></span></td></tr>
+        <tr><td class="num">10</td><td>I needed to learn a lot before I could get going with Bus 18.</td><td><span class="likert"><i class="box"></i><i class="box"></i><i class="box"></i><i class="box"></i><i class="box"></i></span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="lede">
+    <strong>Scoring.</strong> Odd items: subtract 1 from the answer. Even items: subtract the
+    answer from 5. Sum all ten, multiply by 2.5. Range 0–100.
+    <strong>68 is average</strong>; above 80 is good. Report the mean across testers and the
+    range, never a single tester's score.
+  </p>
+
+  <h2>Instrument 3 — the tally sheet</h2>
+  <p class="lede">
+    One row per tester, filled in after each session. This is the sheet to send me — the whole
+    analysis comes out of it.
+  </p>
+
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:3rem">ID</th>
+          <th style="width:7rem">Background</th>
+          <th class="score-col">Pre /10</th>
+          <th class="score-col">Post /10</th>
+          <th style="width:9rem">Stage 6 pick</th>
+          <th class="score-col">SUS</th>
+          <th>Contaminated? / notes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td class="num">01</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td class="num">02</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td class="num">03</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td class="num">04</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td class="num">05</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td class="num">06</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td class="num">07</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td class="num">08</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td class="num">09</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+        <tr><td class="num">10</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>What the numbers will be used for</h2>
+
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr><th style="width:13rem">Measurement</th><th>Where it lands</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Share who deployed the collapsed controller</td>
+          <td>
+            The headline result. If most engineers take it, the misconception is
+            demonstrated in the population being taught — that is a finding, not a demo.
+          </td>
+        </tr>
+        <tr>
+          <td>Pre → post on Q3 specifically</td>
+          <td>
+            The objective the whole arc is built around: demand the service column beside the
+            safety column.
+          </td>
+        </tr>
+        <tr>
+          <td>Pre → post total, all five</td>
+          <td>Learning gain across the eight objectives. Reported with n and the range.</td>
+        </tr>
+        <tr>
+          <td>Mean SUS</td>
+          <td>Usability evidence — that the learning came from the trainer, not despite it.</td>
+        </tr>
+        <tr>
+          <td>"What surprised you?" verbatims</td>
+          <td>Quoted in the video and on the slides. Real sentences beat any summary.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="alarm" style="margin-top:2.4rem">
+    <p class="kicker">Honesty rule</p>
+    <h3>Report what happened, including if nothing did</h3>
+    <p>
+      If the pre/post delta is small, report the small delta. If most testers see through
+      stage 6 immediately, that is a real result and the entry says so. A study that can only
+      come out one way is not a study, and a judge who has run one will know.
+    </p>
+  </div>
+
+  <footer>
+    Bus 18 · facilitator pack, drafted 8 Aug 2026 · Md. Rifat Rahman, BUET EEE.
+    SUS is John Brooke's 1996 instrument, free to use with attribution.
+    The trainer under test is at
+    <span class="inline-code">rifat137710.github.io/Public/</span>.
+  </footer>
+
+</div>
