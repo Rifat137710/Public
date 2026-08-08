@@ -466,6 +466,71 @@
     margin-top: 4rem;
   }
 
+  /* ---------- key map ---------- */
+
+  kbd {
+    font-family: var(--mono);
+    font-size: 0.76em;
+    background: var(--surface);
+    border: 1px solid var(--rule-2);
+    border-bottom-width: 2px;
+    border-radius: 3px;
+    padding: 0.1em 0.4em;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+
+  .keymap {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+    gap: 0 2rem;
+    border-top: 1px solid var(--rule);
+    margin-bottom: 1.5rem;
+  }
+  .keymap div {
+    display: grid;
+    grid-template-columns: 8.5rem 1fr;
+    gap: 0.75rem;
+    align-items: baseline;
+    padding: 0.45rem 0;
+    border-bottom: 1px solid var(--rule);
+    font-size: 0.88rem;
+  }
+  .keymap span:last-child { color: var(--ink-2); }
+
+  /* ---------- signature interactions ---------- */
+
+  .sig {
+    counter-reset: sig;
+    list-style: none;
+    padding-left: 0;
+    max-width: none;
+  }
+  .sig > li {
+    counter-increment: sig;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 1.1rem 1.25rem 1.1rem 3.4rem;
+    margin-bottom: 0.9rem;
+    position: relative;
+    box-shadow: var(--shadow);
+  }
+  .sig > li::before {
+    content: counter(sig);
+    position: absolute;
+    left: 1.25rem;
+    top: 1.05rem;
+    font-family: var(--serif);
+    font-size: 1.3rem;
+    line-height: 1;
+    color: var(--copper);
+    font-variant-numeric: tabular-nums;
+  }
+  .sig h4 { margin: 0 0 0.35rem; }
+  .sig p { margin: 0 0 0.5rem; font-size: 0.93rem; }
+  .sig p:last-child { margin-bottom: 0; }
+
   @media (prefers-reduced-motion: reduce) {
     * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
   }
@@ -487,7 +552,7 @@
 
 <div class="note alert">
   <span class="note-label">Read this first</span>
-  <p>You said not to worry about the deadline. I am not letting it shrink the design — everything below is the full system. But <strong>seven days is a fact that changes the order of work, not its ambition</strong>, so this plan front-loads the things only you can do (data export, testers, the submission form) into today and tomorrow, and puts everything that is mine onto a critical path I can actually hold.</p>
+  <p>You said not to worry about the deadline. I am not letting it shrink the design — everything below is the full system. But <strong>seven days is a fact that changes the order of work, not its ambition</strong>, so this plan front-loads the things only you can do — testers, and your eyes on the build each evening — and puts everything that is mine onto a critical path I can actually hold. The submission form and the provenance question are yours and are handled.</p>
   <p>The single biggest risk is not code volume. It is that <strong>I cannot see the screen render.</strong> Every visual judgement has to come back through you. That is why the app deploys to a live URL on <em>day one</em>, not day five.</p>
 </div>
 
@@ -510,19 +575,19 @@
     </div>
     <div class="qa-row">
       <div class="qa-q">What will learners learn?</div>
-      <div class="qa-a">Eight stated objectives (§5). The central one: <strong>a controller that reports the lowest violation rate can be the worst controller on the list</strong> — because it satisfied the constraint by refusing to operate. They learn to demand the service column.</div>
+      <div class="qa-a">Eight stated objectives (§8). The central one: <strong>a controller that reports the lowest violation rate can be the worst controller on the list</strong> — because it satisfied the constraint by refusing to operate. They learn to demand the service column.</div>
     </div>
     <div class="qa-row">
       <div class="qa-q">What options does it have?</div>
-      <div class="qa-a">Seven controllers, two grids, three load scales, four live station set-points, a projection on/off toggle, an adjustable safety margin, a 288-step transport, and a full accessibility layer. Complete inventory in §4.</div>
+      <div class="qa-a">Seven controllers, two grids, three load scales, four live station set-points, a projection on/off toggle, an adjustable safety margin, a 288-step transport, and a full accessibility layer. Inventory in §4; each knob paired with the experiment it enables in §6; <strong>why none of it is possible on a real feeder in §7</strong>.</div>
     </div>
     <div class="qa-row">
       <div class="qa-q">How does the backend fit in?</div>
-      <div class="qa-a">There is <strong>no backend.</strong> Your thesis already ran every expensive computation. It exports JSON; the browser does one matrix–vector product and one small projection. No server, no Python in the demo path, nothing that can fail mid-recording. §7.</div>
+      <div class="qa-a">There is <strong>no backend.</strong> Your thesis already ran every expensive computation. It exports JSON; the browser does one matrix–vector product and one small projection. No server, no Python in the demo path, nothing that can fail mid-recording. §10.</div>
     </div>
     <div class="qa-row">
       <div class="qa-q">What do you have to do?</div>
-      <div class="qa-a">Nine things, five of them today (§8). In order of urgency: <strong>open the Smartsheet form</strong>, run the notebook export, email IEEE about provenance, line up 8–10 testers, then look at what I deploy each evening and tell me what is ugly or wrong.</div>
+      <div class="qa-a">Far less than you'd expect (§11). Run the notebook export, line up 8–10 testers, <strong>look at what I deploy each evening and tell me what is ugly or wrong</strong>, record your voice, press submit.</div>
     </div>
   </div>
 </section>
@@ -726,7 +791,247 @@
 
 <!-- ============================================================ -->
 <section>
-  <h2><span class="num">Section 05</span>What the learner walks away knowing</h2>
+  <h2><span class="num">Section 05</span>How they play</h2>
+
+  <p>The core verb is <strong>dispatch</strong>. One question, asked 288 times: <em>how much power at each of four stations, right now?</em> Everything else in the interface exists to help the learner answer that question better than they did last time.</p>
+
+  <h3>Input — three paths, one state</h3>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Path</th><th>Primary for</th><th>What it feels like</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Mouse / trackpad</strong></td><td>Everyone, by default</td><td>Grab a handle, drag it, watch the village answer</td></tr>
+      <tr><td><strong>Keyboard</strong></td><td>Repeat users, accessibility, and filming the video</td><td>Numeric, fast, exactly repeatable — the same run twice</td></tr>
+      <tr><td><strong>Touch</strong></td><td>Phone and tablet</td><td>Same handles, larger targets, map collapses to a summary</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <p>All three drive one state object. There is no "mouse mode" — a learner can drag a slider, then nudge it with an arrow key, then scrub with a finger, without ever changing modes.</p>
+
+  <div class="note copper">
+    <span class="note-label">No gamepad, no VR controller, no headset</span>
+    <p>The skill being taught is <strong>judgement under a physical constraint</strong>, not manual dexterity. Every input device we add is a competence the learner must acquire that has nothing to do with power systems, and every one of them narrows who can take part. A mouse and a keyboard are already on every machine that will ever run this.</p>
+  </div>
+
+  <h3>Key map</h3>
+
+  <div class="keymap">
+    <div><span><kbd>Space</kbd></span><span>Play / pause</span></div>
+    <div><span><kbd>←</kbd> <kbd>→</kbd></span><span>Step one 5-minute interval</span></div>
+    <div><span><kbd>Shift</kbd>+<kbd>←</kbd><kbd>→</kbd></span><span>Jump one hour</span></div>
+    <div><span><kbd>1</kbd>…<kbd>4</kbd></span><span>Select station</span></div>
+    <div><span><kbd>↑</kbd> <kbd>↓</kbd></span><span>Nudge selected station ±5 kW</span></div>
+    <div><span><kbd>Shift</kbd>+<kbd>↑</kbd><kbd>↓</kbd></span><span>±20 kW</span></div>
+    <div><span><kbd>0</kbd></span><span>Zero the selected station</span></div>
+    <div><span><kbd>Q</kbd></span><span>Zero all four — the panic stop</span></div>
+    <div><span><kbd>P</kbd></span><span>Toggle the safety projection</span></div>
+    <div><span><kbd>G</kbd></span><span>Toggle weak / strong grid</span></div>
+    <div><span><kbd>C</kbd></span><span>Cycle controller</span></div>
+    <div><span><kbd>R</kbd></span><span>Rewind to the branch point</span></div>
+    <div><span><kbd>M</kbd></span><span>Show / hide the map</span></div>
+    <div><span><kbd>?</kbd></span><span>Key-map overlay</span></div>
+    <div><span><kbd>Tab</kbd> <kbd>Enter</kbd></span><span>Traverse and operate every control</span></div>
+    <div><span><kbd>Esc</kbd></span><span>Close any overlay</span></div>
+  </div>
+
+  <p>Nothing in the simulator is reachable by mouse only. That is an accessibility requirement under the 10% criterion, and it is also what lets us film a clean, jitter-free run for the video.</p>
+
+  <h3>The five interactions worth remembering</h3>
+
+  <p>These are the moments the video is built around, and the reason this is a simulator rather than an animated slide deck.</p>
+
+  <ol class="sig">
+    <li>
+      <h4>The two-handle slider — you feel the constraint push back</h4>
+      <p>Each station slider carries <em>two</em> handles: the <strong>raw request</strong> you are dragging, and the <strong>projected command</strong> the safety layer will actually execute. Drag the raw handle and the safe one follows it — until it doesn't. Push past the point where the voltage band binds and the safe handle <strong>stops moving while yours keeps going</strong>, and the gap between them fills with red.</p>
+      <p>At station 1 on the weak grid, dragging to &minus;80&nbsp;kW leaves the safe handle stuck at <strong>&minus;54.13&nbsp;kW</strong> with a 25.87&nbsp;kW gap. Switch to the strong grid with <kbd>G</kbd> and the same drag goes all the way to &minus;80.00. Table 5.3, as a hand movement, in about four seconds.</p>
+    </li>
+    <li>
+      <h4>Drag the village itself</h4>
+      <p>Grab a charger in the isometric scene and pull it up or down. Identical command, embodied in the place it happens. Deliberately imprecise — this is for feeling out how the feeder responds, not for setting a number. When precision matters the learner moves to the slider on their own.</p>
+    </li>
+    <li>
+      <h4>Scrub and branch — the counterfactual machine</h4>
+      <p>Drag the clock backwards to any of the 288 steps and act differently from there. Your original run stays on screen as a faded ghost, and <em>both</em> outcomes land as dots on the map.</p>
+      <p>Reality gives you exactly one attempt from any given state. This gives unlimited attempts from <strong>identical</strong> states — which is the only way anyone ever learns which of their decisions actually mattered.</p>
+    </li>
+    <li>
+      <h4>The ghost trace — race a controller in real time</h4>
+      <p>A dotted line on the voltage chart shows where SafeSAC would have put the feeder <em>at this exact step</em>, while you are still driving. You see the gap between your judgement and the trained controller's continuously, without leaving your own run and without being told the answer.</p>
+    </li>
+    <li>
+      <h4>Pull the voltage — sensitivity taught by hand <em>(stretch)</em></h4>
+      <p>Grab the voltage curve at bus 18 and drag it upward. The system inverse-solves for the station command that would produce it and moves the slider to match: <em>"to lift bus 18 by 0.01 pu you need 110 kW at station 1 — and 4 kW at station 2 does nothing at all."</em></p>
+      <p>This is <code>∂V/∂P</code> delivered as a physical sensation rather than a partial derivative. It is on the stretch tier because it needs a stable inverse, but it is the single most original interaction in the build.</p>
+    </li>
+  </ol>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <h2><span class="num">Section 06</span>What they can change — and what each change teaches</h2>
+
+  <p>§4 lists the controls as an inventory. This is the same set read the other way round: each knob exists because it enables one experiment that produces one discovery. Anything that failed that test is not in the build.</p>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Change this</th><th>Range</th><th>The experiment</th><th>The discovery</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><strong>Four station set-points</strong></td><td>&minus;80 … +80 kW each</td>
+        <td>Dispatch a day by hand</td>
+        <td>The trade-off is real and you personally cannot thread it</td>
+      </tr>
+      <tr>
+        <td><strong>Safety projection</strong></td><td>On / Off</td>
+        <td>Run the identical trained agent with the physics removed</td>
+        <td>Service falls 0.569 → 0.277. <strong>The intelligence was never the differentiator</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Grid strength</strong></td><td>Weak / Strong</td>
+        <td>Swap the network under a fixed policy, everything else identical</td>
+        <td>The same command is safe on one feeder and illegal on the other</td>
+      </tr>
+      <tr>
+        <td><strong>Controller</strong></td><td>7 options</td>
+        <td>Six methods and yourself on one shared-seed day</td>
+        <td>The 1970s rule beats the deep RL agent on both axes</td>
+      </tr>
+      <tr>
+        <td><strong>Safety margin</strong></td><td>0.000 … 0.020 pu</td>
+        <td>Tighten and loosen the band the projection defends</td>
+        <td>Conservatism is not free — it is priced in cars left uncharged</td>
+      </tr>
+      <tr>
+        <td><strong>Load scale</strong></td><td>0.30 / 0.50 / 0.70</td>
+        <td>Stress the feeder past the study's operating point</td>
+        <td>At full load the weak feeder sags to 0.882 pu — <em>no</em> controller is legal. Why the thesis runs at 0.50</td>
+      </tr>
+      <tr>
+        <td><strong>Sensitivity overlay</strong></td><td>On / Off</td>
+        <td>Colour every pole by <code>∂V/∂P</code></td>
+        <td>Leverage is wildly unequal: bus 18 is 3.7× bus 22. Position beats magnitude</td>
+      </tr>
+      <tr>
+        <td><strong>Time position &amp; speed</strong></td><td>288 steps, ×1 … ×64</td>
+        <td>Watch one step, or a whole day, or rewind and branch</td>
+        <td>Cause and effect at two scales at once — the peak is 17:00–20:00, and it is not close</td>
+      </tr>
+      <tr>
+        <td><strong>PV visibility</strong></td><td>On / Off</td>
+        <td>Show generation at buses 6, 13, 30 against the load shape</td>
+        <td>EVs arrive exactly as PV disappears. The collision is structural, not bad luck</td>
+      </tr>
+      <tr>
+        <td><strong>Raw vs projected</strong></td><td>Both / commanded only</td>
+        <td>Show what was asked for beside what was executed</td>
+        <td>The safety layer works constantly and silently — most of the time you would never know</td>
+      </tr>
+      <tr>
+        <td><strong>Seed</strong></td><td>Any; default 137710</td>
+        <td>Re-run with a different EV fleet realisation</td>
+        <td>The ordering of methods survives the reroll. It was not a fluke</td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>What is deliberately <em>not</em> adjustable</h3>
+
+  <p>This matters as much as the list above. A simulator with a knob on everything teaches nothing, because nothing can be compared to anything. The fixed things are what give the variable things meaning.</p>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th>Fixed</th><th>Why it stays fixed</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Network topology</strong> — IEEE 33-bus Baran–Wu</td><td>It is a published benchmark. That is the entire point: results here are comparable to a literature anyone can check. Let a learner redraw the feeder and every number becomes anecdote</td></tr>
+      <tr><td><strong>The [0.95, 1.05] pu band</strong></td><td>It is statutory. It is not a preference and it is not a difficulty setting. Discovering that the wall does not move <em>is</em> one of the lessons</td></tr>
+      <tr><td><strong>The EV fleet within a seed</strong></td><td>Your Monte-Carlo check confirmed 100% of energy requests are deliverable within dwell. Nobody gets to blame the demand for a controller's failure</td></tr>
+      <tr><td><strong>Trained agent weights</strong></td><td>The learner is evaluating controllers, not training them. Training is your thesis; this is the exam</td></tr>
+      <tr><td><strong>The reward function</strong></td><td>Reward shaping is a research activity with a very long feedback loop. It would swallow the twenty minutes and teach nothing about the grid</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <h2><span class="num">Section 07</span>Why none of this can be done in a lab</h2>
+
+  <p>This is the argument the 25% criterion is actually asking for, and it is the strongest thing the entry has. Every row below is something the learner does in Bus 18 that is <strong>impossible, forbidden, or unaffordable</strong> on a real network — and in most cases all three.</p>
+
+  <div class="scroll">
+  <table>
+    <thead><tr><th>What the learner does</th><th>In reality</th><th>Here</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Push a feeder to 0.88 pu and brown out the tail of the line</td>
+        <td class="lose">Forbidden. No operator will authorise deliberately violating statutory voltage limits with customers connected. It is a regulatory offence</td>
+        <td>Any time. Fifty times. Free</td>
+      </tr>
+      <tr>
+        <td>Switch the safety system off and watch what it was doing</td>
+        <td class="lose">Never, by anyone. The safety layer is what keeps the operating licence</td>
+        <td>One keystroke: <kbd>P</kbd></td>
+      </tr>
+      <tr>
+        <td>Change the grid's strength under a fixed controller, everything else identical</td>
+        <td class="lose">Re-conductor the feeder or move the substation. Months and millions — and then it is a different network, so the comparison is gone anyway</td>
+        <td><kbd>G</kbd>. Instantly. Same day, same fleet, same seed</td>
+      </tr>
+      <tr>
+        <td>Re-run the same moment with a different decision</td>
+        <td class="lose">Impossible in principle. Time runs once</td>
+        <td>Scrub back, branch, both dots land on the map</td>
+      </tr>
+      <tr>
+        <td>See voltage at all 33 buses simultaneously</td>
+        <td>Real feeders carry instrumentation at a handful of points. The full profile is inferred, not observed</td>
+        <td>Continuous, every bus, every step</td>
+      </tr>
+      <tr>
+        <td>See <code>∂V/∂P</code> directly</td>
+        <td class="lose">Measuring sensitivity on a live network requires deliberate perturbation tests that utilities prohibit</td>
+        <td>A heat overlay on the poles</td>
+      </tr>
+      <tr>
+        <td>Watch a controller and its counterfactual at the same time</td>
+        <td class="lose">Requires two identical grids running in parallel. There is no such thing</td>
+        <td>The ghost trace</td>
+      </tr>
+      <tr>
+        <td>Compress 24 hours into 20 seconds — or expand one 5-minute step into a minute</td>
+        <td>Physical time is fixed. A dispatch decision plays out too slowly to watch and its consequence arrives too late to connect</td>
+        <td>×1 to ×64, and single-step</td>
+      </tr>
+      <tr>
+        <td>Compare six controllers on one identical day</td>
+        <td class="lose">Six controllers on a real feeder means six different days, six weather patterns, six different EV fleets. That is not a comparison, it is six anecdotes</td>
+        <td>Shared seed. The same day, six times</td>
+      </tr>
+      <tr>
+        <td>Be wrong at no cost</td>
+        <td class="lose">A mistake means dark houses, a regulatory report, and possibly damaged equipment</td>
+        <td><kbd>R</kbd></td>
+      </tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>The honest comparison: hardware-in-the-loop</h3>
+
+  <p>The nearest real equivalent is a HIL rig — RTDS, Typhoon HIL, OPAL-RT. It is worth being precise about what it does and does not do, because a judge may know this equipment and a hand-wave would cost more than it gains.</p>
+
+  <p>A HIL rig genuinely covers rows 1, 5 and 8, and it does something we <strong>cannot</strong>: real electromagnetic transients against real hardware in real time. Our claim is not that we replace it. But it costs tens to hundreds of thousands of dollars, occupies one room, seats two or three students, needs a trained operator, and has to be booked. Bus 18 runs on a phone, for free, anywhere, forever, with no supervisor — and it still cannot do rows 4, 7 or 9, because <em>no</em> physical apparatus can.</p>
+
+  <div class="kicker">And then the one that decides it: the misconception at the centre of this entry <strong>cannot be taught by real experience at all.</strong> An operator who deploys the "safest" controller and serves nobody is handed a report saying the controller is performing perfectly — violations at an all-time low, costs negative. The failure is invisible without the counterfactual, and reality never supplies the counterfactual. This specific lesson is structurally unteachable outside a simulation. That is the sentence slide 4 is built on.</div>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <h2><span class="num">Section 08</span>What the learner walks away knowing</h2>
 
   <p>Eight objectives. Each is testable, each is tied to a stage, and each maps to one of the five pre/post concept questions we will run on your tester cohort. This table is also the raw material for slide 3.</p>
 
@@ -759,7 +1064,7 @@
 
 <!-- ============================================================ -->
 <section>
-  <h2><span class="num">Section 06</span>The six stages</h2>
+  <h2><span class="num">Section 09</span>The six stages</h2>
 
   <p>Roughly 22 minutes end to end — the length that fits a lab session and a tester's patience. Each stage has an entry condition, a single idea, and a reveal.</p>
 
@@ -829,7 +1134,7 @@
 
 <!-- ============================================================ -->
 <section>
-  <h2><span class="num">Section 07</span>The backend — and why there isn't one</h2>
+  <h2><span class="num">Section 10</span>The backend — and why there isn't one</h2>
 
   <p>You asked not to overcomplicate this, and the good news is that the correct architecture <em>is</em> the simple one. Not as a compromise — as the genuinely right call, because your thesis already did all the hard computing.</p>
 
@@ -914,7 +1219,7 @@ flowchart LR
 
 <!-- ============================================================ -->
 <section>
-  <h2><span class="num">Section 08</span>Who does what, and when</h2>
+  <h2><span class="num">Section 11</span>Who does what, and when</h2>
 
   <div class="scroll">
   <table>
@@ -923,7 +1228,7 @@ flowchart LR
     <tbody>
       <tr>
         <td>All application code — physics, rendering, UI, content, tests<br>Deployment and the public URL<br>The five slides, written and built<br>The video script, shot by shot<br>The study instruments and the statistics<br>All documentation</td>
-        <td>Run the notebook export<br>Open the Smartsheet form and report what it wants<br>Email IEEE about provenance<br>Recruit and run 8–10 testers<br><strong>Look at the build daily and tell me what is wrong</strong><br>Record your voice for the video<br>Press submit</td>
+        <td>Run the notebook export when convenient<br>Recruit and run 8–10 testers<br><strong>Look at the build daily and tell me what is wrong</strong><br>Record your voice for the video<br>Handle the submission form<br>Press submit</td>
       </tr>
     </tbody>
   </table>
@@ -935,8 +1240,8 @@ flowchart LR
   <table>
     <thead><tr><th>Day</th><th>Mine</th><th>Yours</th></tr></thead>
     <tbody>
-      <tr><td><strong>Sat 8 Aug</strong><br>today</td><td>Blueprint. Then start the physics module against benchmark data.</td><td class="lose"><strong>Open the Smartsheet form.</strong> Run <code>probe()</code>. Email IEEE. Message your testers.</td></tr>
-      <tr><td><strong>Sun 9 Aug</strong></td><td>Physics passing all five verification gates. Village renders. <strong>First deploy — live URL by evening.</strong></td><td>Send <code>sensitivities.json</code>. Look at the URL. Tell me what looks wrong.</td></tr>
+      <tr><td><strong>Sat 8 Aug</strong><br>today</td><td>Blueprint. Then start the physics module against public benchmark data.</td><td>Message your testers. Submission form and provenance are yours and are handled.</td></tr>
+      <tr><td><strong>Sun 9 Aug</strong></td><td>Physics passing all five verification gates. Village renders. <strong>First deploy — live URL by evening.</strong></td><td>Look at the URL. Tell me what looks wrong. Send <code>sensitivities.json</code> whenever it is ready.</td></tr>
       <tr><td><strong>Mon 10 Aug</strong></td><td>Console, sliders, voltage profile with ghost trace, scorecard. Playable.</td><td>Play it. Send the remaining exports. Confirm tester slots.</td></tr>
       <tr><td><strong>Tue 11 Aug</strong></td><td>Six stages, Pareto map, debrief, accessibility pass. Feature-complete.</td><td>Full playthrough. Line up testers for tomorrow.</td></tr>
       <tr><td><strong>Wed 12 Aug</strong></td><td>Fix whatever testing exposes. Polish. Bake the cohort dots in.</td><td class="lose"><strong>Run the 8–10 testers.</strong> ~25 min each. Send me the raw sheets.</td></tr>
@@ -948,14 +1253,15 @@ flowchart LR
   </div>
 
   <div class="note alert">
-    <span class="note-label">The critical path runs through you, not me</span>
-    <p>Three items have no slack and I cannot do any of them: <strong>the Smartsheet form</strong> (still never opened — we do not know whether the video is uploaded or linked, or what the size cap is, and that decides how the video is exported), <strong>the tester session on Wednesday</strong>, and <strong>your voice on Friday</strong>. Everything else can compress. These cannot.</p>
+    <span class="note-label">What has no slack</span>
+    <p>You have taken the submission form and the provenance question off the board, which removes the two items that could have invalidated finished work. Two remain that I cannot do for you: <strong>the tester session on Wednesday</strong> and <strong>your voice on Friday</strong>. Everything else can compress. Those two cannot, because they are the only parts of the entry that require a human who is not me.</p>
+    <p>The notebook export is now on the <em>fallback</em> path by default — I build against public Baran–Wu benchmark data and swap your numbers in whenever they arrive, without touching a line of rendering code. Nothing stalls. But the swap is worth making: the difference between "a standard benchmark" and "measured on my own trained network" is the difference between a demo and a result.</p>
   </div>
 </section>
 
 <!-- ============================================================ -->
 <section>
-  <h2><span class="num">Section 09</span>Software and hardware</h2>
+  <h2><span class="num">Section 12</span>Software and hardware</h2>
 
   <h3>Hardware — you almost certainly already have all of it</h3>
 
@@ -1000,7 +1306,7 @@ flowchart LR
 
 <!-- ============================================================ -->
 <section>
-  <h2><span class="num">Section 10</span>Scope ladder and risks</h2>
+  <h2><span class="num">Section 13</span>Scope ladder and risks</h2>
 
   <p>Agreed in advance, so that if a day slips we cut from a list instead of panicking.</p>
 
@@ -1022,11 +1328,11 @@ flowchart LR
     <thead><tr><th>Risk</th><th>Severity</th><th>Mitigation</th></tr></thead>
     <tbody>
       <tr><td>I cannot see the rendering</td><td class="lose">High</td><td>Deploy day one; you review every evening; wireframe approved before code</td></tr>
-      <tr><td>Smartsheet form has an unexpected requirement</td><td class="lose">High</td><td><strong>Open it today.</strong> This is the only unknown that could invalidate finished work</td></tr>
-      <tr><td>Notebook export stalls</td><td>Medium</td><td>Public Baran–Wu benchmark fallback, already scoped. Not blocking</td></tr>
+      <tr><td>Submission form has an unexpected requirement</td><td>Owned by you</td><td>Taken off my board at your direction. Flagging only that it decides the video export settings</td></tr>
+      <tr><td>Notebook export arrives late or not at all</td><td>Low</td><td>Public Baran–Wu benchmark fallback is now the default path. Your numbers swap in without a code change</td></tr>
       <tr><td>Fewer than 8 testers</td><td>Medium</td><td>n = 5 still reportable; MedXperience placed 2nd on n = 9. Report honestly whatever n we get</td></tr>
       <tr><td>Video runs long</td><td>Medium</td><td>Shot list is timed to 6:30 against a 7:00 cap. Stage 2 and 3 compress first</td></tr>
-      <tr><td>Provenance question from judges</td><td>Medium</td><td>Email IEEE today; disclose the thesis as cited prior research on slide 5</td></tr>
+      <tr><td>Provenance question from judges</td><td>Owned by you</td><td>You have confirmed this is not an issue. The thesis is still cited as prior research on slide 5 — disclosure costs nothing and reads as confidence</td></tr>
       <tr><td>Egress blocked in my session</td><td>Low</td><td>Already the case and already worked around. Affects research, not the build</td></tr>
     </tbody>
   </table>
@@ -1040,7 +1346,7 @@ flowchart LR
 
 <!-- ============================================================ -->
 <section>
-  <h2><span class="num">Section 11</span>Definition of done</h2>
+  <h2><span class="num">Section 14</span>Definition of done</h2>
 
   <ul class="check">
     <li>Physics reproduces all five thesis numbers in automated tests</li>
