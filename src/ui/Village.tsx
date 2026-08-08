@@ -63,6 +63,10 @@ export function Village({
     observer.observe(canvas);
     resize();
 
+    // Read the preference live rather than once: people change it mid-session, and a
+    // reader who turns motion off should not have to reload to be taken seriously.
+    const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+
     const render = (timeMs: number): void => {
       const p = propsRef.current;
       drawVillage(ctx, width, height, {
@@ -73,6 +77,7 @@ export function Village({
         dayFraction: p.dayFraction,
         timeMs,
         focusBus: p.focusBus,
+        reducedMotion: motionQuery.matches,
       });
       frameRef.current = requestAnimationFrame(render);
     };

@@ -22,6 +22,8 @@ export interface VillageFrame {
   timeMs: number;
   /** Bus the console is currently highlighting, if any. */
   focusBus: number | null;
+  /** Honours prefers-reduced-motion: lamps hold steady instead of flickering. */
+  reducedMotion?: boolean;
 }
 
 const SKY_NIGHT = '#0A0E14';
@@ -103,7 +105,7 @@ export function drawVillage(
     const isStation = STATION_BUSES.includes(place.bus);
     const isPv = PV_BUSES.includes(place.bus);
 
-    drawHouses(ctx, x, y, place, v, light, frame.timeMs);
+    drawHouses(ctx, x, y, place, v, light, frame.timeMs, frame.reducedMotion ?? false);
     drawPole(ctx, x, y, v);
 
     if (isPv && frame.solarKw > 0) drawPanel(ctx, x, y, frame.solarKw);
@@ -151,10 +153,11 @@ function drawHouses(
   v: number,
   light: number,
   timeMs: number,
+  reducedMotion: boolean,
 ): void {
   const brightness = Math.max(
     0,
-    brightnessFor(v) - flickerFor(v, timeMs, place.bus),
+    brightnessFor(v) - flickerFor(v, timeMs, place.bus, reducedMotion),
   );
 
   for (let i = 0; i < place.houses; i++) {

@@ -117,11 +117,28 @@ export function brightnessFor(vPu: number): number {
   return Math.max(0, Math.min(1, t)) ** 1.6;
 }
 
-/** Below the statutory floor, lamps start to flicker. Deeper sags flicker harder. */
-export function flickerFor(vPu: number, timeMs: number, bus: number): number {
-  if (vPu >= 0.95) return 0;
+/**
+ * Below the statutory floor, lamps start to flicker. Deeper sags flicker harder.
+ *
+ * The rate is deliberately held below three flashes per second. WCAG 2.3.1 sets that as
+ * the ceiling for flashing content, and this runs in front of a general student audience
+ * on their own devices with no warning screen. The fastest component here is the 2.3×
+ * harmonic; at a 210 ms time constant it lands near 1.7 Hz, which leaves real headroom
+ * under the limit. An earlier 90 ms constant put it at about 4 Hz, over the line.
+ *
+ * `reducedMotion` suppresses it entirely. Nothing is lost by that: a violating bus is
+ * also drawn with a red pole and counted in the console readout, so the information
+ * survives without any movement at all.
+ */
+export function flickerFor(
+  vPu: number,
+  timeMs: number,
+  bus: number,
+  reducedMotion = false,
+): number {
+  if (reducedMotion || vPu >= 0.95) return 0;
   const severity = Math.min(1, (0.95 - vPu) / 0.05);
-  const phase = timeMs / 90 + bus * 1.7;
+  const phase = timeMs / 210 + bus * 1.7;
   const noise = Math.sin(phase) * Math.sin(phase * 2.3 + 1.1) * Math.sin(phase * 0.7);
-  return severity * Math.max(0, noise) * 0.55;
+  return severity * Math.max(0, noise) * 0.5;
 }
