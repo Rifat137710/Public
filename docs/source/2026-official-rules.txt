@@ -1,0 +1,282 @@
+
+===== PAGE 1 =====
+Official Rules  
+for  
+2026 IEEE Metaverse Grand Challenge for Simulation-based Learning 
+NO PURCHASE OR PAYMENT IS NECESSARY TO ENTER OR WIN. A PURCHASE 
+WILL NOT IMPROVE YOUR ODDS OF WINNING. 
+Contest: 
+IEEE Future Directions & Young Professionals - 2026 IEEE Metaverse Grand Challenge for 
+Simulation-based Learning (the “Contest”). 
+Sponsor: 
+The Institute of Electrical and Electronics Engineers, Incorporated, 445 Hoes Lane, 
+Piscataway, New Jersey, USA, 08854 (“Sponsor”). 
+Eligibility: 
+Contest is open to residents of the United States of America and other countries, where 
+permitted by local law, who are the age of eighteen (18) and older. All entrants must be a  
+student from an accredited university or a Young Professional (“YP”) who has graduated with 
+their first professional degree within the past 15 years. Employees of Sponsor, its agents, 
+affiliates, and their immediate families are not eligible. Entrants should review their 
+institution’s or employer’s policies regarding contest participation, as they may be subject to 
+specific rules or restrictions.   Void where prohibited by law.  For the avoidance of doubt, the 
+Contest is not open to individuals or teams who are subject to export control regulations. 
+Past winners from previous  IEEE Metaverse Grand Challenge are allowed to participate 
+provided their submissions are new or substantially different. 
+Agreement to Official Rules: 
+By participating in this Contest, entrants agree to abide by the terms and conditions established 
+by the Sponsor. Sponsor reserves the right to modify any of these Official Rules at any time  
+and for any reason. All decisions made by the Sponsor concerning the Contest including, but 
+not limited to the cancellation of the Contest, shall be final and at its sole discretion. 
+Entry Period: 
+The Contest begins on February  15, 2026, at 8 AM EDT  and ends on August 15, 2026, at 
+23:59 PM EDT (“Entry Period”). Sponsor’s server is the official clock for the Contest. Entries 
+received before or after the entry period are void. 
+How to Enter: 
+===== PAGE 2 =====
+Entrants can register online ( https://metaversereality.ieee.org/competition) to express their 
+interest in the Contest. To actually participate in the Contest, an entrant’s team (“Team”) must 
+upload their project, as specified on the C ontest webpage, within the entry period specified 
+above.  More details on the format of submissions are included in the description below.   
+● Teams may consist of 1 to 5 individuals. 
+● Each individual may be part of only one team. 
+● A list of team members must be provided by each team during project submission. 
+● Teams cannot change members after project submission. 
+Only entries submitted in accordance with these Official Rules will be eligible for 
+consideration. No alternate means of entry permitted. All entries become the exclusive property 
+of Sponsor and will not be acknowledged or returned.  
+Selection of Winner:  
+A Selection Committee of judges qualified to evaluate submissions of this nature has been 
+created by the IEEE Metaverse Initiative  and IEEE YPs. Submissions will be assessed based 
+on the criteria listed below in the Judging Criteria section. Judges will use a scoring system to 
+evaluate each submission and will meet to establish final rankings and determine the winners 
+in case of a tie.  The confidentiality of the contents of each submission will be strictly 
+maintained.  
+There will be a separate Selection Committee to evaluate submissions for the IEEE Smart Cities 
+Award for Metaverse Grand Challenge for Simulation-based Learning. 
+A team can receive only one award.  
+Challenge Overview: 
+Simulation-Based Approach: 
+Teams will have the creative freedom to develop immersive simulations  that model key 
+processes and innovations in education. The focus is on designing engaging, interactive 
+simulations that can enhance the learning and training experience for YPs and students. 
+Objective: 
+The Contest aims to foster simulation-driven learning experiences on 2D or 3D metaverse 
+platforms, allowing users to interactively engage with concepts, processes, and problem -
+solving scenarios. Participants will design, simulate, and showcase emerging technology using 
+real-time, AI-enhanced, and/or user -adaptive simulations. The goal is to create scalable, 
+immersive, and globally accessible educational tools that transform learning. 
+Theme Categories: 
+===== PAGE 3 =====
+Each team must select one of the following themes to guide their simulation development: 
+1. Healthcare Applications in Digital Learning 
+○ Simulating patient interactions, surgical procedures, and/or medical training in 
+immersive environments. 
+○ Exploring AI-driven diagnostics, wearable health tech, and/or virtual hospital 
+management simulations. 
+2. Sustainable Smart Cities and Urban Innovation 
+○ Highlighting sustainability principles through virtual laboratories and/or  eco-
+friendly innovations. 
+○ Demonstrating energy- efficient systems, recycling methodologies, and/or  
+sustainability analytics in an educational settings. 
+○ Public safety infrastructure, including smart surveillance, emergency response 
+systems, and/or disaster resilience planning. 
+3. Advanced Learning in Educational or Classroom Environment 
+○ Simulating AI-driven personalization in education, including adaptive learning 
+systems. 
+○ Exploring smart classroom concepts, immersive collaboration spaces, and/or 
+AI-powered instructional tools. 
+○ Focusing on inclusive,  accessible, equitable, and future -ready learning 
+environments. 
+Submission Format: 
+Submissions to the Contest shall consist of: 
+1. A PowerPoint Presentation: 
+○ Up to 5 pages of presentation slides . The presentation should clearly indicate 
+the selected theme category of the project submission. The presentation should 
+provide a brief description of the implementation design and highlight key 
+technology elements that enhance education and learning experiences. 
+2. Video Recording: 
+○ A 5-7 minute video  recording in MP4 format showcasing the project. The 
+narrative in the recording should highlight any element that should be 
+considered in the evaluation process.  
+Judging Criteria: 
+ 
+Elements for consideration include: 
+● Effectiveness of Simulation-Based Learning (25%) 
+● Creativity & Innovation (20%) 
+● Educational Impact and/or Learning Effectiveness (20%) 
+● User Experience (UI/UX) and Engagement (15%) 
+● Integration of AI, Gamification and/or Adaptive Learning (10%) 
+===== PAGE 4 =====
+● Sustainability, Accessibility, and/or Ethical Considerations (10%) 
+Prizes: 
+The prize(s) for the Contest are being sponsored by IEEE.   
+ 
+The Contest will award up to two (2) first -place awards (travel reimbursement) and two (2) 
+second-place awards. Awards will be given only if a suitable awardee is identified.  
+ 
+• Two (2) First-Place Awards (Travel Reimbursement): Each of the two prize winning 
+teams will receive travel reimbursement of up to USD $2,500 to attend the 2026 IEEE 
+International Symposium on Emerging Metaverse ( ISEMV 2026) or another event to 
+be determined by the IEEE Metaverse Initiative. 
+• Two (2) Second-Place Awards:  Each of the two second -place teams  will receive 
+premium backpack s featuring the  IEEE Metaverse and YP logos , along with a 
+certificate of achievement. 
+• Each of the two (2) First-Place Awards winners and the two (2) Second-Place Awards 
+winners will be considered “Prize Winners”. 
+ 
+In addition, the Contest, via the sponsorship of IEEE Smart Cities , will award up to one (1) 
+first-place award (monetary prize) to a team who submitted under the “sustainable smart cities 
+and urban innovation” category. The IEEE Smart Cities Award for Metaverse Grand Challenge 
+for Simulation-based Learning will be given only if a suitable awardee is identified. 
+ 
+• One First-Place Award – USD $1000 monetary prize for the winning team.  
+ 
+A team can receive only one award.  
+ 
+No substitution of prize permitted, except that Sponsor reserves the right to substitute a prize 
+or prize component of equal or greater value in its sole discretion for any reason at time of 
+award.  Sponsor shall not be responsible for service obligations or warranty (if any) in relation 
+to the prize(s). Prize may not be transferred prior to award. All other expenses associated with 
+use of the prize, including, but not limited to local, state, or federal taxes on the Prize, are the 
+sole responsibility of the winner.  Winner(s) understand that delivery of a prize may be void 
+where prohibited by law and agrees that Sponsor shall have no obligation to substitute an 
+alternate prize when so prohibited.  
+Notification of Potential Prize Winners: 
+The Prize Winners will be notified by e -mail within 14 days of the selection date.  If a Prize 
+Winner does not acknowledge acceptance of the Prize within 14 business days after being 
+notified that he or she is a Prize Winner, or if a potential Prize Winner does not return the 
+signed claim forms within the required time, or is otherwise found to be ineligible or not in full 
+compliance with these Official Rules, another Prize Winner will be chosen using the same 
+procedure specified above. Potential Prize Winner may be asked to execute and return to 
+Sponsor a declaration of eligibility and liability/publicity release, where lawful, within fourteen 
+(14) days of attempted notification. Winner may waive the right to receive the prize. The 
+decisions of Sponsor are final and binding in all respects.
+ 
+===== PAGE 5 =====
+Release, Publicity, and Privacy: 
+By receipt of the Prize and/or, if requested, by signing an affidavit of eligibility and 
+liability/publicity release, the Prize Winner consents to the use of his or her name, likeness, 
+business name and address by Sponsor for advertising and promotional purposes, including but 
+not limited to on Sponsor’s social media pages, without any additional compensation, except 
+where prohibited.  No entries will be returned.  All entries become the property of Sponsor.  
+The Prize Winner agrees to release and hold harm less Sponsor and its officers, directors, 
+employees, affiliated companies, agents, successors and assigns from and against any claim or 
+cause of action arising out of participation in the Contest.   
+ 
+Sponsor assumes no responsibility for computer system, hardware, software or program 
+malfunctions or other errors, failures, delayed computer transactions or network connections 
+that are human or technical in nature, or for damaged, lost, late, illegible or misdirected entries; 
+technical, hardware, software, electronic or telephone failures of any kind; lost or unavailable 
+network connections; fraudulent, incomplete, garbled or delayed computer transmissions 
+whether caused by Sponsor, the users, or by any of the equipment or programming associated 
+with or utilized in this Contest; or by any technical or human error that may occur in the 
+processing of submissions or downloading, that may limit, delay or prevent an entrant’s ability 
+to participate in the Contest. 
+  
+Sponsor reserves the right, in its sole discretion, to cancel or suspend this contest and award a 
+prize from entries received up to the time of termination or suspension should virus, bugs or 
+other causes beyond Sponsor’s control, unauthorized human intervention, malfunction, 
+computer problems, phone line or network hardware or software malfunction, which, in the 
+sole opinion of Sponsor, corrupt, compromise or materially affect the administration, fairness, 
+security or proper play of the contest or proper submission of entries.  Sponsor is not liable for 
+any loss, injury or damage caused, whether directly or indirectly, in whole or in part, from 
+downloading data or otherwise participating in this Contest.  
+ 
+Entrant acknowledges and agrees that Sponsor may collect, store, share, and otherwise use 
+personally identifiable information provided during the registration and application process and 
+the Contest, including, but not limited to, name, mailing address, phone number, and email 
+address.  Sponsor will use this information with accordance with its Privacy Policy 
+(https://www.ieee.org/security_privacy.html
+), including for administering the Contest and 
+verifying Entrant’s identity, postal address, and telephone number in the event an entry 
+qualifies for a prize. Entrant’s information may also be transferred to countries outside the 
+country of Entrant’s residence, including the United States. Such other countries may not have 
+privacy laws and regulations similar to those of the country of Entrant’s residence. If an Entrant 
+does not provide the mandatory data required at registration, Sponsor reserves the right  to 
+disqualify the entry.  
+ 
+Right to Use Entries: 
+By entering the Contest, entrants grant Sponsor a non- exclusive, irrevocable, royalty- free, 
+perpetual, worldwide right and license to reproduce, publish, display, edit and otherwise use 
+the submitted Entries, and entrant’s full name and city and state/province/country of residence, 
+photograph, likeness, voice and institutional affiliation, in print or any offline or online and 
+===== PAGE 6 =====
+other media for purposes of editorials, exhibition, advertising, publicity and promotion without 
+additional compensation or permission, unless prohibited by law. 
+ 
+Representations and Warranties Regarding Entries:  
+ 
+By submitting an Entry, you represent and warrant that your Entry does not and shall not 
+comprise, contain, or describe, as determined in Sponsor’s sole discretion: (A) false statements 
+or any misrepresentations of your affiliation with a person or entity; (B) personally identifying 
+information about you or any other person; (C) statements or other content that is false, 
+deceptive, misleading, scandalous, indecent, obscene, unlawful, defamatory, libelous, 
+fraudulent, tortious, threatening, harassing, hateful, degrading, intimidating, or racially or 
+ethnically offensive; (D) conduct that could be considered a crimina l offense, could give rise 
+to criminal or civil liability, or could violate any law; (E) any advertising, promotion or other 
+solicitation, or any third party brand name or trademark; or (F) any virus, worm, Trojan horse, 
+or other harmful code or component. By submitting an Entry, you represent and warrant that 
+you own the full rights to the Entry and have obtained any and all necessary consents, 
+permissions, approvals and licenses to submit the Entry and comply with all of these Official 
+Rules, and that the  submitted Entry is your sole original work, has not been previously 
+published, released or distributed, and does not infringe any third- party rights or violate any 
+laws or regulations. 
+ 
+Limitations of Liability/Reserved Rights:   
+ 
+Neither Sponsor, its parent, subsidiary or affiliated companies, nor its advertising or 
+promotional agencies shall have any obligation, liability or responsibility with regard to (i) 
+entries that contain incorrect or inaccurate information or do not comply  with these Official 
+Rules, (ii) entries, prize claims or notifications that are lost, late, incomplete, illegible, 
+unintelligible, damaged or otherwise not received by the intended recipient, in whole or in part, 
+due to computer, technical or other error of any kind, (iii) telephone, electronic, hardware, 
+software, network, Internet or computer malfunctions, failures or difficulties of any kind, (iv) 
+any condition caused by events beyond the control of Sponsor that may cause the Contest to 
+be disrupted or delayed, (v) any printing or typographical errors in these Official Rules or any 
+other materials associated with the Contest, or (vi) any damages or losses of any kind caused 
+by any prize or resulting from participation in the Contest, accessing, uploading or 
+downloading data in connection with the Contest, or acceptance, possession or use of any prize.  
+Sponsor, in its sole discretion, reserves the right to disqualify any entrant tampering with or 
+abusing the entry process or the operation of the Contest or otherwise violating these Official 
+Rules.  Sponsor, in its sole discretion, further reserves the right to cancel, terminate, suspend 
+or modify the Contest if the Contest cannot be completed as planned because of infection by 
+computer virus, bugs, tampering, unauthorized intervention or technical failures of any sort and 
+to select a winner from among eligible entries unaffected by such event, if any. 
+ 
+Disputes:  
+ 
+EACH ENTRANT AGREES THAT: (1) ANY AND ALL DISPUTES, CLAIMS, AND 
+CAUSES OF ACTION ARISING OUT OF OR IN CONNECTION WITH THIS CONTEST, 
+OR ANY PRIZES AWARDED, SHALL BE RESOLVED INDIVIDUALLY, WITHOUT 
+RESORTING TO ANY FORM OF CLASS ACTION, PURSUANT TO ARBITRATION 
+CONDUCTED UNDER THE COMMERCIAL ARBITRATION RULES OF THE 
+AMERICAN ARBITRATION ASSOCIATION THEN IN EFFECT, (2) ANY AND ALL 
+===== PAGE 7 =====
+CLAIMS, JUDGMENTS AND AWARDS SHALL BE LIMITED TO ACTUAL OUT -OF-
+POCKET COSTS INCURRED, INCLUDING COSTS ASSOCIATED WITH ENTERING 
+THIS CONTEST, BUT IN NO EVENT ATTORNEYS' FEES; AND (3) UNDER NO 
+CIRCUMSTANCES WILL ANY ENTRANT BE PERMITTED TO OBTAIN AWARDS 
+FOR, AND ENTRANT HEREBY WAIVES ALL RIGHTS TO CLAIM, PUNITIVE, 
+INCIDENTAL, AND CONSEQUENTIAL DAMAGES, AND ANY OTHER DAMAGES, 
+OTHER THAN FOR ACTUAL OUT -OF-POCKET EXPENSES, AND ANY AND ALL 
+RIGHTS TO HAVE DAMAGES MULTIPLIED OR OTHERWISE INCREASED.  ALL 
+ISSUES AND QUESTIONS CONCERNING THE CONSTRUCTION, VALIDITY, 
+INTERPRETATION AND ENFORCEABILITY OF THESE OFFICIAL RULES, OR THE 
+RIGHTS AND OBLIGATIONS OF ENTRANT AND SPONSOR IN CONNECTION  WITH 
+THE CONTEST, SHALL BE GOVERNED BY, AND CONSTRUED IN ACCORDANCE 
+WITH, THE LAWS OF THE STATE OF NEW JERSEY, WITHOUT GIVING EFFECT TO 
+ANY CHOICE OF LAW OR CONFLICT OF LAW, RULES OR PROVISIONS (WHETHER 
+OF THE STATE OF NEW JERSEY OR ANY OTHER JURISDICTION) THAT WOULD 
+CAUSE THE APPLICATION OF THE LAWS OF ANY JURISDICTION OTHER THAN 
+THE STATE OF NEW JERSEY.  SPONSOR IS NOT RESPONSIBLE FOR ANY 
+TYPOGRAPHICAL OR OTHER ERROR IN THE PRINTING OF THE OFFER OR 
+ADMINISTRATION OF THE CONTEST OR IN THE ANNOUNCEMENT OF THE 
+PRIZES.   
+ 
+Contest Results and Official Rules:   
+ 
+To obtain the identity of the Prize Winner and/or a copy of these Official Rules, send a self -
+addressed stamped envelope to Technical Activities, The Institute of Electrical and Electronics 
+Engineers, Incorporated (“IEEE”), 445 Hoes Lane, Piscataway, New Jersey, USA, 08854. 
+ 
+ 

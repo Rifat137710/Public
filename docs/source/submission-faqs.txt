@@ -1,0 +1,63 @@
+
+===== PAGE 1 =====
+ieee.org
+The professional home for the engineering and technology community worldwideIEEE PROPRIETARY – for IEEE members and staff
+2025 IEEE Metaverse Grand Challenge for Simulation-
+Based Learning
+1
+
+===== PAGE 2 =====
+Submission Materials – Frequently Asked Questions (FAQs)
+1. What should the 5-slide PowerPoint presentation include?
+Answer: Your slides should clearly indicate your chosen theme, explain the implementation design of
+your simulation, highlight key technologies used (e.g., game engines, additional technological features),
+and showcase how the simulation enhances learning and engagement.
+2. How should we structure our PowerPoint slides?
+Answer: Use the following guideline:
+Slide 1: Introduce your idea (addressing challenges & solution(s))
+Slide 2: Explain system design and user interaction
+Slide 3: Showcase gamification and learning outcomes
+Slide 4: Map your work to evaluation criteria
+Slide 5: Conclude with impact, scalability, and platform access
+3. What if our simulation is still in early development, can we still submit?
+Answer: Yes, you can submit a prototype or conceptual version as long as your slides and video clearly 
+communicate the simulation’s core idea, functionality, and learning value.
+===== PAGE 3 =====
+Submission Materials – Frequently Asked Questions (FAQs)
+4. Do we need to include technical implementation details (like code snippets)?
+Answer: Only if they help explain your system logic. You are not expected to include source code in your 
+slides, but you can reference your GitHub or platform link on Slide 5.
+5. How much animation or visual effects should be included in the video?
+Answer: Visual polish is helpful, but content clarity is more important. Use screencasts, avatars, or
+walkthroughs to explain how the simulation works and what users learn from it.
+6. What is the purpose of the video submission?
+Answer: The 5–7 minute video (MP4 format) should walk through your simulation project in an engaging
+way. It should highlight user interaction, core learning objectives, and demonstrate outcomes, especially
+how it supports sustainability and immersive education.
+===== PAGE 4 =====
+Submission Materials – Frequently Asked Questions (FAQs)
+7. Should we include user testing or feedback in the submission?
+Answer: It is not required, but showing mock user interactions, expected user outcomes, or pilot
+feedback can significantly strengthen your submission’s credibility.
+8. Can we use storytelling techniques in our slides or video?
+Answer: Absolutely! Narrative storytelling can make your concept more engaging and relatable.
+9. Can we embed live links (e.g., Figma, Unity WebGL, GitHub) in our slide deck?
+Answer: Yes. Use Slide 5 to share links to your demo, repository, or additional resources. Make sure
+links are accessible without login restrictions.
+===== PAGE 5 =====
+Submission Materials – Frequently Asked Questions (FAQs)
+10. Can I use pre-built assets or open-source tools in my simulation?
+Answer: Yes. You may use open-source or licensed assets, game engines (like Unity or Unreal), and
+SDKs, as long as you credit appropriately and the final submission is your original team’s work.
+11. How detailed should our system design be in the slides?
+Answer: You are encouraged to keep technical details understandable to a general audience. Diagrams or
+flowcharts showing architecture, feedback loops, or gamification logic can enhance clarity without
+overwhelming viewers.
+12. What is the best way to show learning outcomes in the simulation?
+Answer: Use dashboards, trackers, badges, or challenge progress bars to make learning visible. Explain
+how users achieve objectives and what educational value each task or decision brings.
+13. Should our simulation be fully functional or just visualized?
+Answer: Either is acceptable. A visual walkthrough or concept video is fine if it convincingly shows
+how the simulation would function and support learning.
+===== PAGE 6 =====
+For any questions or concerns, please contact isemv@ieee.org

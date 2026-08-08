@@ -1,0 +1,190 @@
+Competition
+
+2026 IEEE Metaverse Grand Challenge for Simulation-Based Learning
+
+ 
+
+
+Competition Overview
+After a successful 2025 competition, IEEE Metaverse and IEEE Young Professionals (YPs) are excited to host the 2026 IEEE Metaverse Grand Challenge for Simulation-Based Learning.
+
+Participants will have the creative freedom to develop immersive simulations that model key processes and innovations in education. The challenge focuses on designing engaging, interactive simulations that can enhance the learning and training experience for YPs and students.
+
+We are maintaining the same theme categories in 2026.
+
+1) Healthcare Applications in Digital Learning
+
+2) Sustainable Smart Cities and Urban Innovation
+
+3) Advanced Learning in Educational or Classroom Environment.
+
+ 
+
+Awards
+
+Two First-place winners receiving travel reimbursements to attend the 2026 IEEE International Symposium on Emerging Metaverse
+Two Second-place winners receiving a premium backpack and a certificate of achievement
+One winner receiving US$1,000, sponsored by IEEE Smart Cities
+Awards will be given only if a suitable awardee is identified. Winners will be announced on 14 September.
+
+ 
+
+Eligibility
+
+All entrants must be:
+
+Students enrolled in an accredited university, or
+IEEE Young Professionals who graduated with their first professional degree within the past 15 years.
+Teams may include a combination of students and Young Professionals.
+
+Previous winners of the IEEE Metaverse Grand Challenge are eligible to participate, provided that their submissions are entirely new or substantially different from prior entries.
+
+ 
+
+Contest opens 15 February 2026 and ends 15 August 2026
+
+Winners will be announced on 14 September.
+
+Optional: We encourage all those interested in participating to complete this form so that we may provide you with further updates.
+
+
+Download official contest rules (PDF, 208 KB)
+
+View last year’s winners and project summaries
+
+Why join the competition? Perspectives from last year’s winners
+
+
+ 
+
+Submit Your Project
+ 
+
+
+ 
+
+Knowledge-Sharing Webinars
+2026 Kick-off Webinar
+
+IEEE Metaverse Simulation Challenge 2026 Kick-Off Webinar
+Date: 14 June 2026 (Sunday)
+Download presentation slides (PDF, 7 MB)
+Watch on-demand at YouTube
+
+ 
+
+These knowledge webinars recorded in 2025 are valid for the 2026 IEEE Metaverse Grand Challenge. Please view these recordings to help you get started:
+
+
+Webinar 1: Immersive Innovation for Smart Cities / SusTech – From Virtual Labs to Sustainable Futures
+Yesaswini ChilukuriTheme: Sustainable Smart Cities and Urban Innovation
+Invited Speaker: Yesaswini Chilukuri, Senior Engineer, Sustainability Design, Khatib & Alami Engineering Consultants
+Talk: Simulations as Catalysts for Sustainable Smart Cities
+Date: 7 June 2025 (Saturday)
+Watch on-demand at YouTube
+
+ 
+
+Webinar 2: Designing Digital Healthcare Experiences – Simulation Concepts That Save Lives
+May Dongmei WangTheme: Healthcare Applications in Digital Learning
+Invited Speaker: May Dongmei Wang, Professor, Georgia Institute of Technology and Emory University
+Date: 8 June 2025 (Sunday)
+Watch on-demand at YouTube
+
+ 
+
+ 
+
+Webinar 3: Building the Future of Learning – Simulation Ideas for Smart Classrooms
+Gustavo GiannattasioTheme: Advanced Learning in Educational or Classroom Environment
+Invited Speaker: Gustavo Giannattasio, IEEE FDC Board, IEEE TEMS Board, IEEE Smart Cities Board, AI Coalition, TCOES, IEC, N&A, Committees
+Talk: Simulation Ideas for Smart Classrooms
+Date: 8 June 2025 (Sunday)
+Watch on-demand at YouTube
+
+ 
+
+ 
+
+Objective
+The challenge aims to foster simulation-driven learning experiences on 2D or 3D metaverse platforms, allowing users to interactively engage with concepts, processes, and problem-solving scenarios. Participants will design, simulate, and showcase emerging technology using real-time, AI-enhanced, and/or user-adaptive simulations. The goal is to create scalable, immersive, and globally accessible educational tools that transform learning.
+
+Teams:
+
+Teams may consist of 1 to 5 members.
+Each participant may be part of only one team.
+Teams cannot change members after project submission.
+ 
+
+Theme Categories
+Participants must select one of the following themes to guide their simulation development:
+
+1. Healthcare Applications in Digital Learning
+
+Simulating patient interactions, surgical procedures, and/or medical training in immersive environments.
+Exploring AI-driven diagnostics, wearable health tech, and/or virtual hospital management simulations.
+2. Sustainable Smart Cities and Urban Innovation
+
+Highlighting sustainability principles through virtual laboratories and/or eco-friendly innovations.
+Demonstrating energy-efficient systems, recycling methodologies, and/or sustainability analytics in educational settings.
+Public safety infrastructure, including smart surveillance, emergency response systems, and/or disaster resilience planning.
+3. Advanced Learning in Educational or Classroom Environment
+
+Simulating AI-driven personalization in education, including adaptive learning systems.
+Exploring smart classroom concepts, immersive collaboration spaces, and/or AI-powered instructional tools.
+Focusing on inclusive, accessible, and future-ready learning environments.
+View inspiration to spark your ideas! (PDF, 92 KB)
+
+ 
+
+Submission Format
+1. PowerPoint Presentation (up to 5 slides):
+
+Clearly indicate the selected theme.
+Provide a brief implementation design overview.
+Highlight key technology elements that enhance education and learning experiences.
+2. Video Recording (5-7 minutes, MP4 format):
+
+Showcase your project in an engaging format.
+Highlight elements that should be considered in the evaluation process.
+ 
+
+Submit Your Project
+ 
+
+Submission Deadline: 15 August 2026
+Judging Criteria:
+Submissions will be evaluated based on the following:
+
+Criteria	Weight
+Effectiveness of Simulation-Based Learning	25%
+Creativity & Innovation	20%
+Educational Impact and/or Learning Effectiveness	20%
+User Experience (UI/UX) & Engagement	15%
+Integration of AI, Gamification, and/or Adaptive Learning	10%
+Sustainability, Accessibility, and/or Ethical Considerations	10%
+ 
+
+
+Prizes
+The Contest will award up to two (2) first-place awards (travel reimbursements) and two (2) second-place awards. Awards will be given only if a suitable awardee is identified.
+
+Two (2) First-Place Awards (Travel Reimbursements): Each of the two prize winning teams will receive travel reimbursements of up to US$2,500 to attend the 2026 IEEE International Symposium on Emerging Metaverse (ISEMV) or another event to be determined by the IEEE Metaverse Initiative.
+Two (2) Second-Place Awards: Each of the two second-place teams will receive premium backpacks featuring the IEEE Metaverse and YP logos, along with a certificate of achievement.
+In addition, the Contest, via the sponsorship of IEEE Smart Cities, will award up to one (1) first-place award (monetary prize) to a team who submitted under the “sustainable smart cities and urban innovation” category. The IEEE Smart Cities Award for Metaverse Grand Challenge for Simulation-based Learning will be given only if a suitable awardee is identified.
+
+One First-Place Award – US$1,000 monetary prize for the winning team.
+A team can receive only one award.
+
+Are you ready to shape the future of simulation-based learning? Join the challenge today! Download the official contest rules (PDF, 208 KB).
+
+ 
+
+Competition Sponsors
+IEEE Metaverse IEEE Future Directions IEEE Young Professionals IEEE Smart Cities
+
+ 
+
+Competition Chair: Polat Goktas, Faculty of Engineering and Natural Sciences, Sabancı University, Istanbul, Türkiye
+
+For any questions or concerns, please contact metaversechallenge@ieee.org.

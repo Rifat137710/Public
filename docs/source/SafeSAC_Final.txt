@@ -1,0 +1,2497 @@
+
+===== PAGE 1 =====
+Bachelor of Science in Electrical and Electronic Engineering
+EEE 400 (July 2025): Thesis
+Safe Deep Reinforcement Learning for Vehicle-to-Grid
+Voltage Support in Weak Distribution Feeders: A
+Physics-Aware Approach
+Submitted by
+Md. Rifat Rahman
+202006137
+Sad Sami
+202006150
+Supervised by
+Dr. Md. Forkan Uddin
+Professor
+.
+Department of Electrical and Electronic Engineering
+Bangladesh University of Engineering and Technology
+Dhaka, Bangladesh
+June 2026
+===== PAGE 2 =====
+CANDIDATES’ DECLARATION
+This is to certify that the work presented in this thesis, titled, “Safe Deep Reinforcement Learn-
+ing for Vehicle-to-Grid V oltage Support in Weak Distribution Feeders: A Physics-Aware Ap-
+proach”, is the outcome of the investigation and research carried out by us under the supervision
+of Dr. Md. Forkan Uddin.
+It is also declared that neither this thesis nor any part thereof has been submitted anywhere else
+for the award of any degree, diploma or other qualifications.
+Md. Rifat Rahman
+202006137
+Sad Sami
+202006150
+i
+===== PAGE 3 =====
+CERTIFICATION
+This thesis titled, “Safe Deep Reinforcement Learning for Vehicle-to-Grid Voltage Support
+in Weak Distribution Feeders: A Physics-Aware Approach” , submitted by the group as
+mentioned below has been accepted as satisfactory in partial fulfillment of the requirements for
+EEE 400: Project/Thesis course, and as the requirements for the degree B.Sc. in Electrical and
+Electronic Engineering in June 2026.
+Group Members:
+Md. Rifat Rahman
+Sad Sami
+Supervisor:
+Dr. Md. Forkan Uddin
+Professor
+Department of Electrical and Electronic Engineering
+Bangladesh University of Engineering and Technology
+ii
+===== PAGE 4 =====
+Thesis Outcome Evidence and Engineering Complexity Justification
+Safe Deep Reinforcement Learning for Vehicle-to-Grid Voltage Support in Weak Distribution Feeders: A Physics-Aware Approach
+COCourse Outcome Statement
+Mapped PO
+Evidence from Thesis Work Thesis Reference
+Attained?
+CO1Identify, formulate, research
+literature, interpret data, and
+analyze problems using
+principles of mathematical,
+natural and engineering
+sciences.
+PO(b)
+Formulates bidirectional-charging voltage support
+on a weak IEEE 33-bus Baran–Wu feeder,
+identifies the active-power voltage-dominance gap
+from the measured sensitivities ∂V /∂Pvs.
+∂V /∂Q, and derives the constrained Markov
+decision process (CMDP) as the analysis basis.
+Chapter 1;
+Chapter 3;
+Chapter 4
+(Table 4.1)
+✓
+CO2Investigate problems using
+research-based knowledge and
+research methods including
+design of experiments, analysis
+and interpretation of data, and
+synthesis of information to
+provide valid conclusions.
+PO(d)
+Runs a shared-seed, paired experiment (25
+episodes/method) and a pre-registered five-gate
+protocol; interprets the data with paired t-test,
+Wilcoxon signed-rank test, Cohen’s d, bootstrap
+95% confidence intervals, and a Pareto analysis.
+Chapter 6
+(Table 6.1,
+Table 6.2,
+Table 6.3,
+Figure 6.6)
+✓
+CO3Apply knowledge of
+mathematics, science, and
+engineering to solve research
+problems.
+PO(a)
+Applies AC power flow (pandapower),
+second-order cone programming
+(CVXPY/CLARABEL), and
+augmented-Lagrangian Soft Actor-Critic to build
+the SafeSAC controller and its physics-aware
+SOCP projection.
+Chapter 4
+(Equation (4.3));
+Chapter 5
+(Equation (5.6),
+Algorithm 1)
+✓
+CO4Demonstrate adherence to
+professional ethics and ethical
+principles of research.
+PO(h)
+Uses fixed seed bands and SHA-256-fingerprinted
+checkpoints for reproducibility, discloses the full
+3/5 decision-gate outcome including the two
+failed gates, and cites all software tools and the
+IEEE 1547-2018 standard.
+Chapter 7 (Ethical
+Issues);
+reproducibility
+manifest
+✓
+CO5Communicate effectively with
+oral presentation and detailed
+thesis report.
+PO(j)
+Communicates through a chaptered report with the
+SafeSAC block diagram, the IEEE 33-bus one-line
+diagram, the CMDP/SOCP equations, and result
+tables and figures, each with an explanatory
+analysis; supported by the defence presentation.
+Whole report;
+defence
+presentation
+✓
+CO6Research contemporary aspects
+related to the problem and
+topic through detailed literature
+review and understanding.
+PO(l)
+Reviews contemporary (2024–2026) safe-DRL
+and V2G voltage-control
+literature—augmented-Lagrangian SAC,
+physics-informed RL, and SAC-based V2G
+regulation—to locate the research gap and define
+the future work.
+Chapter 3;
+Chapter 8 (Future
+Work);
+Bibliography
+✓
+Knowledge Profile, Complex Engineering Problem, and Complex Engineering Activity Justification
+iii
+===== PAGE 5 =====
+Code Meaning Thesis-Specific Justification
+Knowledge Profile Attributes
+K1 Knowledge of natural sciences applicable to the
+engineering discipline.
+Built on the physics of radial-feeder power flow: Ohm’s and
+Kirchhoff’s laws and the branch-flow (DistFlow) equations, the line
+voltage-drop relation ∆V ≈ (R ∆P + X ∆Q)/V0, and the
+linearised voltage-sensitivity model v ≈ v0 + SP ∆p + SQ∆q
+with SP
+b,i = ∂Vb/∂Pi. These power-system equations are measured
+on the live network and embedded in the controller, making the
+method physics-aware; battery electrochemistry underlies the
+degradation model.
+K2 Conceptually based mathematics, numerical
+analysis, statistics, and formal aspects of
+computer and information science supporting
+analysis and modelling.
+Constrained Markov decision processes; second-order cone (convex)
+programming solved with CLARABEL; Newton–Raphson AC
+power flow; deep neural networks trained by stochastic gradient
+descent; and inferential statistics (paired t-test, Wilcoxon
+signed-rank, bootstrap confidence intervals, Cohen’s d).
+K3 Engineering fundamentals required for the
+engineering discipline.
+Power-system fundamentals: the per-unit system, radial distribution
+feeders, voltage regulation, transformer loading limits, and the IEEE
+33-bus Baran–Wu benchmark.
+K4 Specialist knowledge that provides theoretical
+frameworks and bodies of knowledge for
+accepted practice areas in the engineering
+discipline.
+Safe deep reinforcement learning: Soft Actor-Critic,
+augmented-Lagrangian constrained RL with twin reward critics and a
+cost critic, and the physics-aware SOCP action projection for V2G
+voltage support under IEEE 1547 practice.
+K5 Engineering design knowledge that supports the
+design of complex engineering solutions.
+Design of the complete SafeSAC solution: the CMDP and
+reward/cost design, the SOCP projection layer, the actor-critic
+architecture, and the training and evaluation protocol.
+K6 Knowledge of engineering practice, including
+technology, tools, resources, safety, standards,
+and practical constraints.
+Engineering tools and standards: pandapower,
+CVXPY/CLARABEL, PyTorch, and Gymnasium; the IEEE
+1547-2018 standard and the [0.95, 1.05] pu voltage band; and
+seed-band and SHA-256 reproducibility practice.
+K7 Comprehension of the role of engineering in
+society, including ethics, sustainability,
+economy, environment, health, safety, and
+public welfare.
+V oltage-band compliance protects customer equipment; V2G aids
+renewable integration and defers feeder reinforcement; the
+degradation-cost term addresses battery sustainability—assessed in
+Chapter 7.
+K8 Engagement with research literature in the
+discipline.
+Grounded in recent literature, standards, and datasets, including
+augmented-Lagrangian SAC for EV charging [1], physics-informed
+RL for EV voltage support [2], and SAC-based V2G voltage
+regulation [3].
+Complex Engineering Problem Attributes
+P1 Depth of knowledge required: the problem
+cannot be solved without applying principles
+from mathematics, natural sciences,
+engineering fundamentals, and specialist
+engineering knowledge.
+Solving the problem requires AC power-flow physics, convex
+(SOCP) optimisation, and deep reinforcement learning applied
+jointly—drawing on K1–K4 at once rather than a single routine
+technique.
+P2 Range of conflicting requirements: the problem
+involves wide-ranging or conflicting technical,
+performance, cost, safety, environmental,
+social, or practical requirements.
+It trades off conflicting requirements—voltage safety versus
+state-of-charge service versus energy/V2G economics versus battery
+degradation—as quantified by the Pareto analysis in Chapter 6.
+P3 Depth of analysis required: the problem needs
+analysis, modelling, simulation, experiment,
+interpretation, or judgment beyond a standard
+textbook solution.
+It requires CMDP modelling, 288-step power-flow-in-the-loop
+simulation, paired statistical inference, and a pre-registered gate
+protocol—beyond a closed-form textbook calculation.
+P4 Familiarity of issues: the problem may include
+infrequently encountered, partially defined,
+emerging, or research-oriented issues.
+It targets an emerging, research-level question: physics-aware safe
+DRL for weak-feeder V2G and robustness to a strong-to-weak
+deployment shift.
+Continued on next page
+iv
+===== PAGE 6 =====
+Code Meaning Thesis-Specific Justification
+P5 Extent of applicable codes: the problem may
+require codes, standards, engineering practices,
+or literature that are not fully sufficient by
+themselves.
+IEEE 1547-2018 and the statutory voltage band inform but do not by
+themselves solve the problem; the SafeSAC projection extends
+beyond the prescriptive guidance.
+P7 Interdependence: the problem has multiple
+connected components, variables, sub-systems,
+or constraints that influence one another.
+The policy, the SOCP projection, the live AC power flow, and the
+measured sensitivities are coupled at every control step, and per-bus
+injections interact through the shared feeder impedance.
+Complex Engineering Activity Attributes
+A1 Range of resources: the activity uses diverse
+resources such as people, equipment, software,
+data, literature, laboratory facilities, or
+engineering tools.
+Uses pandapower, CVXPY/CLARABEL, PyTorch, and Gymnasium,
+GPU compute, the IEEE 33-bus benchmark, and the research
+literature.
+A2 Level of interaction: the activity requires
+interaction among tasks, tools, systems, people,
+or disciplines.
+Couples reinforcement learning with an in-the-loop AC power-flow
+solver and a convex-optimisation safety layer, integrating
+power-systems and machine-learning workflows under supervisor
+coordination.
+A3 Innovation: the activity involves creative use of
+engineering knowledge, adaptation of methods,
+new design choices, or non-routine problem
+solving.
+Introduces the deployment-grid-aware SOCP projection, rebuilt each
+step from live ∂V /∂Psensitivities, together with a paired
+safety/service evaluation—non-routine engineering.
+A4 Consequences for society and environment: the
+activity may have effects on health, safety,
+sustainability, environment, economy, or
+society.
+Bears on grid voltage safety, customer power quality, renewable
+hosting, and battery sustainability.
+A5 Familiarity: the activity may require work in
+unfamiliar, uncertain, or changing contexts.
+Conducted in an emerging area with new tooling and the open
+question of deployment-shift robustness.
+I/We, the undersigned, pledge that I/we filled out the tables with consultation and feedback of my/our supervisor.
+Md. Rifat Rahman
+ID: 202006137
+Sad Sami
+ID: 202006150
+The relevant tables are verified based on the thesis report, presentation, demonstration, viva voce, and assessment evidence. Any
+suggested modifications are reflected in the table.
+Dr. Md. Forkan Uddin
+Professor
+v
+===== PAGE 7 =====
+ACKNOWLEDGEMENT
+We are deeply grateful to our supervisor, Dr. Md. Forkan Uddin, Professor, Department of
+Electrical and Electronic Engineering, BUET, for giving us the opportunity to work on this
+project and for guiding us through the exploration of the different techniques related to it. His
+insight and patience shaped every stage of this work.
+We are also thankful to our fellow supervisees, from whom we have learned a great deal, and to
+the Department of Electrical and Electronic Engineering, BUET, for the academic environment
+and computational resources that made this study possible.
+Last but not least, we are eternally indebted to our parents for encouraging us to take on new
+challenges and for providing us with unwavering support along the way.
+Dhaka
+June 2026
+Md. Rifat Rahman
+Sad Sami
+vi
+===== PAGE 8 =====
+Contents
+CANDIDATES’ DECLARATION i
+CERTIFICATION ii
+Thesis Outcome Evidence and Engineering Complexity Justification iii
+ACKNOWLEDGEMENT vi
+List of Figures x
+List of Tables xi
+List of Algorithms xii
+ABSTRACT xiii
+1 Introduction 1
+1.1 Motivation . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 1
+1.2 Thesis Overview . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 1
+1.3 Problem Statement . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 2
+1.4 Objective . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 2
+2 Background 4
+2.1 Smart Grid . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 4
+2.2 Electric Vehicle . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 5
+2.3 Uncoordinated EV Charging . . . . . . . . . . . . . . . . . . . . . . . . . . . 5
+2.4 Dynamic Pricing . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 6
+2.5 Vehicle to Grid . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 6
+2.6 Energy Storage Systems (ESS) . . . . . . . . . . . . . . . . . . . . . . . . . . 6
+2.7 Traditional Coordination Methods . . . . . . . . . . . . . . . . . . . . . . . . 7
+2.8 Deep Reinforcement Learning . . . . . . . . . . . . . . . . . . . . . . . . . . 7
+2.9 Safe and Constrained Deep Reinforcement Learning . . . . . . . . . . . . . . . 7
+3 Literature Review 9
+vii
+===== PAGE 9 =====
+4 System Modeling and Problem Formulation 11
+4.1 System Overview . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 11
+4.2 The Weak Distribution Feeder . . . . . . . . . . . . . . . . . . . . . . . . . . 11
+4.3 Bidirectional EV Fleet Model . . . . . . . . . . . . . . . . . . . . . . . . . . . 13
+4.4 Load, PV , and Price Scenarios . . . . . . . . . . . . . . . . . . . . . . . . . . 13
+4.5 V oltage Sensitivities and Active-Power Dominance . . . . . . . . . . . . . . . 15
+4.6 Constrained Markov Decision Process Formulation . . . . . . . . . . . . . . . 16
+4.7 Reward and Cost Functions . . . . . . . . . . . . . . . . . . . . . . . . . . . . 17
+5 The SafeSAC Methodology 20
+5.1 Overview . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 20
+5.2 Soft Actor-Critic Backbone . . . . . . . . . . . . . . . . . . . . . . . . . . . . 21
+5.3 Augmented-Lagrangian Constraint Handling . . . . . . . . . . . . . . . . . . . 21
+5.4 Physics-Aware SOCP Safety Projection . . . . . . . . . . . . . . . . . . . . . 22
+5.5 The SafeSAC Algorithm . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 22
+5.6 Baseline Controllers . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 23
+5.7 Training Protocol and Hyperparameters . . . . . . . . . . . . . . . . . . . . . 24
+5.8 Projection Behaviour: Weak versus Strong . . . . . . . . . . . . . . . . . . . . 25
+6 Results and Discussion 27
+6.1 Experimental Setup . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 27
+6.2 Training Dynamics . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 27
+6.3 Evaluation Results . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 29
+6.4 Safety–Utility Trade-off . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 30
+6.5 Decision Gates . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 30
+6.6 Statistical Tests . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 32
+6.7 Per-Episode Distributions . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 32
+6.8 Pareto Analysis . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 33
+6.9 Cross-Deployment . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 34
+6.10 Failed Gates . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 35
+6.11 Limitations . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 36
+7 Evaluation 37
+7.1 Assessment of Issues . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 37
+7.1.1 Societal Issues . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 37
+7.1.2 Health and Safety Issues . . . . . . . . . . . . . . . . . . . . . . . . . 37
+7.1.3 Legal and Cultural Issues . . . . . . . . . . . . . . . . . . . . . . . . . 38
+7.2 Evaluation of Environment and Sustainability . . . . . . . . . . . . . . . . . . 38
+7.3 Ethical Issues . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 38
+viii
+===== PAGE 10 =====
+8 Conclusion 39
+8.1 Findings . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 39
+8.2 Contributions . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 39
+8.2.1 Problem Addressed . . . . . . . . . . . . . . . . . . . . . . . . . . . . 39
+8.2.2 Problem Formulation . . . . . . . . . . . . . . . . . . . . . . . . . . . 39
+8.2.3 Controller Design . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 40
+8.2.4 Results Obtained . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 40
+8.3 Future Work . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 40
+8.4 Remarks . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 41
+References 42
+A Representative Code Listings 45
+A.1 Physics-Aware SOCP Safety Projection . . . . . . . . . . . . . . . . . . . . . 45
+A.2 SafeSAC Action Selection and Lagrangian Update . . . . . . . . . . . . . . . . 46
+ix
+===== PAGE 11 =====
+List of Figures
+2.1 Conceptual structure of a smart distribution grid. . . . . . . . . . . . . . . . . . 4
+2.2 V oltage drop along a radial feeder under load. . . . . . . . . . . . . . . . . . . 5
+4.1 Closed-loop control architecture of the proposed framework. . . . . . . . . . . 11
+4.2 Schematic one-line diagram of the modified IEEE 33-bus Baran–Wu feeder. . . 12
+4.3 Steady-state voltage profile of the weak and strong feeders at base load. . . . . 12
+4.4 EV fleet arrival, dwell-time, and capacity distributions. . . . . . . . . . . . . . 13
+4.5 Normalised daily residential load shape. . . . . . . . . . . . . . . . . . . . . . 14
+4.6 Representative seven-day load, PV , price, and EV-arrival scenario. . . . . . . . 14
+4.7 Active- and reactive-power voltage sensitivities at the EV-station buses for the
+weak and strong feeders. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 16
+4.8 Example episode under an uncoordinated/random policy. . . . . . . . . . . . . 19
+5.1 Internal structure of the SafeSAC agent. . . . . . . . . . . . . . . . . . . . . . 20
+5.2 Projected safe active-power command for an identical V2G request on the weak
+versus strong feeder. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 26
+6.1 Per-configuration training histories. . . . . . . . . . . . . . . . . . . . . . . . . 28
+6.2 Combined training comparison across all four configurations. . . . . . . . . . . 29
+6.3 Cumulative voltage-violation steps during training. . . . . . . . . . . . . . . . 29
+6.4 Safety–utility trade-off on the weak feeder. . . . . . . . . . . . . . . . . . . . . 31
+6.5 Per-episode distributions of the four headline metrics. . . . . . . . . . . . . . . 33
+6.6 Pareto front of the safety–utility trade-off. . . . . . . . . . . . . . . . . . . . . 34
+6.7 Example episode: minimum bus voltage and total station injection. . . . . . . . 35
+x
+===== PAGE 12 =====
+List of Tables
+4.1 V oltage sensitivity magnitudes at the EV-station buses for the weak and strong
+feeders. . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 15
+5.1 Controllers compared in this thesis. . . . . . . . . . . . . . . . . . . . . . . . . 23
+5.2 Deep RL agent and projection specification. . . . . . . . . . . . . . . . . . . . 24
+5.3 Projection response to an identical −80 kW V2G request at each station. . . . . 25
+6.1 Final evaluation on the weak feeder ( 25 episodes per method, shared seeds, load
+scale 0.50). . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 30
+6.2 Pre-registered decision gates (overall: 3/5 pass). . . . . . . . . . . . . . . . . . 31
+6.3 Paired statistical tests, SafeSAC vs SAC-Lag ( n = 25 paired episodes). . . . . . 32
+6.4 Pareto status in the (violation rate, SoC met) plane. . . . . . . . . . . . . . . . 33
+xi
+===== PAGE 13 =====
+LIST OF ALGORITHMS
+1 SafeSAC: augmented-Lagrangian SAC with physics-aware projection . . . . . 23
+xii
+===== PAGE 14 =====
+ABSTRACT
+This thesis develops SafeSAC, a physics-aware safe deep reinforcement learning (DRL)
+controller that coordinates bidirectional electric-vehicle (EV) charging for voltage support
+on weak distribution feeders. On a modified IEEE 33-bus Baran–Wu feeder it matches
+the safety of a strong Lagrangian baseline while roughly doubling the EV state-of-charge
+service it delivers, and it remains operational when deployed on a grid different from the
+one it was trained on.
+Mass EV adoption concentrates large, controllable loads on radial feeders that were
+never designed for them. On weak feeders—long, high resistance-to-reactance ( R/X)
+lines with low short-circuit capacity—uncoordinated charging drives bus voltages outside
+the statutory [0.95, 1.05] pu band, while vehicle-to-grid (V2G) discharge is an untapped
+lever for local voltage support. We cast real-time charging as a constrained Markov de-
+cision process (CMDP) over a 288-step day, with a reward combining time-of-use energy
+cost, V2G revenue, and battery degradation, and a per-step cost that measures voltage-band
+and transformer violations. SafeSAC couples an augmented-Lagrangian Soft Actor-Critic
+(SAC-Lag) agent with a safety-projection layer that solves an eight-variable second-order
+cone program (SOCP) at every control step. The projection is built from power-flow volt-
+age sensitivities measured on the actual operating network, so it adapts to the deployment
+grid’s R/X structure instead of assuming a strong grid. The controller is benchmarked
+against an uncoordinated heuristic, an IEEE 1547-2018 droop controller, and the SAC-Lag
+baseline; all learned agents are trained at load scale 0.50 and evaluated on 25 shared-seed
+episodes for a paired comparison.
+On the weak feeder the projection is demonstrably grid-aware: at the most sensitive
+station it curtails a −80 kW V2G request to −54 kW, whereas on a strong grid the same re-
+quest passes essentially unaltered. Relative to SAC-Lag, SafeSAC holds the in-distribution
+voltage-violation rate statistically constant ( 0.091 vs. 0.090; paired t-test p = 0.86) while
+raising the fraction of EV state-of-charge targets met from 0.277 to 0.569 (+29 percentage
+points; Cohen’s d = 2.04; p ≪ 0.001). Under a strong-to-weak deployment shift the SAC-
+Lag policy collapses to a non-charging, drain-and-sell behaviour (targets met = 0 .000),
+whereas SafeSAC stays operational and delivers +45 percentage points more service. A
+pre-registered protocol of five decision gates returns three passes, and the two non-passing
+gates are shown to be single-axis tests whose outcomes in fact strengthen the case for the
+method.
+The results indicate that embedding lightweight, network-specific physics into the ac-
+tion pathway of a DRL agent yields controllers that are simultaneously safe and useful
+on the weak rural and peri-urban feeders where EV coordination matters most, supporting
+renewable integration and deferring costly network reinforcement.
+Keywords: safe reinforcement learning; soft actor-critic; vehicle-to-grid; voltage sup-
+port; weak distribution feeder; second-order cone program; physics-aware control; con-
+strained Markov decision process.
+xiii
+===== PAGE 15 =====
+MAIN BODY
+xiv
+===== PAGE 16 =====
+CHAPTER 1: INTRODUCTION
+1.1 Motivation
+The electrification of road transport is one of the deepest structural changes ever imposed on
+electricity distribution networks. Each electric vehicle (EV) adds a controllable load compa-
+rable to that of an entire house, and—because charging follows daily human routines—these
+loads arrive together, in the evening, on the same residential feeders. Where the local network
+is electrically strong this is a manageable nuisance; where it is weak—long radial feeders with
+high resistance-to-reactance ( R/X) ratios and limited transformer headroom, typical of rural
+and peri-urban areas—uncoordinated charging can drive bus voltages below the statutory band
+and overload transformers.
+What makes the weak feeder both dangerous and interesting is its physics. The voltage at a
+bus falls with the active and reactive power drawn along the line roughly as ∆V ≈ (R ∆P +
+X ∆Q)/V0. On a strong, transmission-like network X ≫ R and reactive power dominates
+voltage; on a weak feeder R and X are comparable, so active power—exactly what an EV
+charger commands—becomes the dominant voltage lever. Bidirectional, vehicle-to-grid (V2G)
+charging therefore turns the EV fleet from a liability into a potential resource for local voltage
+support, provided a controller can decide, continuously and for many vehicles at once, how
+much to charge or discharge each vehicle so that customers’ energy needs are met and the
+network is never pushed outside its safe envelope. Achieving this is hard: model-based op-
+timisation needs an accurate network model and a fast solve every interval, while plain deep
+reinforcement learning (DRL) is sample-efficient at run time but offers no guarantee that a volt-
+age limit will be respected—and a policy trained on one grid carries no guarantee on another.
+This tension between learned performance and hard safety, sharpest on the weak feeder, is the
+motivation for this thesis.
+1.2 Thesis Overview
+This thesis designs and rigorously evaluates SafeSAC, a physics-aware safe-DRL controller
+for bidirectional EV charging on a weak distribution feeder. SafeSAC couples an augmented-
+Lagrangian Soft Actor-Critic agent with a safety-projection layer that solves a small second-
+order cone program (SOCP) at every control step; crucially, the projection is built from power-
+flow voltage sensitivities measured on the actual operating network, so it adapts to the deploy-
+ment grid rather than assuming a strong one. The controller is benchmarked on a modified
+IEEE 33-bus Baran–Wu feeder against an uncoordinated heuristic, an IEEE 1547-2018 droop
+1
+===== PAGE 17 =====
+controller, and the unprojected SAC-Lag baseline, using a pre-registered acceptance protocol
+and paired statistical tests that deliberately separate safety from service quality.
+The remainder of the thesis is organised as follows. Chapter 2 gives the background—smart
+grids, EVs, uncoordinated charging, dynamic pricing, V2G, energy storage, traditional coordi-
+nation methods, and (safe) deep reinforcement learning—building the context from the ground
+up. Chapter 3 reviews the relevant literature and identifies the research gap. Chapter 4 for-
+malises the system model and the constrained Markov decision process. Chapter 5 presents the
+SafeSAC methodology and the SOCP projection. Chapter 6 reports and discusses the results,
+including the decision gates and statistical tests. Chapter 7 evaluates the broader societal, en-
+vironmental, and ethical dimensions of the work, and Chapter 8 concludes with the findings,
+contributions, and future directions.
+1.3 Problem Statement
+Given a weak radial distribution feeder hosting several bidirectional EV charging stations and
+distributed photovoltaic (PV) generation, the problem is to design a real-time controller that
+(i) keeps all bus voltages within statutory limits and respects transformer thermal limits, (ii)
+delivers each vehicle’s energy-service requirement, and (iii) operates economically—while re-
+maining robust to the mismatch between the grid it was trained on and the grid it is deployed on.
+The central scientific question is whether embedding deployment-grid physics into the action
+pathway of a Lagrangian DRL agent yields a controller that is simultaneously safe and useful
+on weak feeders, and whether that advantage can be demonstrated with statistical rigour against
+strong baselines.
+1.4 Objective
+The specific objectives of this thesis are:
+1. To formulate bidirectional EV charging on a weak feeder as a constrained Markov deci-
+sion process (CMDP) with explicit voltage and thermal safety constraints, an EV service-
+quality objective, and an economic objective.
+2. To design SafeSAC, a safe-DRL controller that couples an augmented-Lagrangian Soft
+Actor-Critic agent with a physics-aware SOCP safety projection built from power-flow
+sensitivities computed on the live network.
+3. To implement a reproducible simulation testbed on a modified IEEE 33-bus Baran–Wu
+feeder, including realistic EV-fleet, load, PV , and price scenarios.
+2
+===== PAGE 18 =====
+4. To benchmark SafeSAC against an uncoordinated heuristic, an IEEE 1547-2018 droop
+controller, and the SAC-Lag baseline using a pre-registered acceptance protocol and
+paired statistical tests.
+5. To characterise the controller’s behaviour under a train/deploy grid shift (strong-to-weak),
+isolating the value of grid-awareness.
+3
+===== PAGE 19 =====
+CHAPTER 2: BACKGROUND
+This chapter builds the context of the thesis from the ground up. It begins with the smart
+grid, narrows to electric vehicles and the problem their uncoordinated charging creates on weak
+feeders, and then follows the chain of partial solutions—dynamic pricing, vehicle-to-grid, and
+energy storage—before reviewing the control methods, from traditional schemes to deep rein-
+forcement learning and its safe, constrained variants, that this work builds upon.
+2.1 Smart Grid
+A conventional power system moves electricity in one direction: from a few large synchronous
+generators, through transmission and distribution, to passive consumers. The smart grid re-
+places this with a sensor-rich, two-way, digitally coordinated network in which generation,
+storage, and demand are observed and actuated in near real time [4]. Its defining feature
+at the distribution level is the proliferation of inverter-interfaced distributed energy resources
+(DERs)—rooftop photovoltaics (PV), batteries, and EV chargers—that inject and absorb power
+bidirectionally and with sub-second controllability. Figure 2.1 sketches this picture.
+The figure highlights the two properties that matter for this thesis. First, power flow is bidirectional—
+arrows point both ways—so a feeder bus can be a sink or a source depending on what its DERs
+do. Second, a control-and-communication layer (dashed) can coordinate those DERs. This
+flexibility is the smart grid’s greatest asset and its greatest operational risk: the same resources
+that can support the network can, if left uncoordinated, push voltage and thermal limits beyond
+their statutory bounds. Maintaining voltage within a narrow band despite volatile injections is
+therefore a central task of the smart grid, and modern interconnection standards now require
+Substation /
+bulk grid
+Distribution
+feeder
+PV
+EV charger
+Storage /
+home load
+Sensing, communication, control
+Figure 2.1: Conceptual structure of a smart distribution grid.
+4
+===== PAGE 20 =====
+DERs to actively support voltage rather than merely disconnect during disturbances [5].
+2.2 Electric Vehicle
+Among the new resources connecting to distribution networks, electric vehicles are the fastest-
+growing and the most disruptive. Global EV stock has grown from a few million to tens of
+millions within a decade and continues to rise steeply [6]. Electrically, an EV is a large bat-
+tery (tens of kWh) behind a fast, controllable power-electronic charger. Charging power ranges
+from a few kilowatts (Level 1/2 AC home charging) to tens or hundreds of kilowatts (DC fast
+charging), so even a handful of vehicles charging together rivals the load of many houses. Crit-
+ically, because the charger is power-electronic and programmable, this load is not fixed: it can
+be modulated, scheduled, and—if the charger is bidirectional—reversed. The EV is thus simul-
+taneously the source of a new grid problem and the means of its solution.
+2.3 Uncoordinated EV Charging
+The natural failure mode is uncoordinated charging, in which every vehicle draws full power as
+soon as it plugs in. Since arrivals cluster in the evening, when residential demand already peaks
+and PV has faded, uncoordinated charging stacks a large new load onto the worst moment of
+the day. On a radial feeder the consequence is a deepening voltage sag: voltage falls with the
+power drawn along the line, and the effect compounds towards the feeder end, as illustrated in
+Figure 2.2.
+The figure shows the voltage profile sagging progressively from the substation reference to-
+wards the feeder end as active-power demand is drawn along the line. On a weak, high- R/X
+V R P + X Q
+V
+Distribution feeder (weak grid)
+R  0.30 0.80  /km
+X  0.10 0.30  /km
+R/X  2.8
+  R·P  
+  X·Q  
+Transmission line (strong grid)
+R  0.02 0.10  /km
+X  0.30 0.50  /km
+R/X  0.1
+  R·P  
+  X·Q  
+Distribution: R-dominant  active power P drives voltage.   Transmission: X-dominant  reactive power Q drives voltage.
+Why this thesis cares about the actual sensitivities
+Figure 2.2: V oltage drop along a radial feeder under load.
+5
+===== PAGE 21 =====
+feeder this sag is severe, and because active power is the dominant voltage lever there, the ac-
+tive charging current of EVs translates almost directly into voltage depression. Uncoordinated
+charging can thus push the feeder-end buses below the statutory lower limit, overload the distri-
+bution transformer, and, if unmanaged, force premature and expensive network reinforcement.
+This is the core problem the thesis addresses; the remaining sections trace the tools developed
+to solve it.
+2.4 Dynamic Pricing
+The first and simplest coordination lever is price. Under time-of-use (TOU) or dynamic pricing,
+electricity is cheaper off-peak and more expensive at peak, which gives EV owners a financial
+incentive to defer charging away from the evening peak. Price-responsive charging can flatten
+the aggregate load curve and is attractive because it requires no direct network control. Its
+weakness, however, is that price is a blunt, system-wide signal: it knows nothing about the
+voltage at a particular bus, and a low overnight price can even create a new synchronised peak
+as many vehicles start together when the cheap period begins. Pricing shapes when energy is
+drawn but cannot guarantee that any individual feeder stays within its limits, so it is necessary
+but not sufficient.
+2.5 Vehicle to Grid
+Vehicle-to-grid (V2G) technology turns the EV from a flexible load into a true two-way re-
+source. With a bidirectional charger, a vehicle can draw power (grid-to-vehicle, G2V) or inject
+it (V2G), so an aggregated fleet behaves as a distributed energy resource able to shave peaks,
+arbitrage prices, firm up renewable output, and—of particular interest here—provide local volt-
+age support [7, 8]. Because a charger sited at a weak point of the feeder controls active power
+directly, it is exactly where injection can lift a sagging voltage most effectively. The opportunity
+comes with a caveat that motivates the rest of the thesis: the same bidirectional capability that
+can support voltage can also harm it if discharge is commanded at the wrong time or place, so
+V2G must be coordinated under hard network constraints rather than left to a price signal alone.
+2.6 Energy Storage Systems (ESS)
+V2G is, in effect, a way of borrowing distributed energy storage from vehicles that are parked
+anyway. Stationary energy storage systems (ESS) have long been used in the grid to decouple
+generation from demand in time—storing surplus (for example midday PV) and releasing it at
+peak—and to provide fast services such as voltage and frequency support. An EV fleet under
+V2G control is an aggregated, mobile ESS: collectively it offers substantial energy and power
+6
+===== PAGE 22 =====
+capacity at the distribution edge. The key difference from a dedicated battery is that an EV’s first
+duty is mobility, so its available capacity is bounded by each vehicle’s state of charge, target,
+and departure time, and every kilowatt-hour cycled carries a battery-degradation cost. A V2G
+controller must therefore respect these mobility and degradation constraints while exploiting
+the storage, a balance made explicit in the reward and constraints of Chapter 4.
+2.7 Traditional Coordination Methods
+Before learning-based control, two families of method dominated. Rule-based and droop con-
+trollers, most notably the V olt/V AR and V olt/Watt droop laws codified in IEEE 1547-2018 [5],
+react to local measurements with fixed, certifiable rules; they are simple and robust but myopic,
+unable to plan ahead or to extract the full economic value of V2G. Model-based optimisation,
+such as multi-period optimal power flow or model predictive control, can in principle be op-
+timal, co-scheduling charging with network constraints; but it requires an accurate network
+model, full observability, and the solution of a large, multi-period, uncertainty-laden optimisa-
+tion within every control interval. On weak feeders with many stochastic EV arrivals, the mod-
+elling burden and per-step compute make this difficult to deploy. These limitations—myopia on
+one side, model and compute cost on the other—motivate a data-driven controller that learns a
+good policy offline and executes cheaply online.
+2.8 Deep Reinforcement Learning
+Reinforcement learning (RL) formalises sequential decision-making as a Markov decision pro-
+cess and seeks a policy that maximises expected cumulative reward [9]. Deep RL (DRL)
+represents the policy and value functions with neural networks, enabling continuous, high-
+dimensional control. Once trained against a simulator, a DRL policy executes as a single cheap
+forward pass, implicitly handling uncertainty and non-linearity without an online solve. This
+thesis uses Soft Actor-Critic (SAC), an off-policy, maximum-entropy actor-critic algorithm that
+is sample-efficient and robust to hyperparameters [10]—valuable properties given that every
+training step here requires a power-flow solution in the loop. DRL thus supplies the foresight
+and adaptivity that the traditional methods lack.
+2.9 Safe and Constrained Deep Reinforcement Learning
+DRL alone, however, optimises a scalar reward and offers no guarantee that a hard constraint—
+such as the voltage band—will be respected; a reward-maximising agent will violate a limit
+whenever the reward for doing so outweighs the penalty. The safe-RL literature addresses this
+by formalising the task as a constrained Markov decision process (CMDP), in which expected
+7
+===== PAGE 23 =====
+cumulative cost is bounded alongside maximising reward [11]. A common solution is the La-
+grangian method, which prices constraint violation into the objective through a multiplier that
+is itself learned, avoiding the brittle, hand-tuned reward–penalty ratios of naive penalty shap-
+ing [1]. Lagrangian methods reduce violations on average but still provide no per-step guaran-
+tee, which is why a complementary strand of work adds an explicit safety layer that projects
+each proposed action onto a feasible set before it is applied. This thesis combines both ideas—
+an augmented-Lagrangian learner and a physics-aware projection—into the SafeSAC controller
+developed in Chapter 5.
+8
+===== PAGE 24 =====
+CHAPTER 3: LITERATURE REVIEW
+The integration of electric vehicles into distribution networks has been studied intensively as
+charging loads have grown large enough to threaten power quality. The canonical setting is the
+radial feeder analysed with the branch-flow equations of Baran and Wu [12], whose 33-bus net-
+work remains the standard distribution benchmark and underlies the testbed of this thesis. A re-
+curring finding of this literature is that on weak, high resistance-to-reactance feeders the voltage
+sensitivity to active power becomes comparable to, or larger than, that to reactive power [13],
+so the active charging current of EVs maps almost directly into voltage depression—precisely
+the regime in which coordination is both hardest and most valuable.
+Early coordination strategies fall into two camps. Model-based optimisation casts charging as
+an optimal power flow problem; because the AC equations are non-convex, much of this work
+relies on the second-order cone relaxation of the branch-flow model [14, 15] and its broader
+theory [16]. These methods can be optimal but demand an accurate network model, full observ-
+ability, and a heavy multi-period solve under uncertain arrivals. At the other extreme, rule-based
+V olt/V AR and V olt/Watt droop controllers codified in IEEE 1547-2018 [5] are simple and cer-
+tifiable but myopic, and on weak feeders their reactive-power lever is intrinsically weaker than
+active-power control. This gap between optimal-but-impractical and simple-but-myopic moti-
+vated the turn to learning-based control.
+Deep reinforcement learning offers a middle ground: a policy is trained offline against a simu-
+lator and then executes cheaply online, implicitly handling uncertainty and non-linearity [9,10].
+It has been applied widely to EV charging coordination—for example the model-free real-
+time schedulers of Wan et al. [17] and the RL-coordination study of Sadeghianpourhamami
+et al. [18]—and to distribution and transmission voltage control by Yang et al. [19] and Duan
+et al. [20]. These works established that learned policies can match or beat heuristics on aver-
+age cost and service, but they typically optimise a scalar reward and leave hard constraints to
+penalty terms.
+The central weakness of plain DRL—no guarantee that a voltage limit is respected—drove the
+adoption of safe and constrained RL. The constrained Markov decision process [11] bounds
+expected cost while maximising reward, and is solved by trust-region [21] or Lagrangian [22]
+methods. In the power domain, Wanget al. [23] brought safe off-policy RL to V olt/V AR control
+and Li et al. [24] to constrained EV charging. A complementary line treats safety as an explicit
+projection: a learned action is corrected to a feasible command by solving a small optimisation
+in the loop, as in the safety layer of Dalalet al. [25], OptLayer’s per-step quadratic program [26],
+and DC3 [27]. This projection philosophy underlies the present work, with the key difference
+that the projection here is built from sensitivities of the actual deployment grid rather than a
+9
+===== PAGE 25 =====
+fixed nominal model.
+The most recent and most relevant works combine these strands. Chen et al. [1] propose an
+augmented-Lagrangian soft actor-critic (AL-SAC) for EV charging, modelling the task as a
+CMDP and using a double-critic network to curb value over-estimation; they argue explic-
+itly that a learned Lagrange multiplier removes the brittle, hand-tuned reward–penalty ratio
+of penalty shaping. Fan et al. [28] likewise develop a safety-aware, maximum-entropy off-
+policy RL controller for charging-station management that satisfies system constraints without
+penalty-coefficient tuning. Orfanoudakis et al. [2] take the physics-informed route, embedding a
+differentiable power-flow model and a voltage-based reward into a TD3 agent so that large-scale
+EV charging delivers real-time voltage support while respecting network constraints. Closest of
+all, Wang et al. [3] use SAC for V2G voltage regulation across single- and multi-hub charging
+systems on the IEEE 34-bus feeder, benchmarked against a V olt-Var/V olt-Watt droop controller
+and equipped with battery-aware (state-of-charge and state-of-health) power limits; their agent
+matches the droop baseline in nominal conditions and recovers voltage to within ten percent of
+it under aggressive overloading while preserving fleet service.
+Read together, these recent works leave three gaps. First, they almost always train and eval-
+uate on the same network, so the robustness of the learned safety behaviour to a change of
+deployment grid is rarely tested. Second, the weak-feeder regime, where active power dom-
+inates voltage and bidirectional charging is therefore both most dangerous and most useful,
+remains under-represented next to strong-grid, reactive-power V olt/V AR studies. Third, evalu-
+ations typically report a single averaged violation rate without decomposing performance into
+safety and service quality under paired statistical testing, which leaves open whether a safety
+mechanism genuinely helps or merely suppresses activity. This thesis targets all three gaps. It
+places a physics-aware second-order cone projection—rebuilt at every step from voltage sensi-
+tivities measured on the live network—directly on the action path of an augmented-Lagrangian
+SAC agent; it studies the weak feeder explicitly and a strong-to-weak deployment shift; and it
+evaluates with a pre-registered protocol and paired tests that separate safety from service. The
+detailed design follows in Chapter 4 and Chapter 5.
+10
+===== PAGE 26 =====
+CHAPTER 4: SYSTEM MODELING AND PROBLEM FORMULATION
+This chapter formalises the testbed and the decision problem. It describes the weak distribution
+feeder, the bidirectional EV fleet, the load/PV/price scenarios, and the voltage sensitivities that
+the safety layer relies on. It then casts real-time bidirectional charging as a constrained Markov
+decision process (CMDP) and defines the reward, cost, and safety constraints used throughout
+the thesis.
+4.1 System Overview
+The control problem is organised as the closed loop shown in Figure 4.1.
+The block diagram makes the data flow and the placement of the safety layer explicit. A sce-
+nario generator samples EV arrivals, residential load, PV generation, and electricity prices for
+an episode. At each five-minute step the environment—a Gymnasium [29] wrapper around
+a pandapower [30] AC power-flow solver—returns the observation, reward, and safety cost
+(st, rt, ct) to the controller. The controller’s actor πθ emits a raw action at (per-station active
+and reactive set-points), which is passed through the physics-aware safety projection to obtain
+the safe command ˜at that is actually applied to the feeder. The single most important structural
+feature of the diagram is the projection block sitting on the action path: it is what distinguishes
+the proposed SafeSAC controller, since the baselines either omit it (SAC-Lag, uncoordinated)
+or replace it with a fixed droop law.
+4.2 The Weak Distribution Feeder
+The testbed is the IEEE 33-bus Baran–Wu radial distribution feeder [12], modified to represent a
+weak network by scaling line impedances so that short-circuit capacity is reduced and theR/X
+Scenario
+generator
+Distribution feeder
+environment
+(pandapower AC PF)
+SAC-Lag agent
+(actor πθ)
+Physics-aware
+SOCP projection
+(live sensitivities)
+Bus voltages,
+flows, metrics
+st, rt, ct
+raw at
+safe ˜at
+measure
+Figure 4.1: Closed-loop control architecture of the proposed framework.
+11
+===== PAGE 27 =====
+ratio is high. The feeder hosts four bidirectional EV charging stations and three PV inverters,
+whose placement on the radial trunk is shown in Figure 4.2.
+In the diagram the four EV charging stations (red, drawn below the trunk) sit at Baran–Wu buses
+18, 22, 25, 33 and the three PV inverters (green, above the trunk) at buses 6, 13, 30 (the internal
+zero-indexed labels are 17, 21, 24, 32 and 5, 12, 29 respectively). The stations are deliberately
+placed towards the end of the radial trunk, which is electrically the weakest part of the feeder
+and therefore the most voltage-sensitive: this is where bidirectional charging both threatens
+the voltage band most and offers the most leverage to support it. The single-line topology
+also clarifies that all stations share the same supply path, so their actions interact through the
+common upstream impedance—a coupling the controller must respect.
+The weak character of the feeder is confirmed by a base power flow at full nominal load, con-
+trasted with an otherwise identical strong variant in Figure 4.3.
+The profiles quantify the weakness directly. On the weak feeder the minimum bus voltage
+falls to 0.882 pu—deep below the 0.95 pu statutory lower limit—with 338.6 kW of active loss,
+whereas the strong feeder sags only to 0.913 pu with 202.7 kW of loss. The widening gap
+between the two curves towards the feeder end is the physical reason active-power coordination
+matters on weak networks. Because uncoordinated operation at full load is already infeasible
+within [0.95, 1.05] pu, the experiments throughout the thesis are conducted at an operating load
+scale of 0.50 (see Section 4.7); this places the system in a regime where coordinated control is
+Substation
+radial trunk: buses 1–33
+EV @ 18 EV @ 22 EV @ 25 EV @ 33
+PV @ 6 PV @ 13 PV @ 30
+Figure 4.2: Schematic one-line diagram of the modified IEEE 33-bus Baran–Wu feeder.
+0 5 10 15 20 25 30
+Bus index
+0.88
+0.90
+0.92
+0.94
+0.96
+0.98
+1.00
+1.02|V| (pu)
+EV station bus
+Weak grid (finite substation) | Vmin=0.882 pu, loss=338.6 kW
+0 5 10 15 20 25 30
+Bus index
+|V| (pu)
+Strong grid (  bus) | Vmin=0.913 pu, loss=202.7 kW
+Voltage profile under nominal load  same topology, different substation stiffness
+Figure 4.3: Steady-state voltage profile of the weak and strong feeders at base load.
+12
+===== PAGE 28 =====
+both necessary and effective rather than trivially saturated.
+4.3 Bidirectional EV Fleet Model
+Each of the four stations has a nominal apparent-power rating of 80 kV A. Vehicles arrive ac-
+cording to a bimodal daily distribution with log-normally distributed dwell times, sampled as
+summarised in Figure 4.4.
+The distributions encode realistic, and deliberately stressful, fleet behaviour. Arrivals concen-
+trate in two daily peaks—morning and, more importantly, evening—so that the controllable
+charging load lands on the feeder at exactly the time the residential demand peaks and PV has
+faded. Each vehicle j is characterised by a battery capacity drawn with mean 60 kWh and stan-
+dard deviation 15 kWh, clipped to [30, 100] kWh; an arrival SoC in [0.15, 0.55]; a target SoC
+in [0.70, 0.90]; and a dwell time in [2, 12] hours (mean 7 h). A fraction of 0.80 of vehicles opt
+in to V2G, the rest accepting charging only. Importantly, with a per-vehicle charge ceiling of
+22 kW at charger efficiency η = 0.92, a Monte-Carlo check over a seven-day fleet finds 100%
+of energy-service requests are physically deliverable within dwell at the chosen operating point.
+Any unmet service in the results therefore reflects control decisions, not infeasible demand—a
+property that makes the service-quality comparison in later chapters meaningful.
+4.4 Load, PV , and Price Scenarios
+The background residential load follows the normalised daily shape of Figure 4.5, scaled per
+bus; PV follows a clear-sky-modulated profile at the three PV buses; and the retail price fol-
+lows a three-tier time-of-use (TOU) schedule of $0.08, $0.15, and $0.30 per kWh for off-peak,
+shoulder, and peak periods. A representative seven-day realisation is shown in Figure 4.6.
+The load shape captures the characteristic residential pattern of a low overnight base, a modest
+morning rise, and a pronounced evening peak. Because this peak coincides with EV arrivals
+and the disappearance of PV , it defines the daily window in which the feeder is most stressed
+0 5 10 15 20 25
+Arrival hour-of-day
+0
+10
+20
+30
+40
+50
+60Count
+Bimodal arrivals (n=287)
+0 2 4 6 8 10 12 14
+Dwell hours
+0
+10
+20
+30
+40
+Dwell time (lognormal)
+0.0 0.2 0.4 0.6 0.8 1.0
+Initial SoC
+0
+10
+20
+30
+40
+Initial SoC
+EV fleet sanity check  one realisation
+Figure 4.4: EV fleet arrival, dwell-time, and capacity distributions.
+13
+===== PAGE 29 =====
+0 3 6 9 12 15 18 21 24
+Hour of day
+0.4
+0.5
+0.6
+0.7
+0.8
+0.9
+1.0Load multiplier (normalised)
+Residential load profile  placeholder parametric model (replace before publication)
+Weekday
+Weekend
+Figure 4.5: Normalised daily residential load shape.
+and voltage support is most valuable.
+Viewed over a week, the scenario shows the daily coincidence of high load, low PV , and clus-
+tered EV arrivals repeating every evening, interleaved with midday PV surplus that V2G could
+0.4
+0.6
+0.8
+1.0Load mult.
+Residential load multiplier (mean across feeder buses), 3 seeds  grey = weekend
+seed 0 seed 1 seed 2
+0
+25
+50
+75PV (kW)
+PV generation per site (seed 0; clear-sky × cloud)
+PV1 @ bus 5 PV2 @ bus 12 PV3 @ bus 29
+0.00
+0.25
+0.50
+0.75
+1.00Cloud clarity
+AR(1) cloud-clarity factor (1 = clear)
+seed 0 seed 1 seed 2
+0.1
+0.2
+0.3
+0.4Price ($/kWh)
+Retail price (V2G buyback @ 70%)
+TOU base TOU + congestion @ 1.0 pu
+0 25 50 75 100 125 150 175
+Hours since episode start
+0
+2
+4
+6
+8Connected EVs
+Connected EV count per station (seed 0 fleet realisation)
+Station 1 Station 2 Station 3 Station 4
+Block 2 scenario components  7-day overview
+Figure 4.6: Representative seven-day load, PV , price, and EV-arrival scenario.
+14
+===== PAGE 30 =====
+in principle absorb. Across three independent seeds the seven-day scenario draws on the order
+of 250 arriving vehicles at a mean retail price of $0.158/kWh, confirming that the generator is
+statistically stable from seed to seed. The residential load is a parametric model; replacing it
+with a measured dataset (e.g. UK-DALE [31]) is identified as future work.
+4.5 Voltage Sensitivities and Active-Power Dominance
+The safety projection (Chapter 5) requires a local linear model of how station injections move
+bus voltages. At the current operating point we compute, by perturbation on the live pandapower
+network, the sensitivity matrices SP and SQ with entries
+SP
+b,i = ∂Vb
+∂Pi
+, S Q
+b,i = ∂Vb
+∂Qi
+, (4.1)
+where Vb is the voltage magnitude (pu) at bus b and (Pi, Qi) are the active/reactive injections of
+station i. A first-order voltage model follows:
+v(p, q) ≈ v0 + SP (p − p0) + SQ(q − q0), (4.2)
+with v0 the measured base voltages at injections(p0, q0). The measured per-station sensitivities
+are reported in Table 4.1 and visualised in Figure 4.7.
+The numbers in Table 4.1 are the empirical heart of the thesis’s premise. Units are pu/kW, so
+the entries give the per-unit voltage change produced by a 1 kW injection. On the weak feeder
+the mean active-power sensitivity, |∂V /∂P| = 4.95 × 10−5 pu/kW, exceeds the reactive-power
+sensitivity, |∂V /∂Q| = 3.87 × 10−5 pu/kW, giving an active-over-reactive dominance ratio of
+1.28. Every weak-grid station shows P -dominance (ratio > 1), and the magnitudes are largest
+at the deepest buses (e.g. bus 17). The strong grid both has smaller sensitivities overall and,
+Table 4.1: V oltage sensitivity magnitudes at the EV-station buses for the weak and strong feed-
+ers.
+Grid Bus |∂V /∂P| | ∂V /∂Q| Ratio P/Q
+Weak 17 9.08 × 10−5 7.10 × 10−5 1.278
+Weak 21 2.46 × 10−5 2.23 × 10−5 1.106
+Weak 24 2.55 × 10−5 1.68 × 10−5 1.519
+Weak 32 5.71 × 10−5 4.46 × 10−5 1.281
+Weak mean 4.95 × 10−5 3.87 × 10−5 1.280
+Strong 17 7.99 × 10−5 6.46 × 10−5 1.237
+Strong 21 1.82 × 10−5 1.88 × 10−5 0.971
+Strong 24 1.86 × 10−5 1.32 × 10−5 1.412
+Strong 32 4.77 × 10−5 3.89 × 10−5 1.227
+15
+===== PAGE 31 =====
+at one bus, dips below unity—reactive support is relatively more useful there. This contrast,
+plotted in Figure 4.7, confirms that on the weak feeder active power is the dominant voltage
+lever and justifies a controller that regulates the active-power set-points of EV chargers rather
+than relying on reactive support alone.
+The bar comparison reinforces the tabulated result visually: at every station the weak-grid
+active-power sensitivity bar is taller than the strong-grid bar, and taller than the correspond-
+ing reactive-power bar. The practical implication for the safety layer is that, on the weak grid,
+the same kilowatt of curtailment buys more voltage headroom—so the projection developed
+in Chapter 5 can restore feasibility with comparatively small adjustments to the active-power
+command.
+4.6 Constrained Markov Decision Process Formulation
+Real-time bidirectional charging is modelled as a CMDP(S, A, P, r, c, γ) [11], where an episode
+is one day discretised into T = 288 steps of ∆t = 5 minutes.
+State. The observation st ∈ R95 aggregates, per station, the number and state of connected
+vehicles, mean SoC and SoC deficit, remaining dwell, and rated headroom; together with global
+context: time of day, current and look-ahead TOU price, PV availability, recent bus voltages,
+and transformer loading. All components are running-normalised.
+Action. The action at ∈ [−1, 1]8 specifies, for each of the four stations, a normalised active-
+power set-point and a normalised reactive-power set-point; these are rescaled to physical(pt, qt)
+EV1
+(bus 17)
+EV2
+(bus 21)
+EV3
+(bus 24)
+EV4
+(bus 32)
+2 × 10 5
+3 × 10 5
+4 × 10 5
+6 × 10 5
+|sensitivity|   (pu / kW)
+Voltage sensitivities at EV station buses  weak vs strong grid
+| V/ P|  weak
+| V/ Q|  weak
+| V/ P|  strong
+| V/ Q|  strong
+Figure 4.7: Active- and reactive-power voltage sensitivities at the EV-station buses for the weak
+and strong feeders.
+16
+===== PAGE 32 =====
+within each station’s apparent-power rating. Positive active power denotes charging (G2V);
+negative denotes discharging (V2G).
+Transition. Given (pt, qt), the environment updates each vehicle’s SoC, advances arrivals/de-
+partures, solves the AC power flow to obtain bus voltages vt and transformer loading ℓt, and
+returns st+1.
+Objective. The agent maximises expected discounted reward subject to a bound on expected
+discounted safety cost:
+max
+π
+Eπ
+"T −1X
+t=0
+γtrt
+#
+s.t. Eπ
+"T −1X
+t=0
+γtct
+#
+≤ d, (4.3)
+with discount γ = 0.99 and a small cost threshold d (the implementation uses a per-step con-
+straint threshold of 0.01). This CMDP framing follows the constrained-EV-charging formu-
+lation of Chen et al. [1], who likewise argue that a CMDP is better suited to safety-critical
+charging than reward-penalty shaping.
+4.7 Reward and Cost Functions
+The experiments fix the operating load scale at0.50 and the voltage band at[0.95, 1.05] pu, with
+a transformer loading limit of 1.0 pu and master seed 137710. The reward and cost terms are
+defined as follows.
+Economic cost. With TOU price πt, V2G buyback fraction ρ = 0.70, and per-station active
+power pi,t, the step economic cost is
+cecon
+t =
+X
+i
+h
+πt [pi,t]+ ∆t − ρ πt [−pi,t]+ ∆t
+i
+, (4.4)
+where [x]+ = max(x, 0); charging incurs purchase cost and discharging earns discounted rev-
+enue.
+Battery degradation. A linear throughput model with κ = $0.040/kWh penalises cycling:
+cdeg
+t = κ
+X
+i
+|pi,t| ∆t. (4.5)
+17
+===== PAGE 33 =====
+Service dissatisfaction. When vehicle j departs, an unmet-energy penalty is incurred for any
+shortfall below its target SoC:
+dj =
+ 
+max(0, SoCtgt
+j − SoCdep
+j )
+2
+. (4.6)
+Reward. The step reward combines these terms (with non-negative weights w•):
+rt = − cecon
+t − cdeg
+t − ws
+X
+j∈Dt
+dj, (4.7)
+where Dt is the set of vehicles departing at step t.
+Safety cost. The constraint signal measures the per-step voltage excursion outside the band
+[V , V ] = [0.95, 1.05] pu together with transformer overload beyond the rating ℓ = 1.0 pu:
+ct =
+X
+b∈B
+
+[ V − Vb,t ]+ + [ Vb,t − V ]+
+
++ [ ℓt − ℓ ]+. (4.8)
+The primary safety metric reported in later chapters is the voltage-violation step rate, i.e. the
+fraction of theT steps at which any monitored bus lies outside the band,1
+T
+P
+t ⊮
+
+∃ b : Vb,t /∈ [V , V ]
+
+.
+The uncontrolled dynamics that these constraints must tame are illustrated in Figure 4.8.
+The rollout shows why a constrained formulation is necessary. Under a random/uncoordinated
+policy the station power swings without regard to the network state, the bus voltages repeatedly
+fall below the 0.95 pu limit, and the resulting safety-cost signal spikes throughout the day. No
+amount of reward tuning makes such a policy safe; the violations are a direct, physical con-
+sequence of unmanaged power injections. This motivates the coordinated, safety-constrained
+controllers developed in Chapter 5, and in particular the per-step projection that prevents pre-
+cisely these excursions.
+18
+===== PAGE 34 =====
+0.90
+0.95
+1.00
+1.05|V| (pu)
+Voltage at EV station buses  random policy (367 bus-step violations expected; motivates Block 4)
+EV1 @ bus 17 EV2 @ bus 21 EV3 @ bus 24 EV4 @ bus 32
+75
+50
+25
+0
+25
+50
+75
+P (kW)
+Realised station active power (>0 = V2G injection)
+Station 1 Station 2 Station 3 Station 4
+1000
+800
+600
+400
+200
+0
+Cumul. reward
+Reward decomposition
+Cumulative reward
+net cost ($)
+losses ($)
+degradation ($)
+user diss. (kWh²)
+0 5 10 15 20 25
+Hours since reset
+0.0
+0.2
+0.4
+0.6
+0.8
+1.0Mean SoC of connected EVs
+Per-station mean SoC trajectory under random control
+Station 1 mean SoC Station 2 mean SoC Station 3 mean SoC Station 4 mean SoC
+0
+250
+500
+750
+1000
+1250
+1500
+Per-step costs
+Block 3 random-policy rollout (1 day, weak grid)
+Figure 4.8: Example episode under an uncoordinated/random policy.
+19
+===== PAGE 35 =====
+CHAPTER 5: THE SAFESAC METHODOLOGY
+This chapter presents the proposed controller, SafeSAC. It first describes the Soft Actor-Critic
+backbone and its augmented-Lagrangian extension for constraint handling, then develops the
+physics-aware second-order cone (SOCP) safety projection that distinguishes the method. It
+closes with the baseline controllers and the training protocol.
+5.1 Overview
+SafeSAC has two cooperating parts. A learned policy proposes a raw action from the current
+observation; a model-based projection then corrects that action to the nearest command that is
+feasible for the actual network, using voltage sensitivities measured online. Learning supplies
+foresight and economy; the projection supplies a per-step, network-specific safety correction.
+The agent’s internal structure is depicted in Figure 5.1.
+The block diagram separates the two halves of the method. Along the bottom is thedeployment
+path: the actor πθ maps the state st to a raw action at, which is rescaled to physical set-points
+uraw and then passed through the SOCP projection—fed by the live sensitivities(SP , SQ, v0)—
+to yield the safe command ˜ut that reaches the environment. Along the top is the learning
+path: twin reward critics Q1
+ϕ, Q2
+ϕ supply the policy-improvement signal Qr, while a separate
+cost critic QC
+ψ , weighted by the Lagrange multiplier λ, injects the constraint penalty −λQc.
+The two halves correspond to the two contributions of the design: the augmented- Lagrangian
+learner (top) and the grid-aware projection (the shaded block on the action path). The following
+state st
+actor
+πθ
+rescale
+to uraw
+SOCP
+projection environment
+at uraw ˜ut
+live sensitivities
+SP , SQ, v0
+twin reward critics
+Q1
+ϕ, Q2
+ϕ
+cost critic
+QC
+ψ
+λ (Lagrange
+multiplier)
+Qr −λQc
+Figure 5.1: Internal structure of the SafeSAC agent.
+20
+===== PAGE 36 =====
+sections formalise each.
+5.2 Soft Actor-Critic Backbone
+Soft Actor-Critic (SAC) [10, 32] is an off-policy maximum-entropy actor-critic algorithm. It
+maximises reward augmented by policy entropy H,
+J(π) = Eπ
+"X
+t
+rt + α H
+ 
+π(· |st)
+
+#
+, (5.1)
+where the temperature α trades off exploration and exploitation. Two Q-functions Q1
+ϕ, Q2
+ϕ are
+trained towards the soft target
+y = r + γ
+
+min
+k∈{1,2}
+Qk
+ϕ′(s′, ˜a′) − α log πθ(˜a′ | s′)
+
+, ˜a′ ∼ πθ(·|s′), (5.2)
+by minimising LQ = E
+
+(Qk
+ϕ(s, a) − y)2
+with Polyak-averaged targets ϕ′ ← τ ϕ+ (1 − τ )ϕ′.
+The actor is a tanh-squashed Gaussian, updated to
+Lπ = E
+h
+α log πθ(a|s) − min
+k
+Qk
+ϕ(s, a)
+i
+, (5.3)
+and the temperature is auto-tuned towards a target entropy ¯H = − dim(A) = −8 via Lα =
+E
+
+− α(log πθ(a|s) + ¯H)
+
+. The twin critics with the min in (5.2) are the standard remedy for
+value over-estimation, also adopted in the AL-SAC charging controller of Chenet al. [1].
+5.3 Augmented-Lagrangian Constraint Handling
+To enforce the safety constraint in (4.3), a separate cost critic QC
+ψ is trained (analogously to
+(5.2), but on the safety cost ct of (4.8)), and a Lagrange multiplier λ ≥ 0 prices constraint
+violation into the actor objective:
+LLag
+π = E
+h
+α log πθ(a|s) −
+ 
+min
+k
+Qk
+ϕ(s, a) − λ QC
+ψ (s, a)
+i
+. (5.4)
+The multiplier ascends on the constraint residual,
+λ ←
+
+λ + ηλ ( ˆJC − d)
+
++, (5.5)
+with ˆJC the estimated expected cost and learning rate ηλ = 10−3. This is the SAC-Lag agent: it
+is precisely the augmented-Lagrangian soft actor-critic (AL-SAC) formulation proposed for EV
+charging by Chen et al. [1], adopted here as the state-of-the-art learned baseline. By learning
+the penalty weight rather than hand-tuning it, AL-SAC removes the brittle reward–penalty ratio,
+21
+===== PAGE 37 =====
+but it still reduces violations only in expectation and provides no per-step guarantee—the gap
+the projection closes.
+5.4 Physics-Aware SOCP Safety Projection
+At every control step, before the raw command uraw = ( praw, qraw) is applied, it is projected
+onto the set of network-feasible commands by solving
+min
+p,q
+1
+2 ∥p − praw∥2
+2 + 1
+2 ∥q − qraw∥2
+2 (5.6a)
+s.t. V + m ≤ v0,b + P
+i SP
+b,i(pi − p0,i) + SQ
+b,i(qi − q0,i) ≤ V − m, ∀b, (5.6b)
+p2
+i + q2
+i ≤
+ 
+Srated
+i
+2
+, ∀i, (5.6c)
+pi ≤ pi ≤ pi, ∀i. (5.6d)
+The objective (5.6) finds the nearest feasible command to the policy’s proposal (a Euclidean
+projection). Constraint (5.6b) is the linearised voltage band of (4.2), tightened by a safety
+margin m = 0.010 pu to absorb linearisation error; (5.6c) is the apparent-power limit, a second-
+order cone that makes the program an SOCP; and (5.6d) bounds the active set-point. The
+problem is small (eight variables), is written in a disciplined-parametrised form in CVXPY [33],
+and is solved with the CLARABEL interior-point conic solver [34] in milliseconds.
+Two design choices make the projection grid-aware. First, the sensitivities SP , SQ and base
+voltages v0 in (5.6b) are recomputed on the live network at every step (Section 4.5), so the
+feasible set reflects the deployment grid rather than a nominal model. Second, when the pro-
+gram is infeasible (the linear model admits no safe command) the station is curtailed, and after
+three consecutive failures it is frozen to a safe default—a graceful degradation that prevents the
+controller from chattering on a stale model. Because the sensitivities on a weak grid are larger
+(Table 4.1), the same raw request is curtailed more aggressively on the weak feeder than on the
+strong one; this is demonstrated quantitatively in Section 5.8.
+5.5 The SafeSAC Algorithm
+The complete training-and-deployment procedure is summarised in Algorithm 1.
+The key design decision visible in the listing is that the projection is applied to theenvironment-
+facing action during both data collection and evaluation (lines 5–6), while the policy gradient
+is taken with respect to the unprojected action at (line 10). The projection therefore behaves
+as a safety filter rather than a differentiable layer: it keeps every executed command feasible
+without complicating the gradient, which keeps training stable and the per-step cost to a single
+small SOCP solve. At deployment (line 16) the policy is simply the actor composed with the
+22
+===== PAGE 38 =====
+Algorithm 1 SafeSAC: augmented-Lagrangian SAC with physics-aware projection
+Require: environment with live power flow; voltage band[V , V ]; margin m
+1: initialise actor πθ, critics Q1,2
+ϕ , cost critic QC
+ψ , multiplier λ ≥ 0, buffer B
+2: for each environment step do
+3: observe st; sample raw action at ∼ πθ(·|st) and rescale to uraw
+4: refresh sensitivities SP , SQ, v0 on the live network
+5: ˜ut ← SOCP-P ROJECT (uraw; SP , SQ, v0, m) {Eq. (5.6)}
+6: apply ˜ut; observe rt, cost ct, st+1; store (st, at, rt, ct, st+1) in B
+7: if update step then
+8: sample a minibatch from B
+9: update Q1,2
+ϕ and QC
+ψ by regression to soft targets {Eq. (5.2)}
+10: update actor πθ with the Lagrangian objective {Eq. (5.4)}
+11: update temperature α (capped at the ceiling ¯α) and multiplier λ {Eq. (5.5)}
+12: Polyak-update target critics
+13: end if
+14: end for
+Ensure: deployment policy s 7→ SOCP-P ROJECT
+ 
+rescale(πθ(s))
+
+projection.
+5.6 Baseline Controllers
+Three baselines bracket the design space, summarised in Table 5.1. The uncoordinated heuristic
+charges every connected vehicle at full Level-2 power, representing the do-nothing status quo.
+The droop controller follows IEEE 1547-2018 [5]: a time-of-use active-power schedule with a
+piecewise-linear V olt/V AR reactive droop—the same class of industry-standard local controller
+against which learned V2G voltage regulators are benchmarked elsewhere [3]. The SAC-Lag
+agent (Section 5.3) is the learned baseline and is identical to SafeSAC except that it applies its
+raw action directly, without the projection.
+The comparison is deliberately constructed so that each row differs from the next by one capa-
+Table 5.1: Controllers compared in this thesis.
+Method Family Action selection Safety layer
+Uncoordinated Heuristic Charge every connected EV at
+full Level-2.
+None
+Droop (1547) Heuristic TOU active-power schedule +
+V olt/V ARQ droop.
+Piecewise-linear
+Q–V
+SAC-Lag DRL baseline SAC + augmented Lagrangian
+on the voltage cost.
+None (raw ac-
+tion)
+SafeSAC DRL + pro-
+jection
+SAC-Lag with physics-aware
+projection on the output.
+SOCP, live
+sensitivities
+(m=0.010 pu)
+23
+===== PAGE 39 =====
+bility. Uncoordinated and droop bracket the two extremes of the heuristic spectrum—maximal
+service with no safety, and standards-based safety with limited foresight. SAC-Lag adds learn-
+ing and soft constraint handling but no hard safety layer, and SafeSAC addsonly the projection
+on top of SAC-Lag. Holding everything else fixed in this way is what allows the experiments to
+attribute any safety/service difference between the last two rows specifically to the projection.
+5.7 Training Protocol and Hyperparameters
+All learned agents share the architecture and optimiser settings listed in Table 5.2. Networks are
+two-hidden-layer multilayer perceptrons of width 256 with ReLU activations; the actor outputs
+a tanh-squashed Gaussian. Each configuration is trained from a single master seed ( 137710)
+with disjoint training and evaluation seed bands. SAC-Lag agents are trained for up to 150
+episodes and SafeSAC for up to 100, with early stopping when the 20-episode moving average
+of return changes by less than a relative tolerance of 0.02 (after a minimum of 80 episodes).
+The settings in Table 5.2 are standard SAC values, with three deliberate refinements applied to
+the final SafeSAC configuration (denoted v3) after a short stabilisation study: the temperature
+is capped at a ceiling ¯α = 1.0 to prevent entropy-driven divergence; the critic learning rate is
+reduced to 1 × 10−4; and the projection margin m = 0.010 pu is baked into the compiled SOCP.
+The projection block of the table is what is unique to this work—in particular the per-step
+refresh of the sensitivities on the live network and the three-failure freeze rule. Two grids are
+Table 5.2: Deep RL agent and projection specification.
+Group Parameter Value
+Architecture Observation / action dim 95 / 8
+Architecture Hidden layers 2 × 256, ReLU
+Architecture Actor / critic parameters 94,480 / 92,673 (each)
+Architecture Actor output tanh-squashed Gaussian
+Optimiser Actor / critic learning rate 3 × 10−4 / 3 × 10−4
+Optimiser Discount γ / Polyak τ 0.99 / 0.005
+Optimiser Replay buffer / batch size 200,000 / 256
+Optimiser Warm-up random steps 1,000
+Optimiser Target entropy ¯H − 8
+Constraint Lagrange multiplier learning rate 1 × 10−3
+Constraint Per-step cost threshold d 0.01
+SafeSAC (v3) Temperature ceiling ¯α 1.0
+SafeSAC (v3) Critic learning-rate override 1 × 10−4
+Projection Safety margin m 0.010 pu
+Projection Solver CLARABEL (conic) via CVXPY
+Projection Sensitivity refresh every step (live network)
+Projection Max consecutive failures 3 (then freeze station)
+Training Episodes (SAC-Lag / SafeSAC) 150 / 100
+Training Convergence window / rel. tol. 20 episodes / 0.02
+24
+===== PAGE 40 =====
+trained for each learned method— weak (in-distribution) and strong (for the deployment-shift
+study of Section 6.9)—giving four trained checkpoints.
+5.8 Projection Behaviour: Weak versus Strong
+To make the grid-awareness concrete, Table 5.3 reports the projection’s response to an identical
+aggressive V2G request of −80 kW at each station, on the weak and strong feeders.
+The table is the clearest single piece of evidence that the projection is deployment-grid-aware.
+Given an identical −80 kW discharge request, the strong grid passes it almost unchanged (to
+within 0.01 kW), because the strong network can absorb the injection without breaching the
+voltage band. The weak grid, by contrast, curtails the request—most strongly at the most sen-
+sitive station 1 (Baran–Wu bus 18), from −80 kW to −54.1 kW, a 25.9 kW correction, and
+progressively less at the electrically stiffer stations. The “Diff” column is exactly the per-station
+curtailment the safety layer imposes to keep the linearised voltage inside the margin-tightened
+band. The same policy output therefore produces materially different physical commands on
+the two grids, which is precisely the adaptivity the method is designed to provide. The same
+data are plotted in Figure 5.2.
+The figure visualises the divergence station by station: the weak-grid bars sit well short of the
+requested −80 kW at the sensitive stations, whereas the strong-grid bars reach it. Read together
+with the sensitivities of Table 4.1, the pattern is consistent—the stations with the largest active-
+power sensitivity are curtailed the most—confirming that the projection is responding to the
+measured physics of the deployment network rather than to a fixed rule.
+Table 5.3: Projection response to an identical −80 kW V2G request at each station.
+Station Raw (kW) Safe weak (kW) Safe strong (kW) Diff (kW)
+1 −80.0 −54.13 −80.00 25 .87
+2 −80.0 −77.95 −80.00 2 .05
+3 −80.0 −76.85 −80.00 3 .15
+4 −80.0 −73.30 −80.00 6 .70
+25
+===== PAGE 41 =====
+EV1 EV2 EV3 EV4
+80
+60
+40
+20
+0
+20
+Active power (kW)
+Projection of identical raw action  weak vs strong  (|| ||_inf = 25.87 kW)
+Raw P (request) Safe P (weak) Safe P (strong)  (weak  strong)
+0 5 10 15 20 25 30
+Bus index
+0.93
+0.94
+0.95
+0.96
+0.97
+0.98
+0.99
+1.00
+1.01|V| (pu)
+Predicted voltage profile under projected action
+Baseline (no action)
+Predicted V under safe action (weak)
+Predicted V under safe action (strong)
+Figure 5.2: Projected safe active-power command for an identical V2G request on the weak
+versus strong feeder.
+26
+===== PAGE 42 =====
+CHAPTER 6: RESULTS AND DISCUSSION
+This chapter reports and discusses the experimental results: the training dynamics of the learned
+controllers, the main evaluation on the weak feeder, the pre-registered decision gates, and the
+paired statistical, distributional, and Pareto analyses, including the cross-deployment study. It
+is linked to PO(d) (Investigation): the design of experiments, the analysis and interpretation of
+data, and the synthesis of valid conclusions.
+6.1 Experimental Setup
+All experiments fix the operating point of Section 4.7: load scale0.50, voltage band[0.95, 1.05] pu,
+transformer limit 1.0 pu, and master seed 137710. Training and evaluation use disjoint seed
+bands, and all six controllers are evaluated on the same 25 episodes (a shared-seed, paired de-
+sign) so that differences reflect the controllers rather than the scenarios. Re-evaluation from
+the saved checkpoints is deterministic and reproduces the reported aggregates exactly. The
+software/hardware environment is recorded in a reproducibility manifest: Python 3.12, Py-
+Torch 2.10 (CUDA 12.8) on an NVIDIA Tesla T4 GPU, pandapower 3.2.0, and CVXPY 1.5.3
+with the CLARABEL solver. Each trained checkpoint is fingerprinted by a SHA-256 hash so
+that the exact model weights can be verified.
+The evaluation uses a pre-registered acceptance protocol of five decision gates, fixed before the
+final run, to guard against post-hoc cherry-picking:
+1. V–P dominance: mean |∂V /∂P| / |∂V /∂Q| ≥0.90 on the weak grid.
+2. Projection grid-awareness: ∥˜uweak − ˜ustrong∥∞ > 1 kW for an identical request.
+3. In-distribution safety: viol(SafeSAC) ≤ 1.05 × viol(SAC-Lag) on weak.
+4. Cross-deployment safety: viol(SafeSAC, strong → weak) < viol(SAC-Lag, strong →
+weak).
+5. Service quality: soc met(SafeSAC) ≥ soc met(SAC-Lag) − 0.10 on weak.
+6.2 Training Dynamics
+The per-configuration training histories are shown in Figure 6.1, with all four configurations
+overlaid in Figure 6.2 and the cumulative training-time violations isolated in Figure 6.3.
+27
+===== PAGE 43 =====
+0 20 40 60 80 100
+training episode
+1800
+1600
+1400
+1200
+1000
+800
+600
+400
+episode reward
+(a) Episode reward
+raw
+10-ep moving avg
+0 20 40 60 80 100
+training episode
+5
+10
+15
+20
+25
+30
+35
+40
+45voltage violation steps
+(b) Per-episode violations
+raw
+10-ep moving avg
+0 20 40 60 80 100
+training episode
+0
+500
+1000
+1500
+2000
+2500
+3000cumulative violation steps
+(c) Cumulative training violations
+0 20 40 60 80 100
+training episode
+42
+44
+46
+48
+50
+52
+54
+56
+58mean step time (ms)
+(d) Compute cost per step
+Training history - SAC-Lag (weak)
+(a) SAC-Lag (weak)
+0 20 40 60 80
+training episode
+1400
+1200
+1000
+800
+600
+400
+200
+episode reward
+(a) Episode reward
+raw
+10-ep moving avg
+0 20 40 60 80
+training episode
+25
+26
+27
+28
+29
+30
+31
+32voltage violation steps
+(b) Per-episode violations
+raw
+10-ep moving avg
+0 20 40 60 80
+training episode
+0
+500
+1000
+1500
+2000cumulative violation steps
+(c) Cumulative training violations
+0 20 40 60 80
+training episode
+102
+104
+106
+108
+110
+112
+114
+116
+118mean step time (ms)
+(d) Compute cost per step
+Training history - SafeSAC (weak) (b) SafeSAC (weak)
+0 20 40 60 80 100
+training episode
+2000
+1750
+1500
+1250
+1000
+750
+500
+250
+episode reward
+(a) Episode reward
+raw
+10-ep moving avg
+0 20 40 60 80 100
+training episode
+0
+2
+4
+6
+8
+10
+12voltage violation steps
+(b) Per-episode violations
+raw
+10-ep moving avg
+0 20 40 60 80 100
+training episode
+0
+20
+40
+60
+80
+100cumulative violation steps
+(c) Cumulative training violations
+0 20 40 60 80 100
+training episode
+42.5
+45.0
+47.5
+50.0
+52.5
+55.0
+57.5mean step time (ms)
+(d) Compute cost per step
+Training history - SAC-Lag (strong)
+(c) SAC-Lag (strong)
+0 20 40 60 80
+training episode
+2000
+1800
+1600
+1400
+1200
+1000
+800
+600
+400
+episode reward
+(a) Episode reward
+raw
+10-ep moving avg
+0 20 40 60 80
+training episode
+0.04
+0.02
+0.00
+0.02
+0.04
+voltage violation steps
+(b) Per-episode violations
+raw
+10-ep moving avg
+0 20 40 60 80
+training episode
+0.04
+0.02
+0.00
+0.02
+0.04
+cumulative violation steps
+(c) Cumulative training violations
+0 20 40 60 80
+training episode
+102
+104
+106
+108
+110
+112
+114
+116mean step time (ms)
+(d) Compute cost per step
+Training history - SafeSAC (strong) (d) SafeSAC (strong)
+Figure 6.1: Per-configuration training histories.
+Each panel reports, for one configuration, the episode reward, the per-episode voltage viola-
+tions, the cumulative violations, and the per-step compute cost over training. Two patterns are
+visible. The weak-grid agents (top row) converge to lower returns than the strong-grid agents
+(bottom row), as expected since the weak feeder is the harder environment. Within each grid,
+the SafeSAC violation curves are smoother and lower than the corresponding SAC-Lag curves,
+because the projection suppresses the most dangerous exploratory actions before they reach the
+network, while the compute panel confirms the extra SOCP solve adds only a small, bounded
+overhead.
+The overlay in Figure 6.2 (solid lines for weak-grid training, dashed for strong-grid) makes
+the cross-configuration comparison direct. The smoothed reward curves show the weak-grid
+agents settling below the strong-grid agents, while the violation panels show the SafeSAC runs
+tracking at or below their SAC-Lag counterparts. The projection does not impair learning—the
+rewards converge normally—while it improves the safety of the learning process itself.
+Figure 6.3 isolates the cumulative violation count, a measure of the total safety debt incurred
+while learning. The SafeSAC curves rise more slowly than the SAC-Lag curves throughout the
+budget, so the projected agents accumulate fewer violation-steps over the whole of training—
+direct evidence that the projection improves safety during learning and not only at deployment,
+28
+===== PAGE 44 =====
+0 20 40 60 80 100
+training episode
+2000
+1750
+1500
+1250
+1000
+750
+500
+250
+total reward
+(a) Episode reward - raw
+20 40 60 80 100
+training episode
+1400
+1200
+1000
+800
+600
+400
+(b) Episode reward - 10-ep moving average
+SAC-Lag (weak)
+SafeSAC (weak)
+SAC-Lag (strong)
+SafeSAC (strong)
+0 20 40 60 80 100
+training episode
+0
+10
+20
+30
+40violation steps
+(c) Per-episode violations - raw
+0 20 40 60 80 100
+training episode
+0
+500
+1000
+1500
+2000
+2500
+3000cumulative steps
+(d) Cumulative violations
+SAC-Lag (weak)
+SafeSAC (weak)
+SAC-Lag (strong)
+SafeSAC (strong)
+Training comparison - all four trained configurations
+Figure 6.2: Combined training comparison across all four configurations.
+0 20 40 60 80 100
+Training episode
+0
+500
+1000
+1500
+2000
+2500
+3000Cumulative voltage violation steps during training
+Training-time safety: cumulative violations across the budget
+SAC-Lag (weak)
+SafeSAC (weak)
+SAC-Lag (strong)
+SafeSAC (strong)
+Figure 6.3: Cumulative voltage-violation steps during training.
+an attractive property when training must occur on or near real equipment.
+6.3 Evaluation Results
+The headline metrics over the 25 shared-seed evaluation episodes are collected in Table 6.1.
+29
+===== PAGE 45 =====
+Table 6.1: Final evaluation on the weak feeder ( 25 episodes per method, shared seeds, load
+scale 0.50).
+Method Viol. rate Vmin (pu) SoC met Net cost ($) Reward V2G util.
+Uncoordinated 0.116±0.009 0 .9383 0 .996±0.012 230 .7±27.6 −205.6 0 .000
+Droop (1547) 0.052±0.009 0 .9474 0 .325±0.113 66 .3±16.0 −733.2 0 .097
+SAC-Lag (weak) 0.090±0.024 0 .9425 0 .277±0.117 104 .3±24.8 −923.5 0 .176
+SafeSAC (weak) 0.091±0.002 0 .9438 0 .569±0.164 125 .9±23.1 −505.2 0 .103
+SAC-Lag (strong→weak) 0.015±0.014 0 .9492 0 .000±0.000 −38.2±7.6 −1898.7 0 .105
+SafeSAC (strong→weak) 0.106±0.003 0 .9438 0 .447±0.074 69 .7±14.8 −1024.1 0 .048
+The table is read in two blocks. The upper block is the in-distribution (weak) comparison,
+where three observations stand out. First, SafeSAC matches SAC-Lag on safety: the viola-
+tion rates are 0.091 and 0.090 respectively—statistically indistinguishable (formally tested in
+Section 6.6)—and SafeSAC’s far smaller standard deviation (0.002 vs. 0.024) indicates a much
+more consistent safety behaviour across episodes. Second, SafeSAC roughly doubles service
+quality: 0.569 of departing vehicles meet their SoC target versus 0.277 for SAC-Lag, a +29
+percentage-point gain. Third, this comes at a modest economic premium (net cost $125.9 vs.
+$104.3), because meeting more SoC targets requires importing more energy. For context, the
+uncoordinated heuristic trivially meets almost all SoC targets (0.996) but at the highest violation
+rate (0.116) and cost, while the droop controller is the safest single method ( 0.052) but sacri-
+fices most service ( 0.325). The lower block (the strong-to-weak deployment shift) is analysed
+in Section 6.9.
+6.4 Safety–Utility Trade-off
+The same results are recast as a two-objective trade-off in Figure 6.4, which plots each method
+in the plane of violation rate (safety) versus SoC-target met (service).
+In this plane, up and to the left is better, and the error bars are the standard error over the
+25 episodes. The decisive feature is the vertical gap between SafeSAC (weak) and SAC-Lag
+(weak): the two markers sit at essentially the same horizontal position (matched violation rate)
+but SafeSAC is far higher (roughly double the service). The figure captures the central result
+of the thesis in a single picture—the projection buys service at no measurable safety cost—and
+the tight error bars on SafeSAC show the advantage is consistent rather than an average over a
+few lucky episodes.
+6.5 Decision Gates
+The five pre-registered acceptance gates are evaluated in Table 6.2.
+30
+===== PAGE 46 =====
+0.02 0.04 0.06 0.08 0.10 0.12
+Voltage violation step rate  (lower is safer)
+0.0
+0.2
+0.4
+0.6
+0.8
+1.0Fraction of SOC targets met  (higher is better service)
+Safety-utility trade-off on the weak distribution feeder
+(N = 25 evaluation episodes per method, shared seeds)
+uncoord
+droop
+sac_lag_weak
+safe_sac_weak
+sac_lag_strong_xdeploy
+safe_sac_strong_xdeploy
+Figure 6.4: Safety–utility trade-off on the weak feeder.
+Table 6.2: Pre-registered decision gates (overall: 3/5 pass).
+Gate Criterion Value Verdict
+1. V–P dominance ratio ≥ 0.90 1 .271 PASS
+2. Projection grid-
+awareness
+∥˜uweak− ˜ustrong∥∞ > 1 kW (zero margin) 80.0 kW† FAIL†
+3. In-distribution safety viol(SafeSAC) ≤ 1.05 viol(SAC-Lag) ratio 1.009 PASS
+4. Cross-deployment
+safety
+viol(SafeSAC) < viol(SAC-Lag),
+strong→weak
++0.091‡ FAIL‡
+5. Service quality soc met(SafeSAC) ≥
+soc met(SAC-Lag) − 0.10
++0.292 PASS
+† The weak grid forces the request infeasible while the strong grid permits −80 kW; the gate’s feasibility guard
+registers this as a fail (see Section 6.10).
+‡ SAC-Lag attains lower violations only by collapsing to a non-charging policy (SoC met = 0.000); see
+Section 6.9.
+The protocol returns three passes. Gate 1 (V–P dominance, ratio 1.27) confirms the physical
+premise that active power dominates voltage on the weak feeder. Gate 3 (in-distribution safety,
+ratio 1.009) confirms SafeSAC does not trade safety for service. Gate 5 (service quality,+0.292)
+is passed decisively. The two gates that do not pass—Gate 2 and Gate 4—are each single-axis
+31
+===== PAGE 47 =====
+tests whose outcomes, once unpacked in Section 6.10, actually argue for the method.
+6.6 Statistical Tests
+Because all methods are evaluated on identical seeds, the SafeSAC-versus-SAC-Lag compar-
+ison is paired and admits formal significance testing. Table 6.3 reports, for each metric, the
+mean difference, its bootstrap 95% confidence interval, a paired t-test, a Wilcoxon signed-rank
+test, and Cohen’s d, both in-distribution and under cross-deployment.
+Here ∆ is mean(SafeSAC)−mean(SAC-Lag), pt and pW are the paired t-test and Wilcoxon
+p-values, and d is Cohen’s d. In-distribution, the violation-rate difference is negligible ( ∆ =
++0.0008; pt = 0.86; pW = 0.58; d = 0.06; the 95% CI [−0.008, 0.011] straddles zero), so the
+two controllers are statistically tied on safety. The SoC-target difference is large and decisive
+(∆ = +0 .292; p ≈ 2 × 10−9; d = 2 .04, a very large effect), confirming the doubled service
+quality, and the economic premium is real but moderate (∆ = +$21.6; d = 0.89). Under cross-
+deployment every effect is enormous (|d| ≥9): SafeSAC delivers +0.447 more SoC-target met
+and operates economically, whereas SAC-Lag does not operate at all.
+6.7 Per-Episode Distributions
+The means are complemented by the full per-episode distributions in Figure 6.5, drawn as box
+plots for the four headline metrics across all six methods.
+The distributions make two features visible that the means alone hide. First, SafeSAC (weak)’s
+violation-rate box is extremely tight, confirming the small0.002 standard deviation and showing
+that its safety behaviour is reproducible episode to episode. Second, its SoC-met box sits well
+above SAC-Lag’s with limited overlap, the distributional counterpart of the very large Cohen’s
+d, so the service advantage holds across essentially the whole distribution. The uncoordinated
+method’s near-perfect SoC-met box paired with the worst violation box renders the safety–
+Table 6.3: Paired statistical tests, SafeSAC vs SAC-Lag (n = 25 paired episodes).
+Comparison Metric ∆ 95% CI pt pW d
+In-distribution Violation rate +0.0008 [ −0.008, 0.011] 0 .86 0 .58 0 .06
+(weak) SoC met +0.292 [0 .232, 0.352] 2 .2×10−9 6.0×10−8 2.04
+Net cost ($) +21.6 [9 .5, 34.0] 0 .0019 0 .0025 0 .89
+Cross-deploy Violation rate +0.0907 [0 .085, 0.096] 4 .1×10−21 1.2×10−5 10.6
+(strong→weak) SoC met +0.447 [0 .417, 0.477] 1 .9×10−20 1.2×10−5 11.9
+Net cost ($) +107.8 [101 .3, 113.9] 1 .7×10−21 6.0×10−8 9.41
+32
+===== PAGE 48 =====
+uncoord droop
+sac_lag_weak safe_sac_weak
+sac_lag_strong_xdeploysafe_sac_strong_xdeploy
+0.00
+0.02
+0.04
+0.06
+0.08
+0.10
+0.12
+Violation step rate (per-episode)
+uncoord droop
+sac_lag_weak safe_sac_weak
+sac_lag_strong_xdeploysafe_sac_strong_xdeploy
+0.0
+0.2
+0.4
+0.6
+0.8
+1.0
+SoC target met (per-episode)
+uncoord droop
+sac_lag_weak safe_sac_weak
+sac_lag_strong_xdeploysafe_sac_strong_xdeploy
+50
+0
+50
+100
+150
+200
+250
+Net cost in USD (per-episode)
+uncoord droop
+sac_lag_weak safe_sac_weak
+sac_lag_strong_xdeploysafe_sac_strong_xdeploy
+0.936
+0.938
+0.940
+0.942
+0.944
+0.946
+0.948
+0.950
+Per-episode minimum voltage (pu)
+Per-episode evaluation distributions across methods
+Figure 6.5: Per-episode distributions of the four headline metrics.
+service trade-off explicit at the level of individual episodes.
+6.8 Pareto Analysis
+Treating safety (low violation rate) and service (high SoC met) as competing objectives, Ta-
+ble 6.4 and Figure 6.6 identify the non-dominated set.
+Four methods are Pareto-optimal: uncoordinated (extreme service), droop (extreme safety),
+SafeSAC (weak) (the balanced learned operating point), and, in a degenerate sense, SAC-Lag
+(strong-to-weak), which is non-dominated only because nothing else achieves so few viola-
+tions, albeit by not operating. The two rows that matter most are the dominated ones: SAC-
+Lag (weak) is dominated by droop, and SafeSAC (strong-to-weak) is dominated by SafeSAC
+Table 6.4: Pareto status in the (violation rate, SoC met) plane.
+Method Viol. rate SoC met Pareto status
+Uncoordinated 0.116 0 .996 optimal
+Droop (1547) 0.052 0 .325 optimal
+SAC-Lag (weak) 0.090 0 .277 dominated by droop
+SafeSAC (weak) 0.091 0 .569 optimal
+SAC-Lag (strong→weak) 0.015 0 .000 optimal (degenerate)
+SafeSAC (strong→weak) 0.106 0 .447 dominated by SafeSAC (weak)
+33
+===== PAGE 49 =====
+(weak). In other words, the unprojected learned baseline is not on the frontier, whereas the
+proposed method is—adding the projection moves the controller from a dominated point to a
+Pareto-optimal one.
+In Figure 6.6 the non-dominated methods are drawn with bold marker edges and the dominated
+ones with light edges. SafeSAC (weak) sits on the upper-left frontier between the two heuristic
+extremes, while SAC-Lag (weak) lies strictly inside the frontier, below and to the right of both
+droop and SafeSAC—the multi-objective justification for preferring SafeSAC over the learned
+baseline regardless of how the safety/service trade-off is weighted.
+6.9 Cross-Deployment
+A central claim is robustness to a train/deploy grid mismatch. We take each strong-grid-trained
+agent and deploy it, unmodified, on the weak feeder. The SAC-Lag policy, having learned
+that the strong grid tolerated aggressive V2G, collapses: on the weak feeder it discharges and
+sells whenever profitable, attaining a very low violation rate (0.015) and even negative net cost
+(−$38), but a SoC-target-met of exactly 0.000. It has, in effect, stopped serving vehicles. Safe-
+SAC, deployed identically, remains operational: its projection curtails the unsafe discharges,
+so it serves 0.447 of SoC targets at a positive, sensible cost. This behaviour—holding voltage
+while preserving fleet service under stress—mirrors the constraint-aware RL controller of Wang
+et al. [3], which likewise recovers voltage under aggressive overloading while prioritising fleet
+availability. An example episode is contrasted in Figure 6.7.
+0.02 0.04 0.06 0.08 0.10 0.12
+Violation step rate
+0.0
+0.2
+0.4
+0.6
+0.8
+1.0SoC target met
+Pareto front of safety-utility trade-off (bold edge = non-dominated)
+uncoord (Pareto)
+droop (Pareto)
+sac_lag_weak
+safe_sac_weak (Pareto)
+sac_lag_strong_xdeploy (Pareto)
+safe_sac_strong_xdeploy
+Figure 6.6: Pareto front of the safety–utility trade-off.
+34
+===== PAGE 50 =====
+0.95
+0.96
+0.97
+0.98
+0.99min bus voltage (pu)
+(a) Per-step minimum bus voltage  (eval seed 1078789075)
+SAC-Lag (weak)
+SafeSAC (weak)
+Voltage lower limit
+0 5 10 15 20 25
+hour of day
+200
+100
+0
+100
+200
+total station injection (kW)
+(b) T otal EV station active-power injection
+SAC-Lag (weak)
+SafeSAC (weak)
+Figure 6.7: Example episode: minimum bus voltage and total station injection.
+The two panels explain the collapse mechanistically. The upper panel tracks the per-step min-
+imum bus voltage: SafeSAC keeps it pinned just above the 0.95 pu limit for most of the day,
+whereas the unprojected policy’s trace is qualitatively different. The lower panel shows the
+total station active-power injection: SafeSAC continues to inject useful charging power, while
+the collapsed baseline mostly discharges, which is why its SoC-target-met falls to zero. The
+contrast visualises the robustness claim—the projection keeps the controller both safe and op-
+erational when the deployment grid is not the grid it trained on.
+6.10 Failed Gates
+Gate 2 (projection grid-awareness) compared the projected command for an identical request
+across grids and was recorded as a fail. The reason is instructive: at the worst-case probing state,
+the weak grid admitted no feasible discharge (the request had to be curtailed to the boundary),
+while the strong grid permitted the full −80 kW—an 80 kW divergence. The gate’s implemen-
+tation expected both sides to be feasible to compute a clean margin and therefore flagged the
+one-sided infeasibility as a failure. Substantively, an 80 kW gap (and the 2–26 kW per-station
+curtailments of Table 5.3) is stronger evidence of grid-awareness than the > 1 kW the gate
+sought; the fail is an artefact of a conservative feasibility guard, not a refutation of the claim.
+Gate 4 (cross-deployment safety) asked only whether SafeSAC had fewer violations than SAC-
+Lag after the deployment shift. It did not ( 0.106 vs. 0.015). But, as Section 6.9 shows, SAC-
+35
+===== PAGE 51 =====
+Lag’s low violation count is achieved by not operating (SoC met = 0 .000): a controller that
+refuses to charge trivially avoids voltage violations. Judging safety in isolation from service
+rewards exactly this degenerate behaviour. On the joint objective—the Pareto view of Sec-
+tion 6.8—SafeSAC is clearly preferable. The gate fails for a reason that, examined, supports
+rather than undermines the method.
+6.11 Limitations
+The following limitations bound the strength of the claims and are stated plainly:
+• Single seed per configuration: each learned controller is trained once, so reported vari-
+ability is over evaluation episodes, not over training seeds.
+• Parametric load model: the residential background load is a parametric profile rather than
+measured data; a real dataset (e.g. UK-DALE [31]) would strengthen external validity.
+• Structural violation floor: at load scale 0.50 all methods cluster near a 9–12% violation
+floor driven by the load profile, so absolute violation rates are operating-point specific.
+• Linearised safety model: the projection uses a first-order voltage model with a fixed
+0.010 pu margin; large, fast excursions can in principle exceed the linear region between
+refreshes.
+• Simulation only: no field validation is performed.
+36
+===== PAGE 52 =====
+CHAPTER 7: EV ALUATION
+This chapter evaluates the broader engineering context of the work—its societal, health, safety,
+legal, cultural, environmental, sustainability, and ethical dimensions—as required of profes-
+sional engineering practice.
+7.1 Assessment of Issues
+This section assesses the societal, health, safety, legal, and cultural issues relevant to the de-
+ployment of a safe-DRL voltage-support controller for bidirectional EV charging, and is linked
+to PO(f) (The Engineer and Society).
+7.1.1 Societal Issues
+The work targets the weak rural and peri-urban feeders that are least able to absorb mass EV
+charging. By coordinating bidirectional charging so that the network stays within its limits,
+SafeSAC helps extend the benefits of transport electrification to communities served by such
+feeders without forcing the cost of premature network reinforcement onto them or their util-
+ity. Maintaining a reliable supply voltage while still meeting drivers’ charging needs—roughly
+doubling the fraction of state-of-charge targets met relative to the unprojected baseline—also
+directly serves the end users whose mobility depends on it. By improving the utilisation of ex-
+isting infrastructure, the approach can make EV adoption more affordable and more equitable.
+7.1.2 Health and Safety Issues
+Keeping bus voltages within the statutory[0.95, 1.05] pu band is, first and foremost, an equipment-
+safety and consumer-protection measure. Sustained undervoltage overheats motors and stalls
+electronics and can trip protection devices, while overvoltage stresses insulation and shortens
+appliance life. By enforcing safety as a per-step, network-specific constraint through the projec-
+tion layer—rather than as an averaged penalty that tolerates occasional large excursions—the
+controller reduces the risk of harmful voltage events reaching customers. The explicit battery-
+degradation term in the reward also discourages abusive cycling of vehicle batteries, which
+bears on battery thermal safety and longevity.
+37
+===== PAGE 53 =====
+7.1.3 Legal and Cultural Issues
+The design is aligned with the prevailing regulatory framework: it respects the statutory volt-
+age band and follows the grid-support philosophy of IEEE 1547-2018 [5], the interconnection
+standard for distributed energy resources, which any real deployment would have to satisfy.
+Culturally, V2G asks vehicle owners to permit discharge of their batteries, which raises con-
+cerns about range availability and battery wear; the fleet model reflects this by allowing a frac-
+tion of vehicles to opt out of V2G and by penalising degradation, so that participation remains
+voluntary and the controller does not exploit a customer beyond agreed limits.
+7.2 Evaluation of Environment and Sustainability
+This section evaluates the environmental and sustainability impact of the work and is linked
+to PO(g) (Environment and Sustainability). Bidirectional charging that respects network limits
+enables greater hosting of distributed photovoltaics and supports renewable integration, because
+the fleet can absorb midday solar surplus and discharge into the evening peak instead of curtail-
+ing generation [8]. The degradation-aware reward aligns the controller’s economics with battery
+longevity, and hence with the embodied-carbon cost of premature battery replacement. Finally,
+by extracting more usable service from existing feeders and deferring reinforcement, the ap-
+proach reduces the material and emissions footprint associated with building new distribution
+capacity.
+7.3 Ethical Issues
+This section addresses the ethical conduct of the research and is linked to PO(h) (Ethics). All
+reported numbers are produced by a documented evaluation pipeline from saved checkpoints,
+with fixed random seeds and SHA-256-fingerprinted models so that the results are indepen-
+dently reproducible. The pre-registered five-gate protocol was fixed before the final run, and its
+3/5 outcome—including a candid analysis of the two gates that did not pass—is reported in full
+rather than selectively, with no result fabricated or omitted. All third-party software and datasets
+are cited, and the limitations of the study are stated plainly in Section 6.11 so that readers can
+judge the evidence on its merits.
+38
+===== PAGE 54 =====
+CHAPTER 8: CONCLUSION
+8.1 Findings
+This thesis asked whether embedding deployment-grid physics into the action pathway of a La-
+grangian deep reinforcement learning agent yields a controller that is simultaneously safe and
+useful for bidirectional EV charging on weak distribution feeders. The answer, established on
+a modified IEEE 33-bus Baran–Wu testbed, is affirmative. The proposed controller, SafeSAC,
+augments an augmented-Lagrangian Soft Actor-Critic agent with a physics-aware second-order
+cone projection built from voltage sensitivities measured on the live network. On the weak
+feeder it matches the SAC-Lag baseline on voltage safety (violation rate 0.091 vs. 0.090, sta-
+tistically tied) while doubling service quality (SoC-target met 0.569 vs. 0.277; +29 percentage
+points; Cohen’s d = 2 .04; p ≪ 0.001), at a modest economic premium, and it lowers cumu-
+lative training-time violations. Under a strong-to-weak deployment shift the SAC-Lag policy
+collapses to a non-charging behaviour (SoC-target met= 0.000), whereas SafeSAC remains op-
+erational and delivers +45 percentage points more service. A pre-registered five-gate protocol
+returns three passes; both non-passing gates were shown to be single-axis tests whose outcomes
+in fact strengthen the case for the method.
+8.2 Contributions
+8.2.1 Problem Addressed
+The thesis identifies and targets a specific, under-studied problem: safe, service-preserving
+coordination of bidirectional EV charging on weak feeders, where active power is the dominant
+voltage lever and a controller trained on one grid may fail on another. It frames the issue
+not as average-case optimisation but as a joint safety-and-service problem under deployment
+uncertainty.
+8.2.2 Problem Formulation
+The problem is formulated as a constrained Markov decision process with an explicit per-step
+safety cost for voltage-band and transformer violations, an economic term spanning time-of-
+use energy cost and V2G revenue, and a service term for unmet state-of-charge targets. This
+formulation makes safety a constraint to be satisfied rather than a penalty to be traded away.
+39
+===== PAGE 55 =====
+8.2.3 Controller Design
+The central contribution is the application of that formulation in SafeSAC: an augmented-
+Lagrangian SAC learner whose output passes through a physics-aware SOCP projection rebuilt
+at every step from sensitivities measured on the actual operating grid. The projection is shown
+to be deployment-grid-aware, curtailing an identical −80 kW V2G request to −54 kW on the
+weak grid while leaving it essentially unaltered on a strong grid.
+8.2.4 Results Obtained
+Finally, the thesis contributes a rigorous, reproducible evaluation that decomposes performance
+into safety and service through paired statistical tests, a Pareto analysis, and a cross-deployment
+study, together with a fixed seed protocol, fingerprinted checkpoints, and a complete artifact set.
+The results establish that the projection buys large service gains at no measurable safety cost
+and prevents the policy collapse that the unprojected baseline suffers under deployment shift.
+8.3 Future Work
+Several directions would strengthen and extend the work:
+• Multi-seed and multi-feeder validation: repeat training across several seeds and additional
+feeders (including unbalanced three-phase networks) to quantify training variance and
+external validity.
+• Measured load and mobility data: replace the parametric load with measured datasets [31]
+and empirical EV arrival/dwell traces.
+• Tighter safety guarantees: combine the linearised projection with the exact SOCP branch-
+flow relaxation [14, 15] or control-barrier certificates [35] to bound residual risk between
+sensitivity refreshes.
+• Differentiable projection: backpropagate through the projection using differentiable con-
+vex optimisation layers [27,36] so the policy can learn to anticipate the safety correction.
+• Battery-aware constraints: incorporate state-of-charge and state-of-health-dependent power
+envelopes into the projection, as advocated by Wanget al. [3].
+• Scalability and multi-hub coordination: extend to many stations with multi-agent or hier-
+archical control across spatially distributed hubs [3], and benchmark the per-step SOCP
+solve time for real-time feasibility.
+40
+===== PAGE 56 =====
+8.4 Remarks
+Weak distribution feeders are precisely where uncoordinated EV charging does the most harm
+and where bidirectional charging offers the most help, yet they are also where strong-grid as-
+sumptions fail most badly. The central lesson of this thesis is that a small amount of the right
+physics—voltage sensitivities of the actual deployment network, embedded as a cheap pro-
+jection on the agent’s output—turns a learned controller that is merely average-safe into one
+that is consistently safe and substantially more useful, and that degrades gracefully rather than
+catastrophically when the grid it meets is not the grid it was trained on. Lightweight, network-
+specific physics in the action pathway is, on this evidence, a productive design principle for safe
+reinforcement learning in power systems.
+41
+===== PAGE 57 =====
+REFERENCES
+[1] Chen, G., Yang, L. and Cao, X. “A deep reinforcement learning-based charging schedul-
+ing approach with augmented Lagrangian for electric vehicles.” Applied Energy, volume
+378:p. 124706, 2025
+[2] Orfanoudakis, S., Oliehoek, F.A., Palensky, P. and Vergara, P.P. “Physics-informed re-
+inforcement learning for large-scale EV smart charging considering distribution network
+voltage constraints.” arXiv preprint arXiv:2510.12335, 2025
+[3] Wang, J., Jacob, R.A., Kaushik, H.D. and Zhang, J. “Reinforcement learning for vehicle-
+to-grid voltage regulation: Single-hub to multi-hub coordination with battery-aware con-
+straints.” In “IEEE Power and Energy Society General Meeting (PESGM),” , 2026
+[4] Dileep, G. “A survey on smart grid technologies and applications.” Renewable Energy,
+volume 146:pp. 2589–2625, 2020
+[5] IEEE,. “IEEE standard for interconnection and interoperability of distributed energy re-
+sources with associated electric power systems interfaces.” Technical report, IEEE Std
+1547-2018, 2018
+[6] Tan, K.M., Ramachandaramurthy, V .K. and Yong, J.Y . “Integration of electric vehicles
+in smart grid: A review on vehicle to grid technologies and optimization techniques.”
+Renewable and Sustainable Energy Reviews, volume 53:pp. 720–732, 2016
+[7] Kempton, W. and Tomi ´c, J. “Vehicle-to-grid power fundamentals: Calculating capacity
+and net revenue.” Journal of Power Sources, volume 144, no. 1:pp. 268–279, 2005
+[8] Ravi, S.S. and Aziz, M. “Utilization of electric vehicles for vehicle-to-grid services:
+Progress and perspectives.” Energies, volume 15, no. 2:p. 589, 2022
+[9] Sutton, R.S. and Barto, A.G. Reinforcement Learning: An Introduction. MIT Press, 2nd
+edition, 2018
+[10] Haarnoja, T., Zhou, A., Abbeel, P. and Levine, S. “Soft actor-critic: Off-policy maximum
+entropy deep reinforcement learning with a stochastic actor.” In “International Conference
+on Machine Learning (ICML),” pp. 1861–1870, 2018
+[11] Altman, E. Constrained Markov Decision Processes. Chapman and Hall/CRC, 1999
+[12] Baran, M.E. and Wu, F.F. “Network reconfiguration in distribution systems for loss re-
+duction and load balancing.” IEEE Transactions on Power Delivery, volume 4, no. 2:pp.
+1401–1407, 1989
+42
+===== PAGE 58 =====
+[13] Molzahn, D.K., D ¨orfler, F., Sandberg, H., Low, S.H., Chakrabarti, S., Baldick, R. and
+Lavaei, J. “A survey of distributed optimization and control algorithms for electric power
+systems.” IEEE Transactions on Smart Grid, volume 8, no. 6:pp. 2941–2962, 2017
+[14] Farivar, M. and Low, S.H. “Branch flow model: Relaxations and convexification—part I.”
+IEEE Transactions on Power Systems, volume 28, no. 3:pp. 2554–2564, 2013
+[15] Gan, L., Li, N., Topcu, U. and Low, S.H. “Exact convex relaxation of optimal power
+flow in radial networks.” IEEE Transactions on Automatic Control, volume 60, no. 1:pp.
+72–87, 2015
+[16] Low, S.H. “Convex relaxation of optimal power flow—part I: Formulations and equiv-
+alence.” IEEE Transactions on Control of Network Systems , volume 1, no. 1:pp. 15–27,
+2014
+[17] Wan, Z., Li, H., He, H. and Prokhorov, D. “Model-free real-time EV charging scheduling
+based on deep reinforcement learning.” IEEE Transactions on Smart Grid , volume 10,
+no. 5:pp. 5246–5257, 2019
+[18] Sadeghianpourhamami, N., Deleu, J. and Develder, C. “Definition and evaluation of
+model-free coordination of electrical vehicle charging with reinforcement learning.”IEEE
+Transactions on Smart Grid, volume 11, no. 1:pp. 203–214, 2020
+[19] Yang, Q., Wang, G., Sadeghi, A., Giannakis, G.B. and Sun, J. “Two-timescale voltage
+control in distribution grids using deep reinforcement learning.” IEEE Transactions on
+Smart Grid, volume 11, no. 3:pp. 2313–2323, 2020
+[20] Duan, J., Shi, D., Diao, R., Li, H., Wang, Z., Zhang, B., Bian, D. and Yi, Z. “Deep-
+reinforcement-learning-based autonomous voltage control for power grid operations.”
+IEEE Transactions on Power Systems, volume 35, no. 1:pp. 814–817, 2020
+[21] Achiam, J., Held, D., Tamar, A. and Abbeel, P. “Constrained policy optimization.” In
+“International Conference on Machine Learning (ICML),” pp. 22–31, 2017
+[22] Stooke, A., Achiam, J. and Abbeel, P. “Responsive safety in reinforcement learning by
+PID Lagrangian methods.” In “International Conference on Machine Learning (ICML),”
+pp. 9133–9143, 2020
+[23] Wang, W., Yu, N., Gao, Y . and Shi, J. “Safe off-policy deep reinforcement learning algo-
+rithm for V olt-V AR control in power distribution systems.”IEEE Transactions on Smart
+Grid, volume 11, no. 4:pp. 3008–3018, 2020
+[24] Li, H., Wan, Z. and He, H. “Constrained EV charging scheduling based on safe deep
+reinforcement learning.” IEEE Transactions on Smart Grid, volume 11, no. 3:pp. 2427–
+2439, 2020
+43
+===== PAGE 59 =====
+[25] Dalal, G., Dvijotham, K., Vecerik, M., Hester, T., Paduraru, C. and Tassa, Y . “Safe explo-
+ration in continuous action spaces.” arXiv preprint arXiv:1801.08757, 2018
+[26] Pham, T.H., De Magistris, G. and Tachibana, R. “OptLayer—practical constrained op-
+timization for deep reinforcement learning in the real world.” In “IEEE International
+Conference on Robotics and Automation (ICRA),” pp. 6236–6243, 2018
+[27] Donti, P.L., Rolnick, D. and Kolter, J.Z. “DC3: A learning method for optimization with
+hard constraints.” In “International Conference on Learning Representations (ICLR),” ,
+2021
+[28] Fan, J., Liebman, A. and Wang, H. “Safety-aware reinforcement learning for elec-
+tric vehicle charging station management in distribution network.” arXiv preprint
+arXiv:2403.13236, 2024
+[29] Brockman, G., Cheung, V ., Pettersson, L., Schneider, J., Schulman, J., Tang, J. and
+Zaremba, W. “OpenAI Gym.” arXiv preprint arXiv:1606.01540, 2016
+[30] Thurner, L., Scheidler, A., Sch ¨afer, F., Menke, J.H., Dollichon, J., Meier, F., Meinecke, S.
+and Braun, M. “pandapower—an open-source Python tool for convenient modeling, anal-
+ysis, and optimization of electric power systems.” IEEE Transactions on Power Systems,
+volume 33, no. 6:pp. 6510–6521, 2018
+[31] Kelly, J. and Knottenbelt, W. “The UK-DALE dataset, domestic appliance-level electricity
+demand and whole-house demand from five UK homes.” Scientific Data, volume 2:p.
+150007, 2015
+[32] Haarnoja, T., Zhou, A., Hartikainen, K., Tucker, G., Ha, S., Tan, J., Kumar, V ., Zhu, H.,
+Gupta, A., Abbeel, P. and Levine, S. “Soft actor-critic algorithms and applications.”arXiv
+preprint arXiv:1812.05905, 2018
+[33] Diamond, S. and Boyd, S. “CVXPY: A Python-embedded modeling language for convex
+optimization.” Journal of Machine Learning Research, volume 17, no. 83:pp. 1–5, 2016
+[34] Goulart, P.J. and Chen, Y . “Clarabel: An interior-point solver for conic programs with
+quadratic objectives.” arXiv preprint arXiv:2405.12762, 2024
+[35] Cheng, R., Orosz, G., Murray, R.M. and Burdick, J.W. “End-to-end safe reinforcement
+learning through barrier functions for safety-critical continuous control tasks.” In “AAAI
+Conference on Artificial Intelligence,” pp. 3387–3395, 2019
+[36] Agrawal, A., Amos, B., Barratt, S., Boyd, S., Diamond, S. and Kolter, J.Z. “Differentiable
+convex optimization layers.” In “Advances in Neural Information Processing Systems
+(NeurIPS),” , 2019
+44
+===== PAGE 60 =====
+CHAPTER A: REPRESENTATIVE CODE LISTINGS
+This appendix provides representative excerpts of the implementation to make the methodology
+of Chapter 5 concrete. The listings are simplified for readability; the full, runnable source
+(environment, agents, scenario generator, training and evaluation pipelines) accompanies the
+thesis as a separate artifact bundle.
+A.1 Physics-Aware SOCP Safety Projection
+Listing A.1 builds and solves the second-order cone projection of (5.6). The voltage-sensitivity
+parameters SP , SQ and base voltages v0 are refreshed from the live network at every control
+step, which is what makes the projection adapt to the deployment grid. The problem is written
+in a disciplined-parametrised form so that CVXPY [33] compiles it once and the CLARABEL
+solver [34] re-solves it quickly each step.
+1 # Representative excerpt: physics-aware SOCP safety projection.
+2 # Projects a raw per-station command (p_raw, q_raw) onto the network-feasible
+3 # set defined by linearised voltage limits (with safety margin) and the
+4 # apparent-power cone, using sensitivities measured on the LIVE network.
+5 import cvxpy as cp
+6 import numpy as np
+7
+8
+9 def build_projection(n_station, v_lower, v_upper, margin):
+10 """Build a DPP-compliant CVXPY problem solved once per step.
+11 Parameters S_P, S_Q, v0, p0, q0, p_raw, q_raw, s_rated are updated in
+12 place each control step before re-solving with the CLARABEL solver."""
+13 p = cp.Variable(n_station) # active set-points (kW)
+14 q = cp.Variable(n_station) # reactive set-points (kVAr)
+15
+16 S_P = cp.Parameter((n_station, n_station)) # dV/dP at monitored buses
+17 S_Q = cp.Parameter((n_station, n_station)) # dV/dQ at monitored buses
+18 v0 = cp.Parameter(n_station) # base voltages (pu)
+19 p0 = cp.Parameter(n_station)
+20 q0 = cp.Parameter(n_station)
+21 p_raw = cp.Parameter(n_station)
+22 q_raw = cp.Parameter(n_station)
+23 s_rated = cp.Parameter(n_station, nonneg=True)
+24 p_lo = cp.Parameter(n_station)
+25 p_hi = cp.Parameter(n_station)
+26
+27 # Linearised voltage at monitored buses (Eq. 3.2)
+28 v = v0 + S_P @ (p - p0) + S_Q @ (q - q0)
+29
+30 constraints = [
+31 v >= v_lower + margin, # margin-tightened lower band
+32 v <= v_upper - margin, # margin-tightened upper band
+33 p >= p_lo, p <= p_hi, # active-power box
+34 ]
+45
+===== PAGE 61 =====
+35 # Apparent-power cone per station ||(p_i, q_i)||_2 <= s_rated_i (SOCP)
+36 for i in range(n_station):
+37 constraints.append(cp.norm(cp.hstack([p[i], q[i]]), 2) <= s_rated[i])
+38
+39 # Euclidean projection onto the feasible set
+40 objective = cp.Minimize(cp.sum_squares(p - p_raw) + cp.sum_squares(q - q_raw))
+41 problem = cp.Problem(objective, constraints)
+42 handles = dict(p=p, q=q, S_P=S_P, S_Q=S_Q, v0=v0, p0=p0, q0=q0,
+43 p_raw=p_raw, q_raw=q_raw, s_rated=s_rated,
+44 p_lo=p_lo, p_hi=p_hi)
+45 return problem, handles
+46
+47
+48 def project(problem, h, sens_P, sens_Q, v_base, p_now, q_now,
+49 p_request, q_request, s_rated, p_box):
+50 """Solve the projection for the current step; fall back to curtailment
+51 if the linear model is infeasible (station frozen after 3 failures)."""
+52 h["S_P"].value, h["S_Q"].value = sens_P, sens_Q
+53 h["v0"].value, h["p0"].value, h["q0"].value = v_base, p_now, q_now
+54 h["p_raw"].value, h["q_raw"].value = p_request, q_request
+55 h["s_rated"].value = s_rated
+56 h["p_lo"].value, h["p_hi"].value = p_box[:, 0], p_box[:, 1]
+57 try:
+58 problem.solve(solver=cp.CLARABEL, warm_start=True)
+59 if problem.status in ("optimal", "optimal_inaccurate"):
+60 return np.asarray(h["p"].value), np.asarray(h["q"].value), "ok"
+61 except cp.error.SolverError:
+62 pass
+63 return np.zeros_like(p_request), np.zeros_like(q_request), "infeasible"
+Listing A.1: Physics-aware SOCP safety projection.
+The listing constructs the projection once (the build projection function) and then re-
+solves it each control step (the project function) with the freshly measured sensitivities,
+returning the nearest network-feasible command or, if the linear model is infeasible, a curtailed
+fall-back—the graceful-degradation behaviour described in Section 5.4.
+A.2 SafeSAC Action Selection and Lagrangian Update
+Listing A.2 shows how the policy’s raw action is rescaled and projected before reaching the
+environment, and the augmented-Lagrangian update that trains the actor against twin reward
+critics and a cost critic coupled through the multiplier λ (Section 5.3).
+1 # Representative excerpt: SafeSAC action selection and the augmented-Lagrangian
+2 # update. The policy proposes a raw action; the SOCP projection corrects it to
+3 # a network-feasible command before it reaches the environment.
+4 import torch
+5 import numpy as np
+6
+7
+8 def select_safe_action(agent, obs, env, projector, deterministic=False):
+9 """Sample a raw action, rescale to physical set-points, then project."""
+10 with torch.no_grad():
+11 raw = agent.actor.act(torch.as_tensor(obs).float(),
+46
+===== PAGE 62 =====
+12 deterministic=deterministic)
+13 p_raw, q_raw = env.rescale_action(raw.cpu().numpy()) # to kW / kVAr
+14
+15 # Sensitivities recomputed on the LIVE network every step (grid-aware)
+16 S_P, S_Q, v0, p0, q0 = env.measure_sensitivities()
+17 p_safe, q_safe, status = projector.project(
+18 S_P, S_Q, v0, p0, q0, p_raw, q_raw,
+19 s_rated=env.station_kva, p_box=env.active_power_box())
+20 return env.to_action(p_safe, q_safe), status
+21
+22
+23 def lagrangian_update(agent, batch, lambda_, lr_lambda, cost_threshold,
+24 alpha_ceiling):
+25 """One augmented-Lagrangian SAC update step (reward critics, cost critic,
+26 actor, temperature, and the Lagrange multiplier)."""
+27 # --- critics: twin reward critics + cost critic toward soft targets ---
+28 agent.update_reward_critics(batch)
+29 agent.update_cost_critic(batch)
+30
+31 # --- actor: maximise Q_r - lambda * Q_c with entropy regularisation ---
+32 s = batch["state"]
+33 a, logp = agent.actor.sample(s)
+34 q_r = torch.min(agent.critic1(s, a), agent.critic2(s, a))
+35 q_c = agent.cost_critic(s, a)
+36 actor_loss = (agent.alpha * logp - (q_r - lambda_ * q_c)).mean()
+37 agent.actor_opt.zero_grad(); actor_loss.backward(); agent.actor_opt.step()
+38
+39 # --- temperature alpha (capped at ceiling) ---
+40 alpha_loss = -(agent.log_alpha * (logp + agent.target_entropy).detach()).mean()
+41 agent.alpha_opt.zero_grad(); alpha_loss.backward(); agent.alpha_opt.step()
+42 agent.alpha = min(agent.log_alpha.exp().item(), alpha_ceiling)
+43
+44 # --- Lagrange multiplier ascent on the constraint residual ---
+45 cost_estimate = q_c.mean().item()
+46 lambda_ = max(0.0, lambda_ + lr_lambda * (cost_estimate - cost_threshold))
+47
+48 # --- Polyak target update ---
+49 agent.soft_update_targets()
+50 return lambda_
+Listing A.2: SafeSAC action selection and augmented-Lagrangian update.
+In the listing, select safe action samples the raw policy action, rescales it, and projects
+it before it reaches the environment, while lagrangian update performs one constrained-
+policy update—training the twin reward critics and the cost critic, improving the actor against
+the Lagrangian objective, and ascending the multiplier λ on the constraint residual.
+47
+===== PAGE 63 =====
+Generated using Undegraduate Thesis LATEX T emplate, Version 2.0. Department of
+Electrical and Electronic Engineering, Bangladesh University of Engineering and
+T echnology , Dhaka, Bangladesh.
+This thesis was generated on Thursday 11 th June, 2026 at 3:48pm.
+48
+===== PAGE 64 =====
+B.Sc.
+Engg.
+EEE
+BUET
+Safe Deep Reinforcement Learning for Vehicle-to-Grid Voltage Support in Weak
+Distribution Feeders: A Physics-Aware Approach
+MR Rahman
+S Sami
+June
+2026

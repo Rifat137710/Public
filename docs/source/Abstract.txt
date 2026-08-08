@@ -1,0 +1,46 @@
+
+===== PAGE 1 =====
+This thesis develops SafeSAC, a physics-aware safe deep reinforcement learning (DRL) 
+controller that coordinates bidirectional electric-vehicle (EV) charging for voltage support 
+on weak distribution feeders. On a modified IEEE 33-bus Baran–Wu feeder it matches 
+the safety of a strong Lagrangian baseline while roughly doubling the EV state-of-charge 
+service it delivers, and it remains operational when deployed on a grid different from the 
+one it was trained on. 
+ 
+Mass EV adoption concentrates large, controllable loads on radial feeders that were 
+never designed for them. On weak feeders—long, high resistance-to-reactance (R/X) 
+lines with low short-circuit capacity—uncoordinated charging drives bus voltages outside 
+the statutory [0.95,1.05] pu band, while vehicle-to-grid (V2G) discharge is an untapped 
+lever for local voltage support. We cast real-time charging as a constrained Markov de 
+cision process (CMDP) over a 288-step day, with a reward combining time-of-use energy 
+cost, V2G revenue, and battery degradation, and a per-step cost that measures voltage-band 
+and transformer violations. SafeSAC couples an augmented-Lagrangian Soft Actor-Critic 
+(SAC-Lag) agent with a safety-projection layer that solves an eight-variable second-order 
+cone program (SOCP) at every control step. The projection is built from power-flow volt 
+age sensitivities measured on the actual operating network, so it adapts to the deployment 
+grid’s R/X structure instead of assuming a strong grid. The controller is benchmarked 
+against an uncoordinated heuristic, an IEEE 1547-2018 droop controller, and the SAC-Lag 
+baseline; all learned agents are trained at load scale 0.50 and evaluated on 25 shared-seed 
+episodes for a paired comparison. 
+ 
+On the weak feeder the projection is demonstrably grid-aware: at the most sensitive 
+station it curtails a −80 kW V2G request to −54 kW, whereas on a strong grid the same re 
+quest passes essentially unaltered. Relative to SAC-Lag, SafeSAC holds the in-distribution 
+voltage-violation rate statistically constant (0.091 vs. 0.090; paired t-test p = 0.86) while 
+raising the fraction of EV state-of-charge targets met from 0.277 to 0.569 (+29 percentage 
+points; Cohen’s d = 2.04; p ≪ 0.001). Under a strong-to-weak deployment shift the SAC 
+Lag policy collapses to a non-charging, drain-and-sell behaviour (targets met = 0.000), 
+whereas SafeSAC stays operational and delivers +45 percentage points more service. A 
+pre-registered protocol of five decision gates returns three passes, and the two non-passing 
+gates are shown to be single-axis tests whose outcomes in fact strengthen the case for the 
+method. 
+ 
+The results indicate that embedding lightweight, network-specific physics into the ac 
+tion pathway of a DRL agent yields controllers that are simultaneously safe and useful 
+on the weak rural and peri-urban feeders where EV coordination matters most, supporting 
+renewable integration and deferring costly network reinforcement. 
+ 
+===== PAGE 2 =====
+Keywords: safe reinforcement learning; soft actor-critic; vehicle-to-grid; voltage support; weak 
+distribution feeder; second-order cone program; physics-aware control; con 
+strained Markov decision process. 

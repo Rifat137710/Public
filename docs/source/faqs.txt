@@ -1,0 +1,100 @@
+
+===== PAGE 1 =====
+����� Frequently Asked Questions (FAQs) 
+�� 1. Who can participate in the competition? 
+Answer: Participants must be either students at accredited universities or Young Professionals (YPs) 
+who received their first professional degree within the past 15 years. Entrants must be at least 18 years 
+old and reside in a country where participation is legally permitted. 
+�� 2. How many members can a team have? 
+Answer: Teams can have 1 to 5 members. Each person can participate in only one team. Teams must 
+be finalized at the time of submission and cannot be modified afterward. 
+�� 3. What are the three available theme categories? 
+Answer: 
+• Healthcare Applications in Digital Learning 
+• Sustainable Smart Cities and Urban Innovation 
+• Advanced Learning in Educational/Classroom Environments 
+�� 4. How do we register and officially submit a project? 
+Answer: 
+• Step 1: Express interest via the online form at 
+��� https://metaversereality.ieee.org/competition 
+• Step 2: Submit your Team Project Submission (PowerPoint + Video) during the official 
+submission period. Submission portal will be provided after the knowledge-sharing webinars. 
+�� 5. What should our submission include? 
+Answer: 
+• A PowerPoint presentation (max 5 slides) describing the concept, theme, and educational 
+impact. 
+• A 5–7 minute video (.mp4) demonstrating the simulation and its core features. 
+�� 6. What are the judging criteria? 
+Answer: 
+Projects will be evaluated based on: 
+• Simulation-based learning effectiveness (25%) 
+• Creativity & innovation (20%) 
+• Educational impact (20%) 
+• UI/UX & engagement (15%) 
+• Integration of AI/gamification (10%) 
+• Sustainability & accessibility (10%) 
+ 
+===== PAGE 2 =====
+�� 7. When is the submission deadline? 
+Answer: 
+������� The final deadline for project submissions is September 1, 2025, at 23:59 PM EDT. 
+�� 8. Can we submit an already published or past project? 
+Answer: No. Your project must be original, not previously published or submitted elsewhere. You must 
+own full rights and comply with submission rules. 
+�� 9. Can our project be a mobile or web-based simulation, or does it have to be VR/AR? 
+Answer: Yes, simulations can be developed in 2D or 3D environments and may run on desktop, web, 
+mobile, or immersive platforms (e.g., VR/AR). The key evaluation focus is on the interactivity, 
+innovation, and learning effectiveness, not the platform. 
+�� 10. Are we allowed to use pre-built assets or open-source libraries? 
+Answer: Yes, you may use publicly available assets and libraries as long as you credit the sources 
+properly, and your final submission represents original integration and educational innovation. 
+�� 11. What is the expected level of technical complexity? 
+Answer: We encourage creative and functional prototypes . Submissions demonstrate an 
+educationally valuable simulation. 
+�� 12. Will our simulation be evaluated live, or only based on our submitted materials? 
+Answer: Evaluation is based entirely on the PowerPoint and video submission. Make sure your video 
+clearly showcases features, interactions, and value, as the judges will not have access to live demos.  
+�� 13. Do we need to submit code or technical documentation? 
+Answer: Your PowerPoint and video should be sufficient to explain the concept, implementation, 
+technologies used, and educational value . Please incorporate your source codes or developed 
+platform links into the PowerPoint. 
+�� 14. Can a team submit more than one project if it fits different themes? 
+Answer: No. Each team can submit only one entry , and that entry must clearly specify which theme 
+category it addresses. 
+�� 15. What technologies or tools can we use to build our simulation? 
+Answer: You are free to choose tools based on your technical preferences. Some tools include: 
+• Unity or Unreal Engine for immersive 3D simulations 
+• WebXR, A-Frame, or Three.js for web-based applications 
+• AI integration via TensorFlow, Dialogflow 
+• AR/VR development with ARKit, ARCore 
+ 
+ 
+ 
+===== PAGE 3 =====
+�� 16. What happens if a team member drops out during the project development? 
+Answer: Team composition cannot be changed after project submission. If someone leaves before 
+submission, you may reconfigure your team as long as it meets the 1– 5 member limit. Final member 
+list must be confirmed at the time of submission. 
+�� 17. Are there any preferred programming languages or platforms for development? 
+Answer: No preference is given. You may use any language, engine, or platform  (e.g., Unity with 
+C#, Unreal with C++, WebXR with JavaScript) that best supports your simulation’s educational goals. 
+Judges evaluate the impact, not the tech stack. 
+�� 18. Can the simulation be a collaborative, multi-user experience? 
+Answer: Yes. While not required, collaborative or multiplayer simulations  are encouraged if they 
+enhance learning, accessibility, or interactivity. 
+�� 19. Is there a minimum duration or complexity for the simulation? 
+Answer: There is no minimum complexity , but the simulation must be functional enough to 
+demonstrate its intended purpose and learning outcomes. The video should clearly show how a user 
+interacts with and learns from the system. 
+�� 20. Can we submit a prototype that uses external services or APIs? 
+Answer: Yes, external services (e.g., OpenAI, Firebase, or Map APIs) are acceptable as long as your 
+submission is original and does not violate any third-party licensing. 
+�� 21. Will there be mentorship or support during the challenge? 
+Answer: Yes, registered participants will have access to a Knowledge-Sharing Webinar Series, where 
+experts will present tools, best practices, and case studies. This is an excellent opportunity to ask 
+questions and refine your simulation design. 
+�� 22. Are there expectations for accessibility and inclusivity in our design? 
+Answer: Yes. One of the judging criteria includes sustainability, accessibility, and ethical 
+considerations (10%). Designing for users with diverse needs is highly encouraged and may positively 
+influence your overall score. 
+ 

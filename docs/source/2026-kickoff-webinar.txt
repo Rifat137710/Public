@@ -1,0 +1,471 @@
+
+===== PAGE 1 =====
+Simulation Challenge 2026 Kick-Off Webinar: 
+General Overview and Participation Guide
+Polat Goktas, PhD
+Chair, IEEE Young Professionals Innovation Hub Subcommittee
+Competition Chair, 2025 & 2026 IEEE Metaverse Grand Challenge for Simulation-Based Learning
+Sunday, 14 June 2026
+===== PAGE 2 =====
+
+===== PAGE 3 =====
+What is the Metaverse ?
+A shared, immersive, and persistent 3D virtual space
+•Users interact in real time via avatars and digital objects
+•Built on technologies like:
+•
+ Internet & cloud computing
+•
+ Virtual / Augmented Reality (VR/AR)
+•
+ Artificial Intelligence (AI)
+•
+ Blockchain & digital assets
+Key Applications:
+•
+ Social Interaction: Virtual communities and events
+•
+ Gaming: Interactive, multiplayer environments
+•
+ Education & Training: Simulated learning and virtual classrooms
+•
+ Professional Collaboration: Virtual offices and 3D workspaces
+The metaverse can mirror the real 
+world or create entirely new digital 
+realities, transforming how we live, 
+learn, and connect.
+===== PAGE 4 =====
+
+===== PAGE 5 =====
+Metaverse in Education: Real-World Examples
+VictoryXR: Digital Twin Campuses
+• VictoryXR creates “digital twin” campuses, offering virtual replicas of real-world institutions.
+• These environments include interactive classrooms, laboratories, and libraries, accessible via VR
+headsets or standard web browsers.
+• Features like AI-driven avatars and virtual simulations enhance the learning experience.
+Source: https://www.victoryxr.com/metaversity/
+===== PAGE 6 =====
+Metaverse in Education: Real-World Examples
+Labster: Virtual Science Laboratories
+• Labster provides interactive virtual labs for subjects like biology, chemistry, and physics.
+• Students can conduct experiments in a risk-free environment, allowing for exploration of
+complex scientific concepts.
+• This platform is particularly beneficial for institutions lacking physical lab resources.
+Source: https://www.labster.com/
+
+===== PAGE 7 =====
+Metaverse in Education: Real-World Examples
+Google Expeditions: Virtual Field Trips
+• Google Expeditions enabled students to embark on virtual field trips to museums, historical
+sites, and natural wonders worldwide.
+• Using VR headsets (Google Cardboard), learners could explore over 900 destinations, enhancing
+cultural understanding and engagement.
+• Although the standalone app was discontinued in 2021, its content has been integrated into
+Google Arts & Culture.
+Source: https://sites.google.com/view/virtuarealities/vr-resources/google-expeditions
+
+===== PAGE 8 =====
+Metaverse in Education: Real-World Examples
+Mondly VR: Language Immersion
+• Mondly VR offers immersive language learning
+experiences by simulating real-life conversations
+with virtual characters.
+• This approach enhances pronunciation,
+vocabulary, and conversational skills in a
+contextual setting.
+• Available in multiple languages, it is a valuable
+tool for both beginners and advanced learners.
+Source: https://www.mondly.com/ 
+
+===== PAGE 9 =====
+Metaverse in Education: Real-World Examples
+zSpace: Augmented Reality in STEM Education
+• zSpace provides AR/VR learning stations that allow students to interact with 3D models in subjects
+like anatomy, physics, and engineering.
+• The platform combines head-tracking technology with a stylus for an interactive learning experience
+without the need for VR headsets.
+• Widely adopted in K–12 and higher education institutions.
+Source: https://zspace.com/
+
+===== PAGE 10 =====
+Metaverse in Education – Real-World Examples
+zSpace: Augmented Reality in STEM Education
+• zSpace provides AR/VR learning stations that allow students to interact with 3D models in subjects
+like anatomy, physics, and engineering.
+• The platform combines head-tracking technology with a stylus for an interactive learning experience
+without the need for VR headsets.
+• Widely adopted in K–12 and higher education institutions.
+Source: https://zspace.com/
+The integration of metaverse 
+technologies in education fosters 
+immersive, interactive, and accessible 
+learning environments, bridging the gap 
+between theoretical knowledge and 
+practical application.
+===== PAGE 11 =====
+Metaverse in Healthcare: Real-World Examples
+1. Medical Training Simulations
+• Implementation: Virti offers VR-based training for medical professionals to practice procedures.
+• Technologies Used: VR simulations, AI analytics, and haptic feedback devices.
+Source: https://www.virti.com/
+2. Remote Surgical Assistance
+• Implementation: Proximie enables surgeons to collaborate remotely using AR technology.
+• Technologies Used: Augmented reality, real-time video streaming, and collaborative tools.
+Source: https://www.proximie.com/
+===== PAGE 12 =====
+Metaverse in Healthcare: Real-World Examples
+3. Virtual Therapy and Rehabilitation
+• Implementation: Immersive Rehab provides VR-based physical therapy programs for patients.
+• Technologies Used: Motion tracking, VR environments, and personalized exercise routines.
+Source: https://immersiverehab.com/
+
+===== PAGE 13 =====
+
+===== PAGE 14 =====
+Tools & Platforms for Metaverse Development
+1. Game Engines
+• Unity: A versatile game engine supporting C# scripting, widely used for creating 3D environments and
+interactive experiences
+ Unity: https://unity.com/
+• Unreal Engine 5: Known for high-fidelity graphics and real-time rendering, it uses C++ and the
+Blueprint visual scripting system.
+ Unreal Engine: https://www.unrealengine.com/en-US
+
+===== PAGE 15 =====
+Tools & Platforms for Metaverse Development
+2. Programming Languages
+• C#: Used primarily with Unity for scripting game logic
+and interactions.
+• C++: Employed with Unreal Engine for performance-
+critical applications.
+• JavaScript: Utilized in web-based metaverse
+platforms and for scripting in WebXR applications.
+• Python: Data analytics or visualization purpose.
+
+===== PAGE 16 =====
+Tools & Platforms for Metaverse Development
+3. 3D Modeling and Animation Tools
+• Blender: An open-source 3D creation suite supporting modeling, rigging, animation, simulation, 
+rendering, and more.
+Blender: https://www.blender.org/
+• Autodesk Maya: A professional 3D software for creating realistic characters and blockbuster -worthy 
+effects.
+Maya: https://www.autodesk.com/products/maya/overview
+
+===== PAGE 17 =====
+Tools & Platforms for Metaverse Development
+4. Virtual Reality (VR) and/or Augmented Reality (AR)
+Development
+• VRTK (VR Toolkit): A collection of useful, reusable 
+solutions to common problems found when building VR 
+solutions.
+VRTK: https://github.com/ExtendRealityLtd/VRTK
+• ARCore and ARKit: Google’s and Apple’s platforms for 
+building AR applications on Android and iOS, 
+respectively.
+ARCore | ARKit: https://developers.google.com/ar; 
+https://developer.apple.com/augmented-reality/
+
+===== PAGE 18 =====
+Tools & Platforms for Metaverse Development
+5. Web-Based Metaverse Frameworks
+• A-Frame: A web framework for 
+building virtual reality experiences, 
+based on HTML and JavaScript.
+A-Frame: https://aframe.io/
+• Three.js: A JavaScript library that 
+makes creating 3D content in the 
+browser straightforward.
+Three.js: https://threejs.org/
+
+===== PAGE 19 =====
+Tools & Platforms for Metaverse Development
+6. Blockchain and Smart Contract Platforms
+• Ethereum: A decentralized platform for building and deploying smart contracts and dApps.
+Ethereum: https://ethereum.org/en/
+• Solidity: A programming language for writing smart contracts on Ethereum.
+Solidity: https://docs.soliditylang.org/en/v0.8.30/
+
+===== PAGE 20 =====
+Further Reading and Tutorials
+• Building a Metaverse Platform: Tools & Frameworks Guide
+An in-depth guide covering essential steps and tools for creating a metaverse platform.
+Read the guide: https://github.com/M3-org/awesome-metaverse
+• Metaverse Development Tools
+A comprehensive list of tools to assist developers in building, testing, and deploying 
+metaverse applications.
+Explore the tools: https://github.com/topics/metaverse-tool?o=asc&s=stars
+• How to Develop for Metaverse? Skills, Technologies, Tools
+An article discussing the necessary skills and technologies for metaverse development.
+Learn more: https://link.springer.com/article/10.1007/s10639-023-12167-9
+===== PAGE 21 =====
+Further Reading and Tutorials
+• Building a Metaverse Platform: Tools & Frameworks Guide
+An in-depth guide covering essential steps and tools for creating a metaverse platform.
+Read the guide: https://github.com/M3-org/awesome-metaverse
+
+===== PAGE 22 =====
+Further Reading and Tutorials
+• Building a Metaverse Platform: Tools & Frameworks Guide
+An in-depth guide covering essential steps and tools for creating a metaverse platform.
+Read the guide: https://github.com/M3-org/awesome-metaverse
+
+===== PAGE 23 =====
+ieee.org
+The professional home for the engineering and technology community worldwideIEEE PROPRIETARY – for IEEE members and staff
+2025 IEEE Metaverse Grand Challenge for Simulation-
+Based Learning
+23
+
+===== PAGE 24 =====
+Strong expression of interest with 131 people 
+from 24 countries
+===== PAGE 25 =====
+2025 IEEE Metaverse Grand Challenge - Resources
+
+===== PAGE 26 =====
+2025 IEEE Metaverse Grand Challenge - Resources
+
+===== PAGE 27 =====
+2025 IEEE Metaverse Grand Challenge - Resources
+
+===== PAGE 28 =====
+2025 IEEE Metaverse Grand Challenge - First Place Winner
+
+===== PAGE 29 =====
+2025 IEEE Metaverse Grand Challenge - First Place Winner
+
+===== PAGE 30 =====
+2025 IEEE Metaverse Grand Challenge - First Place Winner
+
+===== PAGE 31 =====
+2025 IEEE Metaverse Grand Challenge - First Place Winner
+
+===== PAGE 32 =====
+2025 IEEE Metaverse Grand Challenge - Second Place Winner
+
+===== PAGE 33 =====
+BroncoVerse
+Digital Logic Labs are currently run 
+in-person or remote.
+In-person labs provide hands-on
+hardware experience but require
+physical setup and access.
+Approach: We built a VR-based lab 
+that bridges these gaps, combining the 
+authenticity of physical labs with the 
+accessibility of remote learning.
+Asynchronous labs are more 
+accessible but limit authentic, hands-
+on practice and timely feedback. 
+By: Alan Heng, Jennifer Collazo Fajardo, Jonathan Kwong, Mohul Sarkar, Nathan D. Bernal
+Project Achievements:
+Realistic components
+Real-time tailored help
+Accurate wiring behavior
+Impact: Expand into ECE summer 
+courses, giving students immersive 
+hands-on practice from home.
+Extend beyond digital logic to minimize 
+e-waste and promote hardware equity.
+Model complex, high-risk systems 
+without physical danger or cost.
+Capture tailored data: time per
+component, error types, hint usage, 
+logged directly into a database.
+Live Demo Screenshots
+===== PAGE 34 =====
+2025 IEEE Metaverse Grand Challenge - Second Place Winner
+
+===== PAGE 35 =====
+2025 IEEE Metaverse Grand Challenge - Second Place Winner
+
+===== PAGE 36 =====
+
+===== PAGE 37 =====
+ieee.org
+The professional home for the engineering and technology community worldwideIEEE PROPRIETARY – for IEEE members and staff
+2026 IEEE Metaverse Grand Challenge for Simulation-
+Based Learning
+37
+
+===== PAGE 38 =====
+Website
+Submit Your Project
+
+===== PAGE 39 =====
+Competition Overview
+ Website
+Submit Your Project
+===== PAGE 40 =====
+How to Participate
+Submit your project and supporting materials through the official competition portal:
+https://metaversereality.ieee.org/competition
+All submissions must be received before the deadline to be considered for evaluation.
+Team Guidelines:
+•Teams may consist of 1 to 5 individuals.
+•Each participant may only join one team.
+•A complete list of team members must be included with the project submission.
+•Team members cannot be changed after the submission is finalized.
+Submission Deadline: August 15, 2026
+===== PAGE 41 =====
+Challenge Overview: Theme Categories
+Simulation-Based Approach:
+Teams will have the
+ creative
+ freedom to develop immersive simulations that model key processes
+and innovations for simulation-learning purpose. The focus is on designing engaging, interactive
+simulations that can enhance the learning and training experience for YPs and students.
+
+===== PAGE 42 =====
+Challenge Overview: Theme Categories
+
+===== PAGE 43 =====
+Challenge Overview: 
+Inspiration for Your Ideas
+
+===== PAGE 44 =====
+Further Reading and Tutorials
+• Building a Metaverse Platform: Tools & Frameworks Guide
+An in-depth guide covering essential steps and tools for creating a metaverse platform.
+Read the guide: https://github.com/M3-org/awesome-metaverse
+• Metaverse Development Tools
+A comprehensive list of tools to assist developers in building, testing, and deploying 
+metaverse applications.
+Explore the tools: https://github.com/topics/metaverse-tool?o=asc&s=stars
+• How to Develop for Metaverse? Skills, Technologies, Tools
+An article discussing the necessary skills and technologies for metaverse development.
+Learn more: https://link.springer.com/article/10.1007/s10639-023-12167-9
+===== PAGE 45 =====
+Website
+Competition Overview: Submission Format
+Official Contest Rules
+ Submit Your Project
+
+===== PAGE 46 =====
+Website
+Competition Overview: Judging Criteria
+
+===== PAGE 47 =====
+Competition Overview: Prizes
+
+===== PAGE 48 =====
+Upcoming Events, Resources & Support
+Open Office Hours (June-August 2026)
+Regular online mentoring and Q&A sessions for participants. Those interested in
+scheduling a one-on-one discussion or seeking additional guidance are welcome to
+contact me at polatgoktas@ieee.org
+IEEE Smart Cities Expert Webinar (Planning)
+A special webinar on digital twins, smart cities, sustainability simulations, and
+immersive technologies. Details will be announced once finalized.
+Resource & Development Tips Series
+Recommended tools, simulation development guidance, and educational design tips
+shared through our social media channels.
+===== PAGE 49 =====
+Frequently Asked Questions (FAQs)
+1. Who can participate in the competition?
+Answer: Participants must be either students at accredited universities or Young Professionals (YPs) who
+received their first professional degree within the past 15 years. Entrants must be at least 18 years old and
+reside in a country where participation is legally permitted.
+2. How many members can a team have?
+Answer: Teams can have 1 to 5 members. Each person can participate in only one team. Teams must be
+finalized at the time of submission and cannot be modified afterward.
+4. What are the three available theme categories?
+Answer:
+•Healthcare Applications in Digital Learning
+•Sustainable Smart Cities and Urban Innovation
+•Advanced Learning in Educational/Classroom Environments
+===== PAGE 50 =====
+Frequently Asked Questions (FAQs)
+4. How do we register and officially submit a project?
+Answer:
+•Submit your Team Project Submission (PowerPoint + Video) during the official submission period in 
+the                                   button.
+5. What should our submission include?
+Answer:
+•A PowerPoint presentation (max 5 slides) describing the concept, theme, and educational impact.
+•A 5-7 minute video (.mp4) demonstrating the simulation and its core features.
+
+===== PAGE 51 =====
+Frequently Asked Questions (FAQs)
+6. What are the judging criteria?
+Answer:
+Projects will be evaluated based on:
+•Simulation-based learning effectiveness (25%)
+•Creativity & innovation (20%)
+•Educational impact (20%)
+•UI/UX & engagement (15%)
+•Integration of AI/gamification (10%)
+•Sustainability & accessibility (10%)
+7. When is the submission deadline?
+Answer:
+The final deadline for project submissions is August 15, 2026, at 23:59 PM EDT.
+===== PAGE 52 =====
+Frequently Asked Questions (FAQs)
+8. Can we submit an already published or past project?
+Answer: No. Your project must be original, not previously published or submitted elsewhere. You must 
+own full rights and comply with submission rules.
+9. Can our project be a mobile or web-based simulation, or does it have to be VR/AR?
+Answer: Yes, simulations can be developed in 2D or 3D environments and may run on desktop, web,
+mobile, or immersive platforms (e.g., VR/AR). The key evaluation focus is on the interactivity,
+innovation, and learning effectiveness, not the platform.
+10. Are we allowed to use pre-built assets or open-source libraries?
+Answer: Yes, you may use publicly available assets and libraries as long as you credit the sources
+properly, and your final submission represents original integration and educational innovation.
+===== PAGE 53 =====
+Frequently Asked Questions (FAQs)
+11. What is the expected level of technical complexity?
+Answer: We encourage creative and functional prototypes. Submissions demonstrate an educationally
+valuable simulation.
+12. Will our simulation be evaluated live, or only based on our submitted materials?
+Answer: Evaluation is based entirely on the PowerPoint and video submission. Make sure your video 
+clearly showcases features, interactions, and value, as the judges will not have access to live demos. 
+13. Do we need to submit code or technical documentation?
+Answer: Your PowerPoint and video should be sufficient to explain the concept, implementation,
+technologies used, and educational value. Please incorporate your source codes or developed platform
+links into the PowerPoint.
+===== PAGE 54 =====
+Frequently Asked Questions (FAQs)
+14. Can a team submit more than one project if it fits different themes?
+Answer: No. Each team can submit only one entry, and that entry must clearly specify which theme
+category it addresses.
+15. What technologies or tools can we use to build our simulation?
+Answer: You are free to choose tools based on your technical preferences. Some tools include:
+•Unity or Unreal Engine for immersive 3D simulations
+•WebXR, A-Frame, or Three.js for web-based applications
+•AI integration via TensorFlow, Dialogflow
+•AR/VR development with ARKit, ARCore
+16. What happens if a team member drops out during the project development?
+Answer: Team composition cannot be changed after project submission. If someone leaves before 
+submission, you may reconfigure your team as long as it meets the 1–5 member limit. Final member list 
+must be confirmed at the time of submission.
+===== PAGE 55 =====
+Frequently Asked Questions (FAQs)
+17. Are there any preferred programming languages or platforms for development?
+Answer: No preference is given. You may use any language, engine, or platform (e.g., Unity with C#, 
+Unreal with C++, WebXR with JavaScript) that best supports your simulation’s educational goals. Judges 
+evaluate the impact, not the tech stack.
+18. Can the simulation be a collaborative, multi-user experience?
+Answer: Yes. While not required, collaborative or multiplayer simulations are encouraged if they
+enhance learning, accessibility, or interactivity.
+19. Is there a minimum duration or complexity for the simulation?
+Answer: There is no minimum complexity, but the simulation must be functional enough to demonstrate 
+its intended purpose and learning outcomes. The video should clearly show how a user interacts with and 
+learns from the system.
+===== PAGE 56 =====
+Frequently Asked Questions (FAQs)
+20. Can we submit a prototype that uses external services or APIs?
+Answer: Yes, external services (e.g., OpenAI, Firebase, or Map APIs) are acceptable as long as your 
+submission is original and does not violate any third-party licensing.
+21. Will there be mentorship or support during the challenge?
+Answer: Yes, registered participants will have access to a Knowledge-Sharing Webinar Series, where
+experts will present tools, best practices, and case studies. This is an excellent opportunity to ask questions
+and refine your simulation design.
+22. Are there expectations for accessibility and inclusivity in our design?
+Answer: Yes. One of the judging criteria includes sustainability, accessibility, and ethical
+considerations (10%). Designing for users with diverse needs is highly encouraged and may positively
+influence your overall score.
+===== PAGE 57 =====
+
+===== PAGE 58 =====
+Thank you for your attention
