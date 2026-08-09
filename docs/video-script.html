@@ -1,0 +1,476 @@
+<title>Bus 18 — Video Script &amp; Shot List</title>
+<style>
+  :root {
+    --paper:#F1F3F4; --surface:#FFFFFF; --surface-2:#E8ECEE;
+    --ink:#14181C; --ink-2:#4A555E; --ink-3:#74818B;
+    --rule:#D3D9DC; --rule-2:#BAC3C8;
+    --accent:#0F6E63; --accent-dim:#0F6E6318;
+    --copper:#A2551C; --copper-dim:#A2551C16;
+    --limit:#A82A20; --limit-dim:#A82A2014;
+    --shadow:0 1px 2px #14181C0F, 0 8px 24px #14181C0A;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+    --sans:ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    --mono:ui-monospace,"SF Mono",SFMono-Regular,"Cascadia Mono",Menlo,Consolas,"Liberation Mono",monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper:#0F1316; --surface:#161C20; --surface-2:#1D252A;
+      --ink:#E3E8EA; --ink-2:#A3B0B7; --ink-3:#78878F;
+      --rule:#283238; --rule-2:#3A464E;
+      --accent:#4FB3A2; --accent-dim:#4FB3A21F;
+      --copper:#D38B52; --copper-dim:#D38B521C;
+      --limit:#E58275; --limit-dim:#E5827518;
+      --shadow:0 1px 2px #00000040, 0 8px 24px #00000030;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper:#0F1316; --surface:#161C20; --surface-2:#1D252A;
+    --ink:#E3E8EA; --ink-2:#A3B0B7; --ink-3:#78878F;
+    --rule:#283238; --rule-2:#3A464E;
+    --accent:#4FB3A2; --accent-dim:#4FB3A21F;
+    --copper:#D38B52; --copper-dim:#D38B521C;
+    --limit:#E58275; --limit-dim:#E5827518;
+    --shadow:0 1px 2px #00000040, 0 8px 24px #00000030;
+  }
+
+  * { box-sizing:border-box; }
+  body {
+    background:var(--paper); color:var(--ink); font-family:var(--sans);
+    font-size:16px; line-height:1.6; margin:0; padding:3rem 1.25rem 6rem;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap { max-width:56rem; margin:0 auto; }
+
+  .masthead { border-top:3px solid var(--accent); padding-top:1.4rem; margin-bottom:2.4rem; }
+  .kicker {
+    font-family:var(--mono); font-size:0.7rem; letter-spacing:0.16em;
+    text-transform:uppercase; color:var(--accent); margin:0 0 0.7rem;
+  }
+  h1 {
+    font-family:var(--serif); font-size:clamp(2rem,5vw,2.9rem); line-height:1.08;
+    font-weight:600; margin:0 0 0.7rem; text-wrap:balance; letter-spacing:-0.012em;
+  }
+  .standfirst { font-family:var(--serif); font-size:1.14rem; color:var(--ink-2); margin:0; max-width:42rem; }
+  .meta {
+    display:flex; flex-wrap:wrap; gap:0.5rem 1.6rem; margin-top:1.5rem;
+    font-family:var(--mono); font-size:0.73rem; color:var(--ink-3); letter-spacing:0.04em;
+  }
+  .meta b { color:var(--ink-2); font-weight:500; }
+
+  h2 {
+    font-family:var(--mono); font-size:0.72rem; letter-spacing:0.15em; text-transform:uppercase;
+    color:var(--accent); margin:3.2rem 0 1.1rem; padding-bottom:0.5rem; border-bottom:1px solid var(--rule);
+  }
+  h3 { font-family:var(--serif); font-size:1.22rem; font-weight:600; margin:0 0 0.4rem; line-height:1.25; text-wrap:balance; }
+  p { margin:0 0 0.85rem; }
+  p:last-child { margin-bottom:0; }
+  .lede { color:var(--ink-2); max-width:44rem; }
+
+  .alarm {
+    border:1px solid var(--limit); border-left-width:4px; background:var(--limit-dim);
+    border-radius:3px; padding:1.3rem 1.5rem; margin:2rem 0;
+  }
+  .alarm .kicker { color:var(--limit); }
+  .alarm h3 { color:var(--limit); }
+  .alarm p { color:var(--ink-2); }
+  .alarm strong { color:var(--ink); }
+
+  /* -------- the shot spine -------- */
+  .shot { display:grid; grid-template-columns:5.6rem 1fr; gap:0 1.5rem; position:relative; padding-bottom:2rem; }
+  .shot::before {
+    content:""; position:absolute; left:5.6rem; top:0.5rem; bottom:0; width:1px;
+    background:var(--rule); transform:translateX(-0.75rem);
+  }
+  .shot:last-child::before { display:none; }
+  .tc {
+    font-family:var(--mono); font-size:0.8rem; color:var(--accent); text-align:right;
+    padding-top:0.12rem; font-variant-numeric:tabular-nums; position:relative;
+  }
+  .tc::after {
+    content:""; position:absolute; right:-0.98rem; top:0.5rem; width:7px; height:7px;
+    border-radius:50%; background:var(--accent);
+  }
+  .dur { display:block; color:var(--ink-3); font-size:0.67rem; letter-spacing:0.05em; margin-top:0.1rem; }
+  .shot-body > * + * { margin-top:0.75rem; }
+
+  .vo {
+    font-family:var(--serif); font-size:1.06rem; color:var(--ink);
+    border-left:2px solid var(--accent); padding:0.15rem 0 0.15rem 1rem; margin:0;
+  }
+  .screen {
+    background:var(--surface-2); border-radius:3px; padding:0.7rem 0.9rem;
+    font-size:0.88rem; color:var(--ink-2);
+  }
+  .screen .tag, .record .tag {
+    font-family:var(--mono); font-size:0.62rem; letter-spacing:0.14em; text-transform:uppercase;
+    display:block; margin-bottom:0.35rem;
+  }
+  .screen .tag { color:var(--ink-3); }
+  .record {
+    background:var(--copper-dim); border:1px solid var(--copper); border-radius:3px; padding:0.8rem 1rem;
+  }
+  .record .tag { color:var(--copper); }
+  .record p { color:var(--ink-2); margin:0; }
+  code, .inline-code {
+    font-family:var(--mono); font-size:0.86em; background:var(--surface-2);
+    padding:0.08em 0.36em; border-radius:3px; color:var(--ink);
+  }
+  .blank {
+    display:inline-block; min-width:3rem; border-bottom:1px solid var(--copper);
+    color:var(--copper); font-family:var(--mono); text-align:center;
+  }
+
+  .scroll { overflow-x:auto; margin:1.1rem 0; }
+  table { width:100%; border-collapse:collapse; font-size:0.9rem; min-width:30rem; }
+  th {
+    text-align:left; font-family:var(--mono); font-size:0.63rem; letter-spacing:0.1em;
+    text-transform:uppercase; color:var(--ink-3); font-weight:600;
+    border-bottom:1px solid var(--rule-2); padding:0 0.7rem 0.5rem 0; vertical-align:bottom;
+  }
+  td { border-bottom:1px solid var(--rule); padding:0.55rem 0.7rem 0.55rem 0; color:var(--ink-2); vertical-align:top; }
+  td:first-child { color:var(--ink); }
+  .num { font-family:var(--mono); font-variant-numeric:tabular-nums; white-space:nowrap; text-align:right; }
+
+  ul, ol { margin:0 0 0.9rem; padding-left:1.25rem; color:var(--ink-2); }
+  li { margin-bottom:0.35rem; }
+  li::marker { color:var(--ink-3); }
+  strong { color:var(--ink); }
+  a { color:var(--accent); }
+
+  footer {
+    margin-top:3.6rem; padding-top:1.3rem; border-top:1px solid var(--rule);
+    font-size:0.84rem; color:var(--ink-3);
+  }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+  @media (max-width:620px) {
+    .shot { grid-template-columns:1fr; gap:0.35rem; }
+    .shot::before { display:none; }
+    .tc { text-align:left; }
+    .tc::after { display:none; }
+  }
+  @media print {
+    body { background:#fff; padding:0; font-size:11.5pt; }
+    .shot, .alarm, .record { break-inside:avoid; }
+    h2 { break-after:avoid; }
+  }
+</style>
+
+<div class="wrap">
+
+  <header class="masthead">
+    <p class="kicker">Bus 18 · submission video · script and shot list</p>
+    <h1>Six minutes thirty, and nobody will click your link</h1>
+    <p class="standfirst">
+      Evaluation is entirely on five slides and this video — the judges never open the live
+      app. Everything the entry is worth has to survive inside these 390 seconds. Read the
+      whole thing once before you record a single line.
+    </p>
+    <div class="meta">
+      <span><b>Target</b> 6:30 of a 5–7 min window</span>
+      <span><b>Narration</b> ~950 words at 150 wpm</span>
+      <span><b>Format</b> MP4, 1920×1080</span>
+      <span><b>Capture</b> 1440×900 browser window</span>
+    </div>
+  </header>
+
+  <div class="alarm">
+    <p class="kicker">Why this document exists before the slides</p>
+    <h3>The script is a spec for the app, not a narration of it</h3>
+    <p>
+      If a shot below turns out to be impossible, that is a <strong>build task discovered
+      today</strong> rather than a disaster discovered on Friday with your microphone
+      already set up. Walk the six stages with this open and check every
+      <em>on screen</em> block against what actually happens. Anything that does not match,
+      tell me — there is still time to change the app.
+    </p>
+  </div>
+
+  <h2>Before you record</h2>
+  <ul>
+    <li>Browser at <strong>1440 × 900</strong>, full screen, no bookmarks bar, no extensions visible.</li>
+    <li>Reload so you start at stage 1 with an empty map.</li>
+    <li>Capture screen and voice <strong>separately</strong>. Screen first, silent, as many takes as you need; voice afterwards against the cut. Trying to do both at once is how six-minute videos take nine hours.</li>
+    <li>The day speed buttons are your edit tool — <code>×64</code> for the parts nobody needs to watch in real time, <code>×4</code> for the moments that matter.</li>
+    <li>Every number below is what the build currently produces. If a take shows something different, the number changed and this script is wrong — tell me rather than reading the old figure.</li>
+  </ul>
+
+  <h2>The cut</h2>
+
+  <div class="shot">
+    <div class="tc">0:00<span class="dur">25 s</span></div>
+    <div class="shot-body">
+      <h3>Cold open — the lights go out</h3>
+      <div class="screen">
+        <span class="tag">On screen</span>
+        Village only, no cursor. Evening, around 19:00, safety layer off. All four stations
+        pulled hard into charge. The far end of the feeder dims and the lamps at bus 18
+        begin to flicker. Hold on the dark end for a beat. Cut to title card:
+        <strong>Bus 18</strong>.
+      </div>
+      <p class="vo">
+        "This is a village at the end of a long electricity line. Two hundred and eighty-seven
+        electric cars just came home and plugged in. Nobody did anything wrong. The lights are
+        going out anyway."
+      </p>
+      <div class="record">
+        <span class="tag">Direction</span>
+        <p>Say nothing for the first four seconds. Let it get dark first.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="shot">
+    <div class="tc">0:25<span class="dur">35 s</span></div>
+    <div class="shot-body">
+      <h3>The problem, and the theme</h3>
+      <div class="screen">
+        <span class="tag">On screen</span>
+        Pull back to the whole screen. Cursor traces the feeder from the substation outward,
+        then rests on the voltage profile showing the sag below the red line.
+      </div>
+      <p class="vo">
+        "Rural feeders were built for lights and fans, not for cars. The further you are from
+        the substation, the worse it gets — and the people at the far end have no idea their
+        voltage is anyone's decision. Bus 18 is a browser trainer that puts you in charge of
+        that decision, on the IEEE thirty-three bus benchmark feeder, with real power flow
+        running underneath. Sustainable Smart Cities and Urban Innovation."
+      </p>
+      <div class="record">
+        <span class="tag">Required</span>
+        <p>The theme category must be said aloud and appear on screen. It is a submission requirement.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="shot">
+    <div class="tc">1:00<span class="dur">65 s</span></div>
+    <div class="shot-body">
+      <h3>Stage 1 — you drive, and you fail</h3>
+      <div class="screen">
+        <span class="tag">On screen</span>
+        Stage 1 brief card. Then: <strong>grab a charging station in the village itself and
+        drag it down.</strong> Show the number moving in the street card and the console
+        slider following. Run the day at <code>×16</code>. Evening arrives, the far end
+        collapses. Land on the reveal card.
+      </div>
+      <p class="vo">
+        "You get four charging stations and no help. Drag one where it stands — this is the
+        actual feeder, so the moment you pull power the voltage everywhere else moves. Charge
+        too hard and the far end goes dark. Charge too little and people go home with empty
+        batteries, and every one of those cars had enough time plugged in to be full. So
+        that's a decision you made, not a shortage. Almost nobody threads it on the first
+        run. That failure is the point — you cannot be impressed by a solution to a problem
+        you have not personally felt."
+      </p>
+      <div class="record">
+        <span class="tag">Direction</span>
+        <p>
+          Use the village drag, not the sliders. It is the strongest hands-on moment in the
+          entry and it is the thing a judge has not seen before.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="shot">
+    <div class="tc">2:05<span class="dur">40 s</span></div>
+    <div class="shot-body">
+      <h3>Stages 2 and 3 — the two corners</h3>
+      <div class="screen">
+        <span class="tag">On screen</span>
+        Uncoordinated at <code>×64</code>, dot lands on the map. Then droop at
+        <code>×64</code>, second dot. Cut to the map with both dots and the learner's own.
+      </div>
+      <p class="vo">
+        "Here is what happens today with no coordination: everyone charges at full power on
+        plug-in. Service nought point nine eight three — nearly everybody charged — and
+        thirty-two percent of the day spent illegal. Now the standard answer, the volt-watt
+        droop curve from IEEE 1547, in every inverter sold. Violations fall to nought point
+        nought four five. Service collapses to nought point five six. A rule that only knows
+        its own bus protects the grid by refusing to use it."
+      </p>
+    </div>
+  </div>
+
+  <div class="shot">
+    <div class="tc">2:45<span class="dur">50 s</span></div>
+    <div class="shot-body">
+      <h3>Stage 4 — the credibility beat</h3>
+      <div class="screen">
+        <span class="tag">On screen</span>
+        SAC-Lag runs. Its dot lands <strong>below and to the right</strong> of droop. Hold on
+        the map. Zoom the two dots if your editor allows.
+      </div>
+      <p class="vo">
+        "So put a neural network on it. Deep reinforcement learning, full system state,
+        millions of steps of training. It lands here — worse on safety and worse on service
+        than a rule written down in a standards document. There is no axis on which it wins.
+        This is the finding the underlying research reported, and it is the reason this
+        trainer exists. Intelligence was not the missing ingredient. The agent could see
+        everything about the system except how its own actions move voltage through the
+        network."
+      </p>
+      <div class="record">
+        <span class="tag">Direction</span>
+        <p>Slow down here. This is the beat that earns the entry its credibility — it is a result that surprises experts.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="shot">
+    <div class="tc">3:35<span class="dur">45 s</span></div>
+    <div class="shot-body">
+      <h3>Stage 5 — the physics goes back in</h3>
+      <div class="screen">
+        <span class="tag">On screen</span>
+        SafeSAC runs. Its dot lands up and to the left of everything. Then toggle
+        <strong>Safety projection OFF</strong> and re-run so the dot moves — showing how hard
+        the layer had been working.
+      </div>
+      <p class="vo">
+        "Same backbone, same training budget, one addition. At every control step a safety
+        layer measures how much each station actually moves the voltage at every bus on the
+        live network, and projects the request onto the nearest command the feeder can
+        survive. Nought point nought one six violations, nought point five five service — it
+        beats the plain agent by nearly thirty points of service at lower risk. And that layer
+        was running while it trained, so this is a different learned policy, not the old one
+        behind a filter."
+      </p>
+    </div>
+  </div>
+
+  <div class="shot">
+    <div class="tc">4:20<span class="dur">55 s</span></div>
+    <div class="shot-body">
+      <h3>Stage 6 — the trap</h3>
+      <div class="screen">
+        <span class="tag">On screen</span>
+        The procurement table: violation rate and net cost only. Cursor hovers the winning row
+        — best safety, only profit — and clicks <strong>Deploy this</strong>. The third column
+        appears: <strong>0.000</strong>. Hold on that zero.
+      </div>
+      <p class="vo">
+        "Now you're the engineer on the procurement call. Two columns, the two a manager
+        always asks for: how often does it break the rules, and what does it cost. One
+        controller has the best safety record on the board and is the only one that makes
+        money. Most people deploy it. Here is the column nobody asked for. It served nobody.
+        Not one vehicle, all day. It earned a perfect safety score by never operating — and
+        in the field you would never find out, because reality does not hand you the
+        counterfactual. Whenever you are shown a safety number, ask what it cost in service."
+      </p>
+      <div class="record">
+        <span class="tag">Direction</span>
+        <p>Two full seconds of silence on the <code>0.000</code> before the next line. This is the entry's thesis.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="shot">
+    <div class="tc">5:15<span class="dur">30 s</span></div>
+    <div class="shot-body">
+      <h3>Debrief and the energy story</h3>
+      <div class="screen">
+        <span class="tag">On screen</span>
+        Debrief screen. Scroll past the map and findings to the energy finding, then the eight
+        objectives, then click <strong>Save one-page summary</strong> and show the exported
+        document opening.
+      </div>
+      <p class="vo">
+        "The debrief puts every run in one frame and names the eight objectives explicitly.
+        Including one that comes free from the physics: losses rise with the square of
+        current, so coordinating the fleet burned six kilowatt-hours in the wires per driver
+        served, against twelve for uncoordinated charging. Efficiency is not a fourth
+        objective competing with the other two. It falls out of getting the first two right."
+      </p>
+    </div>
+  </div>
+
+  <div class="shot">
+    <div class="tc">5:45<span class="dur">30 s</span></div>
+    <div class="shot-body">
+      <h3>Evidence</h3>
+      <div class="screen">
+        <span class="tag">On screen</span>
+        A single clean results card. Numbers only — no app footage competing with them.
+      </div>
+      <p class="vo">
+        "We ran this with <span class="blank">n</span> engineers and engineering students.
+        Concept scores went from <span class="blank">pre</span> to
+        <span class="blank">post</span> out of ten. System Usability Scale
+        <span class="blank">SUS</span>, against an average of sixty-eight. And
+        <span class="blank">x</span> of <span class="blank">n</span> deployed the controller
+        that served nobody — which is the point. The misconception is not hypothetical. It is
+        sitting in the population being taught."
+      </p>
+      <div class="record">
+        <span class="tag">Blocked on the tester sessions</span>
+        <p>
+          Every blank is filled from the tally sheet in the facilitator pack. Record this shot
+          <strong>last</strong>. If the pick rate comes out low, we say the real number and
+          change the sentence — a study that can only come out one way is not a study.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="shot">
+    <div class="tc">6:15<span class="dur">15 s</span></div>
+    <div class="shot-body">
+      <h3>Close</h3>
+      <div class="screen">
+        <span class="tag">On screen</span>
+        The village at dusk with the lights holding steady. URL on screen, large, held long
+        enough to read twice.
+      </div>
+      <p class="vo">
+        "No headset, no install, no account. It runs in a browser on a phone, which matters
+        when the people who most need to understand weak feeders are standing next to one.
+        Bus 18."
+      </p>
+    </div>
+  </div>
+
+  <h2>Numbers as the build currently produces them</h2>
+  <p class="lede">
+    Weak feeder, load scale 0.50, seed 137710. Check a take against this table before you
+    narrate a figure.
+  </p>
+  <div class="scroll">
+    <table>
+      <thead>
+        <tr><th>Controller</th><th class="num">Violations</th><th class="num">Service</th><th class="num">Line loss kWh</th><th class="num">kWh per driver served</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Uncoordinated</td><td class="num">0.319</td><td class="num">0.983</td><td class="num">3398</td><td class="num">12.0</td></tr>
+        <tr><td>Droop (IEEE 1547)</td><td class="num">0.045</td><td class="num">0.564</td><td class="num">1116</td><td class="num">6.9</td></tr>
+        <tr><td>SAC-Lag *</td><td class="num">0.057</td><td class="num">0.265</td><td class="num">1222</td><td class="num">16.1</td></tr>
+        <tr><td>SafeSAC *</td><td class="num">0.016</td><td class="num">0.554</td><td class="num">947</td><td class="num">6.0</td></tr>
+        <tr><td>SAC-Lag, strong-grid *</td><td class="num">0.002</td><td class="num">0.000</td><td class="num">—</td><td class="num">—</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="lede">
+    * Labelled stand-ins until the trained agents are exported from the notebook. If they are
+    swapped in before the shoot, <strong>every figure in the script changes</strong> and this
+    table is reissued first.
+  </p>
+
+  <div class="alarm">
+    <p class="kicker">Do not do this</p>
+    <h3>Never narrate a number the screen is not showing</h3>
+    <p>
+      A judge watching a 6:30 video with a scoring sheet will notice a mismatch, and one
+      mismatch costs more than any shot gains. If the take shows nought point nought five
+      seven and the script says nought point nought five, <strong>reshoot or change the
+      line</strong>. Do not round toward the story.
+    </p>
+  </div>
+
+  <footer>
+    Bus 18 · script drafted 8 Aug 2026 for a 15 Aug deadline · Md. Rifat Rahman, BUET EEE.
+    Rules require up to 5 slides and a 5–7 minute MP4; evaluation is on those two artifacts
+    only. Live build at <span class="inline-code">rifat137710.github.io/Public/</span>.
+  </footer>
+
+</div>
