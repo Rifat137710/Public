@@ -132,6 +132,7 @@ export default function App() {
           label,
           violationRate: totals.violationRate,
           socMet: totals.socMet,
+          lossKwh: totals.totalLossKwh,
           provenance,
           mine,
         },
@@ -241,6 +242,7 @@ export default function App() {
           label: controller.label,
           violationRate: result.violationRate,
           socMet: result.socMet,
+          lossKwh: result.totalLossKwh,
           provenance: result.provenance,
           mine: false,
         },
@@ -625,6 +627,12 @@ export default function App() {
                 <dd>${totals.netCostUsd.toFixed(0)}</dd>
               </div>
               <div className="metric">
+                <dt>Line losses</dt>
+                <dd title="Energy burned as heat in the wires. Rises with the square of current.">
+                  {totals.totalLossKwh.toFixed(0)} kWh
+                </dd>
+              </div>
+              <div className="metric">
                 <dt>Worst V</dt>
                 <dd data-state={totals.vMinPu < V_LOWER ? 'bad' : 'good'}>
                   {totals.vMinPu.toFixed(4)}
@@ -694,6 +702,7 @@ export default function App() {
             socMet: sim.finalTotals().socMet,
             netCostUsd: sim.finalTotals().netCostUsd,
             vMinPu: sim.finalTotals().vMinPu,
+            lossKwh: sim.finalTotals().totalLossKwh,
             dots,
           })}
           actionLabel={stageIndex >= STAGES.length - 1 ? 'See your debrief' : 'Next stage'}

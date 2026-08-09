@@ -23,6 +23,8 @@ export interface Dot {
   provenance: string;
   /** The learner's own attempts are drawn differently from the reference controllers. */
   mine: boolean;
+  /** Energy burned as heat in the lines across the day. */
+  lossKwh?: number;
 }
 
 interface Props {

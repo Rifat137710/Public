@@ -8,6 +8,7 @@
  * rather than asserted.
  */
 
+import { FLEET_SIZE } from '../sim/fleet.js';
 import type { Dot } from '../ui/ParetoMap.js';
 import type { Candidate } from '../ui/Leaderboard.js';
 
@@ -157,6 +158,42 @@ export function buildFindings(dots: readonly Dot[]): Finding[] {
     });
   }
 
+  // The sustainability axis. It is last because it only means anything once the learner
+  // has the safety/service trade-off in hand — and because the point is that it does not
+  // trade off against them at all. Stated per driver served, since raw kWh rewards a
+  // controller for refusing to operate.
+  const perDriver = (d: Dot | undefined): number | null => {
+    if (!d || d.lossKwh === undefined || d.socMet <= 0) return null;
+    return d.lossKwh / (d.socMet * FLEET_SIZE);
+  };
+  const uncoPer = perDriver(unco);
+  const droopPer = perDriver(droop);
+  const sacPer = perDriver(sacLag);
+  const safePer = perDriver(safeSac);
+
+  if (safePer !== null && uncoPer !== null) {
+    const lines = [
+      `Energy burned as heat in the wires, per driver actually served: uncoordinated ${uncoPer.toFixed(
+        1,
+      )} kWh${droopPer !== null ? `, droop ${droopPer.toFixed(1)}` : ''}${
+        sacPer !== null ? `, plain deep RL ${sacPer.toFixed(1)}` : ''
+      }, SafeSAC ${safePer.toFixed(1)}.`,
+    ];
+    if (sacPer !== null && droopPer !== null && sacPer > droopPer) {
+      lines.push(
+        `The plain agent is wasteful as well as dominated — it burns more per driver than the 1547 rule while serving fewer of them.`,
+      );
+    }
+    lines.push(
+      `Losses rise with the square of current, so a controller that flattens the peak is not only safer, it delivers more of the energy that was generated. Efficiency here is not a fourth objective competing with the other two — it falls out of getting the first two right.`,
+    );
+    out.push({
+      key: 'energy',
+      headline: 'Coordinating the fleet saved energy nobody had to generate',
+      body: lines.join(' '),
+    });
+  }
+
   return out;
 }
 
@@ -220,7 +257,7 @@ export function onePagerHtml(
           d.provenance === 'placeholder' ? ' *' : ''
         }</td><td class="n">${d.violationRate.toFixed(3)}</td><td class="n">${d.socMet.toFixed(
           3,
-        )}</td></tr>`,
+        )}</td><td class="n">${d.lossKwh === undefined ? '—' : d.lossKwh.toFixed(0)}</td></tr>`,
     )
     .join('\n');
 
@@ -266,7 +303,7 @@ export function onePagerHtml(
 ${findingBlocks}
 
 <h2>Every run you finished</h2>
-<table><thead><tr><th>Run</th><th class="n">Violation rate</th><th class="n">Service</th></tr></thead>
+<table><thead><tr><th>Run</th><th class="n">Violation rate</th><th class="n">Service</th><th class="n">Line loss kWh</th></tr></thead>
 <tbody>${rows}</tbody></table>
 
 <h2>The eight objectives</h2>

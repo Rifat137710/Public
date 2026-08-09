@@ -417,6 +417,24 @@ came up. It is settled, verbatim:
   still required; it just is not the evaluation surface.
 - Video length per the rules is **5–7 minutes**; the 6:30 target is in range.
 
+### Track fit — checked against the three sub-bullets on 8 Aug
+
+The rules say *"Each team must select **one** of the following **themes**"*, and every sub-bullet is
+joined by "and/or". The bullets are illustrative scope for the theme, **not a checklist to satisfy**.
+Against *Sustainable Smart Cities and Urban Innovation*:
+
+- **"virtual laboratories and/or eco-friendly innovations"** — strong fit as built. Bus 18 *is* a
+  virtual laboratory, and V2G plus rooftop PV are the eco-innovations under test.
+- **"energy-efficient systems … sustainability analytics in an educational setting"** — was the real
+  gap and is now closed. `totalLossKwh` had been computed at every step and thrown away. Measured
+  across a day at load scale 0.50, seed 137710: idle **551.7 kWh**, uncoordinated **3397.7**, droop
+  **1116.1**, SAC-Lag **1221.5**, SafeSAC **946.9**. Per driver *actually served*: SafeSAC **6.0 kWh**
+  against uncoordinated **12.0**, and plain RL **16.1** against droop **6.9** — so the plain agent is
+  wasteful as well as dominated, a third axis on the stage-4 result. Surfaced on the scorecard, in the
+  stage-2 reveal, in the debrief and in the one-page export, and guarded by three assertions.
+- **"public safety infrastructure … disaster resilience"** — not addressed, and not needed. Do not
+  bolt on an outage scenario for checkbox reasons; it would dilute the arc with days left.
+
 Consequence: interface work is justified by how well it *films* and by the 40% that is simulation
 effectiveness plus engagement — not by immersion for its own sake. The deck's slide-3 definition of
 the metaverse ("a shared, immersive, persistent 3D virtual space") describes the field, not the

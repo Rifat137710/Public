@@ -159,6 +159,7 @@ const dot = (id: string, label: string, r: EpisodeResult, mine = false) => ({
   label,
   violationRate: r.violationRate,
   socMet: r.socMet,
+  lossKwh: r.totalLossKwh,
   provenance: r.provenance,
   mine,
 });
@@ -196,7 +197,7 @@ check(
 const debriefFindings = buildFindings(dots);
 check(
   'a full run produces a finding for every beat of the arc',
-  debriefFindings.length === 5,
+  debriefFindings.length === 6,
   debriefFindings.map((f) => f.key).join(', '),
 );
 check(
@@ -238,6 +239,23 @@ check(
 check(
   'and flags the stand-ins, since it leaves the building',
   onePager.includes('labelled stand-ins'),
+);
+
+console.log('\nSustainability — the track asks for energy-efficiency analytics');
+const perDriver = (r: EpisodeResult) => r.totalLossKwh / Math.max(1e-9, r.socMet * 287);
+check(
+  'coordination cuts energy wasted in the lines, per driver served',
+  perDriver(results.safeSac) < perDriver(results.uncoordinated) / 2,
+  `SafeSAC ${perDriver(results.safeSac).toFixed(1)} kWh vs uncoordinated ${perDriver(results.uncoordinated).toFixed(1)} kWh`,
+);
+check(
+  'plain deep RL is wasteful as well as dominated',
+  perDriver(results.sacLag) > perDriver(results.droop),
+  `RL ${perDriver(results.sacLag).toFixed(1)} vs droop ${perDriver(results.droop).toFixed(1)}`,
+);
+check(
+  'the debrief only claims the energy finding when the losses are actually recorded',
+  buildFindings(dots.map((d) => ({ ...d, lossKwh: undefined }))).every((f) => f.key !== 'energy'),
 );
 
 console.log(`\n${passed} passed, ${failed} failed`);

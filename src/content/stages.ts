@@ -26,6 +26,8 @@ export interface RevealContext {
   socMet: number;
   netCostUsd: number;
   vMinPu: number;
+  /** Energy lost as heat in the lines across the day, kWh. */
+  lossKwh: number;
   /** Dots recorded so far, so a stage can compare against earlier ones. */
   dots: readonly Dot[];
 }
@@ -121,6 +123,7 @@ export const STAGES: Stage[] = [
     revealTitle: 'Service without safety',
     reveal: (ctx) => [
       `Almost everybody got charged: ${ctx.socMet.toFixed(3)}. On that axis it beats you and it beats everything you will see today.`,
+      `It also burned ${ctx.lossKwh.toFixed(0)} kWh as heat in the wires getting there. Losses rise with the square of current, so charging everyone at once does not just bend the voltage — it wastes energy that was generated and never delivered to anybody.`,
       `It also spent ${ctx.violationRate.toFixed(3)} of the day illegal, and drove the feeder end down to ${ctx.vMinPu.toFixed(4)} pu. You watched the tail of the line go dark.`,
       'That is the first corner of the trade-off: you can always have perfect service if you are willing to break the grid to get it.',
     ],
