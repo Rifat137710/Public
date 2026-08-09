@@ -1,10 +1,16 @@
 /**
- * Export the town: geometry from the feeder tree, every frame from a real episode.
+ * Export the town, and enough of the network for the viewer to solve it itself.
  *
- * The 3D mock-up must not guess how the lamps dim. Everything it draws comes out of
- * here — bus positions from `buildLayout`, and voltages, branch currents, station
- * commands and plug-in counts captured step by step out of `LiveSim` as four
- * controllers each live through the same simulated day.
+ * Two kinds of thing come out of here. The geometry and the day — bus positions from
+ * walking the feeder tree, and the background load and solar at each captured step.
+ * And the record — what each of four controllers actually commanded, step by step,
+ * living through that same day.
+ *
+ * What is deliberately *not* exported is the bus voltages. A walkable world has to
+ * answer when somebody changes something, and a table of recorded voltages cannot.
+ * So the branch impedances go out instead and the viewer runs the same
+ * backward/forward sweep, with the recorded scalars carried along so its answers can
+ * be checked against the engine rather than trusted.
  *
  *   npx tsx scripts/world-data.ts > world.json
  */
@@ -17,6 +23,8 @@ import {
   N_BUS,
   PV_BUSES,
   STATION_BUSES,
+  WEAK_SOURCE,
+  Z_BASE_OHM,
   nominalLoadPu,
 } from '../src/sim/network.js';
 import { LiveSim, PV_CAPACITY_KW } from '../src/sim/live.js';
@@ -47,56 +55,29 @@ const safeSac = placeholderController({
   usesProjection: true,
 });
 
+
 /**
- * Current magnitude in every branch, pu, accumulated from the leaves inward.
- * Reconstructed from the injections the step actually ran with, so it is the real
- * flow rather than a difference of voltage magnitudes.
+ * The background the feeder sits on at each captured step: base load times the day's
+ * shape, less whatever the rooftop solar is making. Exported once rather than per
+ * controller, because it does not depend on who is driving — and exported at all so
+ * the viewer can re-solve the network itself when a learner changes something,
+ * instead of being limited to replaying what was recorded.
  */
-function branchCurrents(step: number, stationKw: readonly number[], vMag: Float64Array): number[] {
-  const { p, q } = nominalLoadPu(loadShape(step) * SCENARIO.loadScale);
-  const solar = clearSkyFraction(step) * PV_CAPACITY_KW;
-  for (const bus of PV_BUSES) p[bus] -= solar / KW_PER_PU;
-  STATION_BUSES.forEach((bus, i) => {
-    p[bus] += stationKw[i] / KW_PER_PU;
-  });
-
-  // Children first, so a branch is only closed once everything below it is counted.
-  const parent = new Int32Array(N_BUS + 1).fill(0);
-  const rOf = new Float64Array(N_BUS + 1);
-  const xOf = new Float64Array(N_BUS + 1);
-  const Z_BASE = (12.66 * 12.66) / 10;
-  for (const b of BRANCHES) {
-    parent[b.to] = b.from;
-    rOf[b.to] = b.rOhm / Z_BASE;
-    xOf[b.to] = b.xOhm / Z_BASE;
+function captureDay() {
+  const frames: unknown[] = [];
+  for (let step = 0; step < STEPS_PER_DAY; step += FRAME_STRIDE) {
+    const { p, q } = nominalLoadPu(loadShape(step) * SCENARIO.loadScale);
+    const solar = clearSkyFraction(step) * PV_CAPACITY_KW;
+    for (const bus of PV_BUSES) p[bus] -= solar / KW_PER_PU;
+    frames.push({
+      t: step,
+      clock: clockOf(step),
+      p: Array.from(p.slice(0, N_BUS + 1), (x) => Number(x.toFixed(7))),
+      q: Array.from(q.slice(0, N_BUS + 1), (x) => Number(x.toFixed(7))),
+      solar: Number(solar.toFixed(1)),
+    });
   }
-
-  const out: number[] = [];
-  const order = [...Array(N_BUS + 1).keys()].slice(2);
-  order.sort((a, c) => depth(c) - depth(a));
-  const current = new Map<number, number>();
-  for (const bus of order) {
-    const v = Math.max(1e-6, vMag[bus]);
-    const iMag = Math.hypot(p[bus], q[bus]) / v;
-    current.set(bus, iMag);
-    const up = parent[bus];
-    if (up >= 1) {
-      p[up] += p[bus] + iMag * iMag * rOf[bus];
-      q[up] += q[bus] + iMag * iMag * xOf[bus];
-    }
-  }
-  for (const b of BRANCHES) out.push(Number((current.get(b.to) ?? 0).toFixed(5)));
-  return out;
-
-  function depth(bus: number): number {
-    let d = 0;
-    let cur = bus;
-    while (cur > 1 && d < 64) {
-      cur = parent[cur];
-      d++;
-    }
-    return d;
-  }
+  return frames;
 }
 
 function capture(controller: Controller, projection: boolean) {
@@ -113,12 +94,11 @@ function capture(controller: Controller, projection: boolean) {
     frames.push({
       t: step,
       clock: clockOf(step),
-      v: Array.from({ length: N_BUS + 1 }, (_, b) => Number(record.voltages[b].toFixed(4))),
-      i: branchCurrents(step, record.safeKw, record.voltages),
       kw: record.safeKw.map((k) => Number(k.toFixed(1))),
       raw: record.rawKw.map((k) => Number(k.toFixed(1))),
       plugged,
-      solar: Number(record.solarKw.toFixed(1)),
+      // Recorded scalars, kept so the viewer's own solver can be checked against
+      // the engine that produced them rather than trusted.
       loss: Number(record.lossKw.toFixed(2)),
       viol: record.violations,
       vmin: Number(record.vMin.toFixed(4)),
@@ -160,8 +140,16 @@ const world = {
   branches: BRANCHES.map((b) => ({
     from: b.from,
     to: b.to,
-    rPu: Number((b.rOhm / ((12.66 * 12.66) / 10)).toFixed(6)),
+    rPu: Number((b.rOhm / Z_BASE_OHM).toFixed(7)),
+    xPu: Number((b.xOhm / Z_BASE_OHM).toFixed(7)),
   })),
+  /** Substation source impedance, so the viewer builds the same weak feeder. */
+  source: {
+    rPu: Number((WEAK_SOURCE.rOhm / Z_BASE_OHM).toFixed(7)),
+    xPu: Number((WEAK_SOURCE.xOhm / Z_BASE_OHM).toFixed(7)),
+  },
+  kwPerPu: KW_PER_PU,
+  day: captureDay(),
   stations: STATION_BUSES,
   pv: PV_BUSES,
   runs: [
