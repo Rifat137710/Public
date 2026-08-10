@@ -15,7 +15,7 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 import {
-  WORLD, N_BUS, BAND_LO, EYE, ROOM, SUB, ROAD_W, place, solids, maxX, check,
+  WORLD, N_BUS, BAND_LO, BAND_HI, EYE, ROOM, SUB, ROAD_W, place, solids, maxX, check,
   solveAt, vMag, branchLossKw, STATION_SET, PALETTE,
 } from './core.js';
 import { buildCity } from './city.js';
@@ -127,18 +127,38 @@ const api = {
 
 const progress = new Progress(api);
 
+let feederTableDue = true;
+
 function resolveNow() {
   const kw = commands();
   solution = solveAt(WORLD.day[frameIndex], kw);
   city.applyVoltages(kw, manual);
   redrawInstruments();
+  feederTableDue = true;
 }
 
 let instrumentsDue = true;
 function redrawInstruments() { instrumentsDue = true; }
 
+/**
+ * The control room is enclosed, so from anywhere out in the town its screens are not
+ * merely small — they are behind a wall. Past this radius the redraw is skipped
+ * entirely and the dirty flag left standing, so walking back through the door
+ * repaints once rather than the town having paid for a board nobody could see.
+ */
+const ROOM_VIEW_RANGE = 45;
+let wasNearRoom = true;
+function nearRoom() {
+  const dx = camera.position.x - ROOM.x;
+  const dz = camera.position.z - ROOM.z;
+  return dx * dx + dz * dz < ROOM_VIEW_RANGE * ROOM_VIEW_RANGE;
+}
+
 function flushInstruments() {
   if (!instrumentsDue) return;
+  const near = nearRoom();
+  if (!near) { wasNearRoom = false; return; }
+  if (!wasNearRoom) { room.invalidate(); wasNearRoom = true; }
   instrumentsDue = false;
   const f = frame();
   room.redraw({
@@ -209,6 +229,43 @@ function nearestBus() {
 /* ================================================================== */
 /*  Panels                                                            */
 /* ================================================================== */
+
+/**
+ * What this bus would read, this minute, under each of the other controllers.
+ *
+ * The page holds every controller's recorded commands, so the counterfactual is not a
+ * remembered number from an earlier visit — it is solved here, now, on the same day and
+ * the same fleet. That is what makes stage 3's comparison an observation rather than a
+ * feat of memory.
+ *
+ * `solveAt` writes into the shared voltage buffer, so the active scenario is re-solved
+ * afterwards to put the world back exactly as it was.
+ */
+let cfCache = { key: null, rows: null };
+function counterfactuals(bus) {
+  const key = `${bus}|${frameIndex}|${manual.join(',')}`;
+  if (cfCache.key === key) return cfCache.rows;
+  const rows = WORLD.runs.map((r, i) => {
+    solveAt(WORLD.day[frameIndex], r.frames[frameIndex].kw);
+    return { label: r.label.replace(/ \(.*\)/, ''), v: vMag[bus], standIn: r.provenance === 'placeholder', index: i };
+  });
+  resolveNow();
+  cfCache = { key, rows };
+  return rows;
+}
+
+function counterfactualHtml(bus) {
+  const rows = counterfactuals(bus);
+  const mine = manual.some((m) => m !== null);
+  const body = rows.map((r) => {
+    const live = r.index === runIndex && !mine;
+    return `<div class="cfrow${live ? ' live' : ''}">
+      <span>${r.label}${r.standIn ? ' <em>*</em>' : ''}</span>
+      <span class="${r.v < BAND_LO ? 'warn' : 'ok'}">${r.v.toFixed(4)}</span></div>`;
+  }).join('');
+  return `<div class="cf"><div class="cfhead">this bus, this minute, under each controller</div>${body}
+    ${mine ? '<div class="cfnote">You have a station in manual, so none of these is what you are seeing.</div>' : ''}</div>`;
+}
 
 const rowOf = (k, v) => `<div class="row"><span>${k}</span><span>${v}</span></div>`;
 const fmtKw = (kw) => (Math.abs(kw) < 1 ? 'idle' : kw < 0 ? Math.abs(kw).toFixed(0) + ' kW drawn' : kw.toFixed(0) + ' kW returned');
@@ -287,7 +344,8 @@ function renderPanel() {
       ${rowOf('load here', p.kw + ' kW / ' + p.kvar + ' kVAr')}
       ${rowOf('hops from the substation', p.col)}
       <div class="profile">${profileSvg(t.bus)}</div>
-      <p class="hint">The whole feeder, left to right by bus number. You are the amber dot.</p>`;
+      <p class="hint">The whole feeder, left to right by bus number. You are the amber dot.</p>
+      ${counterfactualHtml(t.bus)}`;
     progress.observeMeter(t.bus, { runIndex, frameIndex, solution });
   } else if (t.kind === 'station') {
     panel.innerHTML = stationPanelHtml(t.si, t.bus, `Bus ${t.bus} · charging station`, 'Station console');
@@ -326,8 +384,22 @@ function renderPanel() {
   checkObjectives();
 }
 
-function openPanel(t) { panelTarget = t; controls.unlock(); renderPanel(); }
-function closePanel() { panelTarget = null; el('panel').hidden = true; }
+function openPanel(t) {
+  panelTarget = t;
+  controls.unlock();
+  renderPanel();
+  // Pointer lock has just been released, so focus is nowhere useful. Put it on the
+  // first thing in the panel; Escape closes and hands it back to the view.
+  const first = el('panel').querySelector('input, button:not(.close), .close');
+  if (first) first.focus();
+}
+
+function closePanel() {
+  const wasOpen = panelTarget !== null;
+  panelTarget = null;
+  el('panel').hidden = true;
+  if (wasOpen) canvas.focus();
+}
 
 /* ================================================================== */
 /*  Mission UI                                                        */
@@ -408,6 +480,39 @@ function setMetric(node, label, value, tone) {
   node.innerHTML = label + ' <b>' + value + '</b>';
 }
 
+/**
+ * Spoken position. Announced on arrival at a new bus or on crossing the band, never
+ * per frame — a live region that fires continuously is noise, not information.
+ */
+let spoken = '';
+function announce(text) {
+  if (text === spoken) return;
+  spoken = text;
+  el('announce').textContent = text;
+}
+
+/** The mimic board as a table, for reading rather than walking. */
+const feederRows = [...place.values()].map((p) => {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `<th scope="row">${p.bus}</th><td class="v"></td><td class="s"></td>` +
+    `<td class="v">${p.col}</td><td class="v">${p.kw} kW</td>`;
+  el('feederBody').appendChild(tr);
+  return { bus: p.bus, tr, v: tr.children[1], s: tr.children[2], last: null };
+});
+
+function updateFeederTable() {
+  for (const row of feederRows) {
+    const v = vMag[row.bus];
+    const shown = v.toFixed(4);
+    if (shown === row.last) continue;
+    row.last = shown;
+    row.v.textContent = shown + ' pu';
+    const out = v < BAND_LO || v > BAND_HI;
+    row.s.textContent = out ? 'outside the band' : 'inside the band';
+    row.tr.dataset.band = out ? 'out' : 'in';
+  }
+}
+
 function updateHud() {
   const inside = insideRoom();
   const bus = nearestBus();
@@ -439,7 +544,28 @@ function updateHud() {
   alarmEl.hidden = pending === 0;
   if (pending) setMetric(alarmEl, 'alarms', pending + ' unacknowledged · F', 'bad');
 
-  if (panelTarget) renderPanel();
+  announce(inside
+    ? `In the control room. Worst bus on the feeder is ${solution.vMinBus} at ${solution.vMin.toFixed(3)} per unit, ${solution.violations} outside the band.`
+    : `At bus ${bus}, ${v.toFixed(3)} per unit, ${v < BAND_LO ? 'below the floor' : 'inside the band'}. ${p.col} hops from the substation.`);
+
+  if (panelTarget) refreshPanel();
+}
+
+/**
+ * Keep an open panel current as the day advances, without yanking the keyboard out of
+ * the visitor's hands. Rebuilding innerHTML destroys focus and interrupts a drag, so a
+ * panel whose controls are in use is left alone until they are not.
+ */
+function refreshPanel() {
+  const panel = el('panel');
+  const active = document.activeElement;
+  if (panel.contains(active) && active.tagName === 'INPUT') return;
+  const activeId = panel.contains(active) ? active.id : null;
+  renderPanel();
+  if (activeId) {
+    const again = panel.querySelector('#' + CSS.escape(activeId));
+    if (again) again.focus();
+  }
 }
 
 /* ================================================================== */
@@ -459,10 +585,34 @@ controls.addEventListener('unlock', () => {
   held.clear();
 });
 
+/**
+ * The city has to be playable without a mouse.
+ *
+ * Pointer lock is the nicer way to look around and it stays the default, but it is
+ * also a hard requirement for a device nobody has. So the canvas is focusable, and
+ * while it holds focus the arrow keys turn, WASD walks, and E and F do what they do
+ * under lock. Anyone who cannot use pointer lock can still reach every objective.
+ */
+const driving = () => controls.isLocked || document.activeElement === canvas;
+const TURN = 2.2;    // radians per second
+const PITCH_LIMIT = 1.2;
+const turn = new Set();
+const TURN_KEYS = { arrowleft: 'l', arrowright: 'r', arrowup: 'u', arrowdown: 'd' };
+
+function applyTurn(dt) {
+  if (!turn.size) return;
+  const e = camera.rotation;
+  if (turn.has('l')) e.y += TURN * dt;
+  if (turn.has('r')) e.y -= TURN * dt;
+  if (turn.has('u')) e.x = Math.min(PITCH_LIMIT, e.x + TURN * dt);
+  if (turn.has('d')) e.x = Math.max(-PITCH_LIMIT, e.x - TURN * dt);
+}
+
 addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase();
-  if (['w', 'a', 's', 'd', 'shift'].includes(k)) { held.add(k); if (controls.isLocked) e.preventDefault(); }
-  if (k === 'e' && controls.isLocked) { const t = focused(); if (t) { openPanel(t); e.preventDefault(); } }
+  if (TURN_KEYS[k] && driving()) { turn.add(TURN_KEYS[k]); e.preventDefault(); }
+  if (['w', 'a', 's', 'd', 'shift'].includes(k)) { held.add(k); if (driving()) e.preventDefault(); }
+  if (k === 'e' && driving()) { const t = focused(); if (t) { openPanel(t); e.preventDefault(); } }
   if (k === 'f') {
     const n = room.ackAlarms();
     if (n) {
@@ -474,7 +624,11 @@ addEventListener('keydown', (e) => {
   }
   if (k === 'escape' && panelTarget) closePanel();
 });
-addEventListener('keyup', (e) => held.delete(e.key.toLowerCase()));
+addEventListener('keyup', (e) => {
+  const k = e.key.toLowerCase();
+  held.delete(k);
+  if (TURN_KEYS[k]) turn.delete(TURN_KEYS[k]);
+});
 
 function collide(nx, nz) {
   const R = 0.9;
@@ -497,7 +651,7 @@ const dirR = new THREE.Vector3();
 const UP = new THREE.Vector3(0, 1, 0);
 
 function move(dt) {
-  if (!controls.isLocked) return;
+  if (!driving()) return;
   let f = 0, s = 0;
   if (held.has('w')) f += 1;
   if (held.has('s')) f -= 1;
@@ -654,22 +808,31 @@ function loop(t) {
     }
   }
 
+  applyTurn(dt);
   move(dt);
   assignPool();
   city.updateVehicles(dt, { plugged: frame().plugged, stationKw: commands(), running: playing });
 
-  // Annunciator flash, held well under the WCAG 2.3.1 three-per-second threshold, and
-  // suppressed entirely for anyone who has asked for reduced motion.
-  if (!reduceMotion && t - flashT > 700) { flashT = t; room.setFlash(!(Math.floor(t / 700) % 2)); }
+  // Annunciator flash, held well under the WCAG 2.3.1 three-per-second threshold,
+  // suppressed entirely for anyone who has asked for reduced motion, and not repainted
+  // at all from out in the town where the panel is behind a wall.
+  if (!reduceMotion && nearRoom() && t - flashT > 700) {
+    flashT = t;
+    room.setFlash(!(Math.floor(t / 700) % 2));
+  }
 
-  const target = controls.isLocked ? focused() : null;
+  const target = driving() ? focused() : null;
   const prompt = el('prompt');
   el('reticle').className = 'reticle' + (target ? ' hot' : '');
   if (target && !panelTarget) { prompt.hidden = false; prompt.innerHTML = '<kbd>E</kbd>' + target.label; }
   else prompt.hidden = true;
 
-  if (controls.isLocked) updateHud();
+  if (driving()) updateHud();
   flushInstruments();
+  // The text readout is the non-visual equivalent of the mimic board, so it updates
+  // whenever the solution moves — but from the solution, not from the frame clock, so
+  // dragging a station slider shows up in it too.
+  if (feederTableDue) { feederTableDue = false; updateFeederTable(); }
   composer.render();
 
   frames++;

@@ -524,19 +524,45 @@ export function buildRoom(scene) {
   const OK = new THREE.Color(PALETTE.cool);
   const BAD = new THREE.Color(PALETTE.sick);
 
+  /**
+   * Redrawing every screen on every simulated step costs about 1.1 million canvas
+   * pixels and eight texture uploads, nine times a second — most of it discarded,
+   * because the trend wall does not change when you nudge a slider and the terminal
+   * only changes when somebody picks. Each screen carries a cheap signature of the
+   * state it actually draws, and redraws only when that signature moves.
+   *
+   * The annunciator is not in here at all: it repaints from its own state changes
+   * (a raised alarm, an acknowledgement, the flash tick) and nothing else touches it.
+   */
+  const sig = {};
+  const changed = (key, value) => {
+    if (sig[key] === value) return false;
+    sig[key] = value;
+    return true;
+  };
+
   function redraw(state) {
-    drawMimic(state);
-    drawTrend(state);
-    drawAnnunciator();
-    consoles.forEach((c) => drawConsole(c, state));
-    drawTerminal(state);
-    // Relay panel LEDs: one per bus, first 15 buses, red where the protection would
-    // be seeing an undervoltage.
+    // Voltages move every step, so the board and consoles key off the step itself
+    // plus anything a learner can change between steps.
+    const step = `${state.frameIndex}|${state.runLabel}|${state.stationKw.join(',')}`;
+    if (changed('mimic', `${step}|${state.youBus}|${state.inside}`)) drawMimic(state);
+    if (changed('trend', `${state.frameIndex}|${state.runLabel}`)) drawTrend(state);
+    if (changed('term', String(state.picked))) drawTerminal(state);
+    consoles.forEach((c) => {
+      const own = `${state.stationKw[c.si]}|${state.manual[c.si]}|${state.plugged[c.si]}|${vMag[c.bus].toFixed(4)}`;
+      if (changed('c' + c.si, own)) drawConsole(c, state);
+    });
+
+    // Relay panel LEDs: one per bus, red where the protection would be seeing an
+    // undervoltage. Colour assignment is cheap enough not to be worth gating.
     relayLeds.forEach((led, i) => {
       const bus = i + 2;
       led.material.color.copy(bus <= N_BUS && vMag[bus] < BAND_LO ? BAD : OK);
     });
   }
+
+  /** Forget the signatures, so the next redraw repaints everything. */
+  function invalidate() { for (const k of Object.keys(sig)) delete sig[k]; }
 
   function setFlash(on) {
     if (alarmFlash === on) return;
@@ -551,7 +577,7 @@ export function buildRoom(scene) {
   const spawn = { x: DESK.x + 3.4, y: EYE, z: DESK.z, yaw: Math.PI / 2 };
 
   return {
-    redraw, logEvent, ackAlarms, updateAlarms, alarmsPending, setFlash, drawSoe,
+    redraw, invalidate, logEvent, ackAlarms, updateAlarms, alarmsPending, setFlash, drawSoe,
     inside, spawn, consoles, desk: DESK, terminal,
     events,
   };

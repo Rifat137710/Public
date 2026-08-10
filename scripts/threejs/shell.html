@@ -246,6 +246,37 @@
   }
   .profile { margin-top: .8rem; }
 
+  .cf {
+    margin-top: .9rem;
+    border-top: 1px solid var(--line);
+    padding-top: .6rem;
+  }
+  .cfhead {
+    font-family: var(--mono);
+    font-size: .62rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--faint);
+    margin-bottom: .35rem;
+  }
+  .cfrow {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    font-family: var(--mono);
+    font-size: .74rem;
+    font-variant-numeric: tabular-nums;
+    padding: .22rem .35rem;
+    color: var(--dim);
+  }
+  .cfrow.live {
+    background: rgba(227, 178, 79, .14);
+    color: var(--ink);
+    box-shadow: inset 2px 0 0 var(--amber);
+  }
+  .cfrow em { color: var(--amber); font-style: normal; }
+  .cfnote { font-family: var(--mono); font-size: .66rem; color: var(--amber); margin-top: .3rem; }
+
   .candhead, .cand {
     display: grid;
     grid-template-columns: 1fr 4.2rem 4.2rem;
@@ -369,6 +400,24 @@
     outline: 2px solid var(--amber);
     outline-offset: 2px;
   }
+  /* The canvas is the game surface: when it holds focus the keys drive, so the focus
+     ring has to be obvious rather than subtle. */
+  #view:focus-visible { outline: 3px solid var(--amber); outline-offset: -3px; }
+
+  .sr {
+    position: absolute;
+    width: 1px; height: 1px;
+    margin: -1px; padding: 0; border: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  #feeder td.v { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+  #feeder td.s { font-family: var(--mono); font-size: .74rem; }
+  #feeder tr[data-band="out"] td.v, #feeder tr[data-band="out"] td.s { color: var(--warn); }
+  #feeder tr[data-band="in"] td.s { color: var(--ok); }
 
   @media (prefers-reduced-motion: reduce) {
     * { animation: none !important; transition: none !important; }
@@ -382,12 +431,17 @@
     <h1>The city</h1>
     <p>A working evening on a real distribution feeder. You start at the desk in the control room
       with four charging stations and 287 vehicles, and every lamp, meter and instrument in the city
-      is lit by the same power-flow solution. Click to look, <b>WASD</b> to walk, <b>Shift</b> to
-      run, <b>E</b> to use what you are looking at, <b>F</b> to acknowledge alarms.</p>
+      is lit by the same power-flow solution.</p>
+    <p><b>WASD</b> walks, <b>Shift</b> runs, <b>E</b> uses what you are facing, <b>F</b> acknowledges
+      alarms. Click the view to look with the mouse — or just give it focus and use the
+      <b>arrow keys</b> to turn, which needs no mouse at all. Every bus is also listed as live text
+      below the controls.</p>
   </header>
 
   <div class="stage">
-    <canvas id="view"></canvas>
+    <canvas id="view" tabindex="0" role="application"
+      aria-label="The city. Arrow keys turn, W A S D walk, E uses what you are facing, F acknowledges alarms. A live text readout of every bus is below the controls."></canvas>
+    <p id="announce" class="sr" aria-live="polite"></p>
     <div class="overlay">
       <div class="hud">
         <div id="where">in the <em>control room</em></div>
@@ -446,6 +500,23 @@
       </div>
     </div>
   </div>
+
+  <section>
+    <h2>The feeder, in text</h2>
+    <p>The same thing the mimic board shows, for anyone who would rather read it than
+      walk it — every bus, live, updating with the day. The <b>Go to</b> buttons above
+      move you around the city without a mouse, and the city itself can be driven
+      entirely from the keyboard once the view has focus.</p>
+    <div class="scroll">
+      <table id="feeder">
+        <caption class="sr">Voltage at every bus on the feeder, updating live</caption>
+        <thead>
+          <tr><th>Bus</th><th>Voltage</th><th>Status</th><th>Hops out</th><th>Load</th></tr>
+        </thead>
+        <tbody id="feederBody"></tbody>
+      </table>
+    </div>
+  </section>
 
   <section>
     <h2>The procurement shortlist</h2>

@@ -67,6 +67,33 @@ Things that cost real time to find:
   back to the controller; its `setup` used to call `clearManual()` first, which
   completed the objective before the learner arrived.
 
+## Getting around without a mouse
+
+Pointer lock is the nicer way to look around, and it is still the default — but it is
+also a hard dependency on a device not everyone has. So the canvas is focusable, and
+while it holds focus the arrow keys turn, WASD walks, and E and F work as they do under
+lock. Every objective in all six stages is reachable this way; the keyboard test drives
+the whole thing with pointer lock never engaged.
+
+Alongside that:
+
+- **A text feeder.** Every bus, live, as a table below the controls — the mimic board
+  for reading rather than walking.
+- **A polite live region** that announces the bus you have arrived at and its voltage,
+  on arrival rather than per frame.
+- **Focus goes into a panel when it opens** and returns to the view on Escape. An open
+  panel whose controls are in use is not rebuilt, because replacing `innerHTML` nine
+  times a second destroys focus and interrupts a drag.
+- **The annunciator flash is ~0.7 Hz**, well under the WCAG 2.3.1 three-per-second
+  threshold, and does not run at all under `prefers-reduced-motion`.
+
+## Cost
+
+Instrument repaints are gated two ways. Each screen carries a signature of the state it
+draws and repaints only when that moves; and past 45 m from the control room the whole
+redraw is skipped, since the room is enclosed and the screens are behind a wall. Measured
+by counting canvas text operations: 216/sec at the desk, 2/sec out at bus 16.
+
 ## Verifying it
 
 `scripts/threejs` has no unit tests — it is checked by driving the real page in headless
