@@ -22,6 +22,7 @@ import { buildCity } from './city.js';
 import { buildRoom } from './room.js';
 import { STAGES, Progress } from './mission.js';
 import { FleetRun, fleetCheck } from './fleet.js';
+import { OBJECTIVES, findings, coverage } from './debrief.js';
 
 const el = (id) => document.getElementById(id);
 
@@ -153,10 +154,12 @@ const api = {
 
 function applyGrid(kind) {
   gridKind = kind === 'strong' ? 'strong' : 'weak';
+  if (gridKind === 'strong') gridSeen = true;
   setGrid(gridKind);
   cfCache.key = null;
   syncGridButtons();
   renderTotals();
+  renderDebrief();
   room.invalidate();
   resolveNow();
   updateHud();
@@ -165,6 +168,50 @@ function applyGrid(kind) {
 const progress = new Progress(api);
 
 let feederTableDue = true;
+
+/* ------------------------------------------------------- load scale */
+
+/**
+ * How big the town is, as a multiple of the exported base.
+ *
+ * Rooftop solar is baked into the exported injection at the PV buses, and a town
+ * growing does not put more panels on its roofs — so the generation is lifted out, the
+ * load scaled, and the generation put back. Scaling the injection directly would
+ * quietly grow the sun along with the demand.
+ */
+const BASE_SCALE = WORLD.scenario.loadScale;
+const PV_BUS = new Set(WORLD.pv);
+let loadScale = BASE_SCALE;
+
+const scaledP = new Float64Array(N_BUS + 1);
+const scaledQ = new Float64Array(N_BUS + 1);
+
+function dayFrame() {
+  const f = WORLD.day[frameIndex];
+  if (loadScale === BASE_SCALE) return f;
+  const k = loadScale / BASE_SCALE;
+  const solarPu = (f.solar ?? 0) / WORLD.kwPerPu;
+  for (let b = 0; b <= N_BUS; b++) {
+    const pv = PV_BUS.has(b) ? solarPu : 0;
+    scaledP[b] = (f.p[b] + pv) * k - pv;
+    scaledQ[b] = f.q[b] * k;
+  }
+  return { p: scaledP, q: scaledQ, clock: f.clock, solar: f.solar };
+}
+
+/**
+ * Whether changing the load would still be showing the truth.
+ *
+ * Uncoordinated charging pulls whatever the cars can take regardless of voltage, so
+ * its recorded commands are the same commands at any load. Droop and the two agents
+ * back off as their local voltage falls, so replaying their recorded commands at a
+ * different load shows a controller that would never have issued them. In that case
+ * the control is refused rather than quietly lying.
+ */
+function loadScaleHonest() {
+  if (manual.every((m) => m !== null)) return true;
+  return runIndex === 0 && manual.every((m) => m === null);
+}
 
 /* ------------------------------------------------------------ the map */
 
@@ -203,7 +250,7 @@ function endRunIfComplete() {
   runLive = false;
   const t = fleetRun.totals();
   myDots.push({
-    label: `Your run ${myDots.length + 1}`,
+    label: `Your run ${myDots.length + 1}` + (loadScale !== BASE_SCALE ? ` (town ×${(loadScale / BASE_SCALE).toFixed(1)})` : ''),
     violationRate: t.violationRate,
     socMet: t.socMet,
     totalLossKwh: t.totalLossKwh,
@@ -214,12 +261,13 @@ function endRunIfComplete() {
   });
   room.logEvent('23:55', `run scored — ${t.driversMet} of ${t.fleetSize} served, ${(t.violationRate * 100).toFixed(2)}% bus-steps out of band`, 'good');
   renderDotList();
+  renderDebrief();
   redrawInstruments();
 }
 
 function resolveNow() {
   const kw = commands();
-  solution = solveAt(WORLD.day[frameIndex], kw);
+  solution = solveAt(dayFrame(), kw);
   city.applyVoltages(kw, manual);
   redrawInstruments();
   feederTableDue = true;
@@ -332,10 +380,10 @@ function nearestBus() {
  * afterwards to put the world back exactly as it was.
  */
 function counterfactuals(bus) {
-  const key = `${bus}|${frameIndex}|${gridKind}|${manual.join(',')}`;
+  const key = `${bus}|${frameIndex}|${gridKind}|${loadScale}|${manual.join(',')}`;
   if (cfCache.key === key) return cfCache.rows;
   const rows = runSet().map((r, i) => {
-    solveAt(WORLD.day[frameIndex], r.frames[frameIndex].kw);
+    solveAt(dayFrame(), r.frames[frameIndex].kw);
     return { label: r.label.replace(/ \(.*\)/, ''), v: vMag[bus], standIn: r.provenance === 'placeholder', index: i };
   });
   resolveNow();
@@ -400,6 +448,7 @@ function wireStationPanel(si) {
   };
   el('handBack').onclick = () => {
     manual[si] = manual[si] === null ? Number(slider.value) : null;
+    syncLoadHonesty();
     resolveNow();
     renderPanel();
     updateHud();
@@ -543,6 +592,7 @@ function dismissCard() {
     return;
   }
   renderObjectives();
+  renderDebrief();
   resolveNow();
   updateHud();
 }
@@ -581,6 +631,24 @@ function announce(text) {
   if (text === spoken) return;
   spoken = text;
   el('announce').textContent = text;
+}
+
+/**
+ * The debrief: what the entry claims to teach, and what your runs showed. Written into
+ * the page rather than a modal so it can be read, scrolled and screen-read after the
+ * arc is over, which is what the website does with it.
+ */
+let gridSeen = false;
+function renderDebrief() {
+  const stagesDone = progress.phase === 'finished' ? 6 : progress.stage.n - 1;
+  el('objBody').innerHTML = coverage(stagesDone).map((o) =>
+    `<tr data-covered="${o.covered}">
+      <td class="k">${o.id}</td><td>${o.text}</td>
+      <td class="s">${o.stage}</td>
+      <td class="s">${o.covered ? 'reached' : 'not yet'}</td></tr>`).join('');
+
+  el('findings').innerHTML = findings({ myDots, picked: progress.picked, gridSeen })
+    .map((f) => `<div class="finding"><h3>${f.headline}</h3><p>${f.body}</p></div>`).join('');
 }
 
 /** The map, as a table. Same dots, readable without walking to the wall. */
@@ -796,6 +864,7 @@ WORLD.runs.forEach((r, i) => {
     runIndex = i;
     syncRunButtons();
     room.logEvent(frame().clock, `feeder switched to ${r.label.replace(/ \(.*\)/, '')}`, 'info');
+    syncLoadHonesty();
     resolveNow(); updateHud(); checkObjectives();
   };
   runSeg.appendChild(b);
@@ -824,6 +893,23 @@ const gridSeg = el('gridSeg');
   gridSeg.appendChild(b);
 });
 
+/**
+ * Disabling the control is not enough. A learner who grows the town to 1.8× and then
+ * switches to droop would be left looking at droop's recorded commands under a load
+ * they were never issued for, with the buttons merely greyed out. So the town returns
+ * to its base size whenever scaling stops being truthful.
+ */
+function syncLoadHonesty() {
+  if (!loadScaleHonest() && loadScale !== BASE_SCALE) {
+    loadScale = BASE_SCALE;
+    cfCache.key = null;
+    room.logEvent(frame().clock, 'town size returned to base — this controller reacts to voltage', 'info');
+    resolveNow();
+    updateHud();
+  }
+  syncLoadButtons();
+}
+
 function syncGridButtons() {
   [...gridSeg.children].forEach((c) => {
     c.setAttribute('aria-pressed', String(c.dataset.grid === gridKind));
@@ -839,6 +925,7 @@ function unlockGrid() {
   if (gridUnlocked) return;
   gridUnlocked = true;
   syncGridButtons();
+  syncLoadButtons();
 }
 
 const goSeg = el('goSeg');
@@ -894,6 +981,37 @@ const speedSeg = el('speedSeg');
 });
 function syncSpeedButtons() {
   [...speedSeg.children].forEach((c) => c.setAttribute('aria-pressed', String(Number(c.dataset.speed) === stepsPerTick)));
+}
+
+const loadSeg = el('loadSeg');
+[['0.5×', 0.5], ['1×', 1], ['1.4×', 1.4], ['1.8×', 1.8]].forEach(([label, mult]) => {
+  const b = document.createElement('button');
+  b.textContent = label;
+  b.dataset.load = String(BASE_SCALE * mult);
+  b.onclick = () => {
+    if (!gridUnlocked || !loadScaleHonest()) return;
+    loadScale = BASE_SCALE * mult;
+    cfCache.key = null;
+    syncLoadButtons();
+    resolveNow();
+    updateHud();
+  };
+  loadSeg.appendChild(b);
+});
+
+function syncLoadButtons() {
+  const honest = loadScaleHonest();
+  const usable = gridUnlocked && honest;
+  [...loadSeg.children].forEach((c) => {
+    c.setAttribute('aria-pressed', String(Number(c.dataset.load) === loadScale));
+    c.disabled = !usable;
+  });
+  const note = el('loadNote');
+  note.hidden = !gridUnlocked;
+  note.textContent = honest
+    ? 'How big the town is. Rooftop solar does not grow with it.'
+    : 'Droop and the agents back off as their own voltage falls, so their recorded commands are not what they would have issued at another load. Take the stations manual, or switch to Uncoordinated, to change this.';
+  note.className = honest ? '' : 'warnNote';
 }
 el('cardGo').onclick = dismissCard;
 
@@ -1055,8 +1173,10 @@ progress.beginStage();
 syncRunButtons();
 syncGridButtons();
 syncSpeedButtons();
+syncLoadButtons();
 renderTotals();
 renderDotList();
+renderDebrief();
 resolveNow();
 room.logEvent('00:00', 'control room staffed · day begins', 'info');
 updateHud();
@@ -1070,7 +1190,7 @@ window.__city = {
   solution: () => solution,
   // These mirror what the real controls do, checkObjectives included — a hook that
   // skips it lets a test pass a stage the interface would not have advanced.
-  setRun: (i) => { runIndex = i; syncRunButtons(); resolveNow(); updateHud(); checkObjectives(); },
+  setRun: (i) => { runIndex = i; syncRunButtons(); syncLoadHonesty(); resolveNow(); updateHud(); checkObjectives(); },
   setFrame: (i) => { frameIndex = i; resolveNow(); updateHud(); checkObjectives(); },
   ackAlarms: () => {
     const n = room.ackAlarms();
@@ -1079,6 +1199,7 @@ window.__city = {
   },
   setFeeder: applyGrid,
   gridUnlocked: () => gridUnlocked,
+  unlockSandbox: () => unlockGrid(),
   myDots: () => myDots,
   refDots: referenceDots,
   fleetCheck,

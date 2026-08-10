@@ -67,6 +67,61 @@ Things that cost real time to find:
   back to the controller; its `setup` used to call `clearManual()` first, which
   completed the objective before the learner arrived.
 
+## Parity with the website
+
+The city is meant to do the same task as `src/`, not a different one. What that means
+concretely, and where it deliberately stops:
+
+| website | city |
+| --- | --- |
+| Six-stage arc | ported, with objectives that require going somewhere |
+| Stage 6 procurement trap | ported, on a terminal by the control room door |
+| Pareto map, a dot per finished run | ported, on the room's south wall and as a table |
+| Debrief against eight objectives | ported, texts copied verbatim from `src/content/debrief.ts` |
+| Weak / strong feeder | ported, unlocked after the arc |
+| Speed control | ported, ×1 to ×64 |
+| Load scale | ported, but only where it can be truthful — see below |
+| Safety-projection toggle | **not** ported; stages 4 and 5 already are that comparison |
+| "Compare against" reference runs | **not** a control; all four reference dots are always on the map |
+
+Two of those are refusals rather than omissions.
+
+**The projection toggle** would need the four controllers and the sensitivity model
+ported to be truthful, because flipping it means re-deriving what the controller would
+have commanded. The comparison it exists to teach — objective L8, what a safety
+projection buys — is already the whole of stages 4 and 5: the same agent, with the
+network put back in. A second control that could only replay commands recorded under
+the opposite setting would teach the wrong thing.
+
+**Load scale** is real, and it lifts the rooftop generation out before scaling, because
+a town growing does not put more panels on its roofs. But it is only offered where the
+recorded commands survive the change: with all four stations in manual, or with
+uncoordinated charging, which pulls whatever the cars can take regardless of voltage.
+Droop and the two agents back off as their local voltage falls, so replaying their
+commands at another load would show a controller that never existed. Switching to one
+of them returns the town to its base size rather than leaving a stale number on screen.
+
+## The fleet, and why it is exported
+
+Scoring a learner's own run needs drivers-served, which is counted over 287 vehicles
+that each did or did not reach the charge they came for. That is not derivable from
+recorded totals, so the fleet is exported and its accounting ported: connections,
+deficit-weighted charge sharing, the 22 kW per-vehicle limit, and the clamp that stops
+a manual command asking for more than the cars can physically take.
+
+It is checked the way the solver is. Replaying all eight recorded runs through the port
+reproduces the engine's own totals to 4×10⁻⁵ on drivers served and 5×10⁻⁵ on violation
+rate, and both figures are printed on the page.
+
+Two things this forced:
+
+- **The export is every step, not every other one.** Scoring at half resolution would
+  put an approximate dot on the same chart as exact ones.
+- **Fleet values are exported at full precision.** Service is scored by
+  `soc >= targetSoc - 1e-6`; a target rounded to four decimals carries fifty times the
+  error of the tolerance it is compared against, and one vehicle in 287 landed on the
+  wrong side of it.
+
 ## The feeder switch, and what it does not show
 
 After the six stages, the town can be rebuilt on the canonical stiff feeder — the same
