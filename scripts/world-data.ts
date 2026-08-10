@@ -55,6 +55,24 @@ const safeSac = placeholderController({
   usesProjection: true,
 });
 
+/**
+ * The stage-6 trap, matching `sacLagShifted` in the app: an agent trained on a stiff
+ * grid and deployed on this one. It posts the best safety score on the board and is
+ * the only candidate that turns a profit, because it declines to charge anybody.
+ *
+ * It is exported so the walkable build can put the same procurement decision in front
+ * of a learner. It is a candidate on the terminal, never a run you can drive — the
+ * whole lesson is that its numbers look best right up until you read the second column.
+ */
+const sacLagShifted = placeholderController({
+  id: 'sac-lag-shift',
+  label: 'SAC-Lag (trained on a strong grid)',
+  eagerness: 0,
+  backoffPu: 0.9,
+  arbitrage: true,
+  usesProjection: false,
+});
+
 
 /**
  * The background the feeder sits on at each captured step: base load times the day's
@@ -158,6 +176,19 @@ const world = {
     capture(sacLag, false),
     capture(safeSac, true),
   ],
+  /**
+   * The stage-6 shortlist. Uncoordinated is not on it — nobody procures "no
+   * controller" — and the shifted agent is, which is what makes the table a trap.
+   * Totals only: this one is read, not driven.
+   */
+  candidates: [droop, sacLag, safeSac, sacLagShifted].map((c) => {
+    const r = capture(c, c.id === 'safesac');
+    return {
+      id: r.id, label: r.label, provenance: r.provenance,
+      violationRate: r.violationRate, socMet: r.socMet,
+      totalLossKwh: r.totalLossKwh, netCostUsd: r.netCostUsd, vMinPu: r.vMinPu,
+    };
+  }),
 };
 
 console.log(JSON.stringify(world));

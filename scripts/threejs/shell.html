@@ -1,259 +1,475 @@
-<title>Feeder 33 — the Three.js build</title>
+<title>Bus 18 · the city</title>
 <style>
-:root {
-  --night: #0A0E13; --panel: #141C25; --panel2: #1B2733; --edge: #25323E;
-  --ink: #DDE5EA; --ink2: #93A6B3; --ink3: #6B808F;
-  --teal: #4FB3A2; --lamp: #E3B24F; --limit: #E4776B;
-  --display: Cambria, "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
-  --body: "Segoe UI", Calibri, system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
-  --data: "SF Mono", "Cascadia Mono", Consolas, "Roboto Mono", ui-monospace, monospace;
-  --radius: 3px;
-}
-* { box-sizing: border-box; }
-body { margin: 0; background: var(--night); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
-.wrap { max-width: 1180px; margin: 0 auto; padding: 3rem 1.25rem 5rem; display: flex; flex-direction: column; gap: 2.4rem; }
+  :root {
+    --ink: #e8ecf2;
+    --dim: #98a3b2;
+    --faint: #5d6a79;
+    --bg: #080b0f;
+    --panel: #10161d;
+    --line: #1e2831;
+    --ok: #4fb3a2;
+    --warn: #e4776b;
+    --amber: #e3b24f;
+    --cool: #5aa9d6;
+    --mono: "SF Mono", "JetBrains Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
 
-.eyebrow { font-family: var(--data); font-size: 0.7rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink3); margin: 0 0 0.9rem; }
-h1 { font-family: var(--display); font-weight: 700; font-size: clamp(2rem, 5vw, 3.1rem); line-height: 1.08; letter-spacing: -0.01em; text-wrap: balance; margin: 0 0 0.85rem; }
-.standfirst { max-width: 64ch; font-size: 1.05rem; color: var(--ink2); margin: 0; }
-.standfirst strong { color: var(--ink); font-weight: 600; }
-.verify { margin-top: 1.2rem; padding: 0.8rem 1rem; border-left: 2px solid var(--teal); background: var(--panel); color: var(--ink2); font-size: 0.88rem; max-width: 72ch; }
-.verify b { color: var(--teal); font-weight: 600; }
-.verify code { font-family: var(--data); font-size: 0.85em; color: var(--ink); }
+  * { box-sizing: border-box; }
 
-.stage { background: var(--night); border: 1px solid var(--edge); border-radius: var(--radius); overflow: hidden; }
-.viewport { position: relative; display: block; }
-#view { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; cursor: pointer; touch-action: none; }
-.scrim { position: absolute; inset: 0 0 auto 0; height: 8rem; background: linear-gradient(to bottom, rgba(10,14,19,0.8), rgba(10,14,19,0)); pointer-events: none; z-index: 1; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 16px;
+    line-height: 1.6;
+  }
 
-.hud { position: absolute; z-index: 2; pointer-events: none; font-family: var(--data); font-variant-numeric: tabular-nums; font-size: 0.72rem; line-height: 1.5; text-shadow: 0 1px 4px rgba(10,14,19,0.95); }
-.hud-tl { top: 0.8rem; left: 0.95rem; }
-.hud-tr { top: 0.8rem; right: 0.95rem; text-align: right; }
-.where { font-family: var(--body); font-size: 1.05rem; font-weight: 600; color: var(--ink); }
-.where em { font-style: normal; color: var(--ink3); font-weight: 400; }
-.here { font-size: 1.9rem; line-height: 1.15; margin-top: 0.15rem; }
-.here.bad { color: var(--limit); } .here.good { color: var(--teal); }
-.walked { color: var(--ink3); }
-.metric { color: var(--ink3); }
-.metric b { display: inline-block; min-width: 4.4em; color: var(--ink); font-weight: 600; }
-.metric.bad b { color: var(--limit); } .metric.good b { color: var(--teal); }
-.chip { display: inline-block; margin-top: 0.25rem; padding: 0.08rem 0.42rem; border: 1px solid var(--edge); border-radius: 999px; font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink3); }
-.chip.stand-in { border-color: #4a3c22; color: var(--lamp); }
-.chip.real { border-color: #24493f; color: var(--teal); }
-.chip.mine { border-color: var(--teal); color: var(--night); background: var(--teal); }
-#fps { position: absolute; z-index: 2; left: 0.95rem; bottom: 0.8rem; font-family: var(--data); font-size: 0.68rem; color: var(--ink3); pointer-events: none; }
+  .wrap { max-width: 1360px; margin: 0 auto; padding: 0 1rem 5rem; }
 
-.reticle { position: absolute; left: 50%; top: 50%; width: 5px; height: 5px; margin: -2.5px 0 0 -2.5px; border-radius: 50%; background: rgba(221,229,234,0.5); z-index: 2; pointer-events: none; }
-.reticle.hot { background: var(--teal); box-shadow: 0 0 0 3px rgba(79,179,162,0.25); }
-.prompt { position: absolute; left: 50%; top: 56%; transform: translateX(-50%); z-index: 3; pointer-events: none; background: rgba(10,14,19,0.82); border: 1px solid var(--edge); border-radius: var(--radius); padding: 0.34rem 0.7rem; font-size: 0.84rem; white-space: nowrap; }
-.prompt kbd, .keys kbd { font-family: var(--data); font-size: 0.75rem; background: var(--panel2); border: 1px solid var(--edge); border-radius: 2px; padding: 0.02rem 0.32rem; color: var(--teal); }
-.prompt kbd { margin-right: 0.4rem; }
-.prompt[hidden], .panel[hidden], .enter[hidden] { display: none; }
+  header.top { padding: 2.4rem 0 1.2rem; }
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: .72rem;
+    letter-spacing: .18em;
+    text-transform: uppercase;
+    color: var(--amber);
+    margin: 0 0 .7rem;
+  }
+  h1 {
+    font-family: var(--mono);
+    font-size: clamp(1.6rem, 4vw, 2.5rem);
+    font-weight: 600;
+    letter-spacing: -.02em;
+    margin: 0 0 .6rem;
+  }
+  header.top p { color: var(--dim); max-width: 68ch; margin: 0; }
 
-.enter { position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.5rem; background: rgba(10,14,19,0.7); cursor: pointer; text-align: center; padding: 1rem; }
-.enter strong { font-family: var(--display); font-size: 1.5rem; font-weight: 700; }
-.enter span { font-size: 0.9rem; color: var(--ink2); max-width: 40ch; }
-.keys { display: flex; gap: 0.4rem; flex-wrap: wrap; justify-content: center; margin-top: 0.4rem; }
-.keys kbd { color: var(--ink2); padding: 0.12rem 0.42rem; }
+  /* ------------------------------------------------------- stage */
 
-.panel { position: absolute; z-index: 4; right: 0.95rem; top: 6.4rem; height: fit-content; max-height: calc(100% - 7.5rem); width: min(23rem, 46%); background: rgba(20,28,37,0.96); border: 1px solid var(--edge); border-radius: var(--radius); padding: 1rem 1.1rem 1.1rem; font-size: 0.86rem; color: var(--ink2); overflow-y: auto; }
-.panel h3 { margin: 0 0 0.15rem; font-size: 1.05rem; color: var(--ink); font-weight: 600; }
-.panel .kicker { font-family: var(--data); font-size: 0.6rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink3); margin-bottom: 0.5rem; }
-.panel p { margin: 0.55rem 0 0; line-height: 1.55; }
-.panel .row { display: flex; justify-content: space-between; gap: 0.8rem; font-family: var(--data); font-size: 0.76rem; padding: 0.18rem 0; border-bottom: 1px solid rgba(37,50,62,0.6); }
-.panel .row span:last-child { color: var(--ink); font-variant-numeric: tabular-nums; }
-.panel .close { position: absolute; top: 0.55rem; right: 0.6rem; background: none; border: none; color: var(--ink3); font-size: 1.1rem; cursor: pointer; padding: 0.1rem 0.35rem; }
-.panel .close:hover { color: var(--ink); }
-.panel .profile { margin-top: 0.7rem; }
-.panel label.slider { display: block; margin-top: 0.8rem; font-family: var(--data); font-size: 0.62rem; letter-spacing: 0.13em; text-transform: uppercase; color: var(--ink3); }
-.panel input[type="range"] { width: 100%; accent-color: var(--teal); margin-top: 0.3rem; }
-.panel .readout { font-family: var(--data); font-size: 1.15rem; color: var(--ink); margin-top: 0.2rem; }
-.panel .hint { font-size: 0.78rem; color: var(--ink3); margin-top: 0.5rem; }
-.panel .warn { color: var(--limit); } .panel .ok { color: var(--teal); }
-.panel button.act { margin-top: 0.7rem; width: 100%; font-family: var(--body); font-size: 0.82rem; color: var(--ink2); background: var(--panel2); border: 1px solid var(--edge); border-radius: var(--radius); padding: 0.4rem 0.7rem; cursor: pointer; }
-.panel button.act:hover { color: var(--ink); border-color: var(--ink3); }
+  .stage {
+    position: relative;
+    background: #05070a;
+    border: 1px solid var(--line);
+    overflow: hidden;
+  }
+  #view { display: block; width: 100%; aspect-ratio: 16 / 9; }
 
-.controls { display: flex; flex-wrap: wrap; gap: 0.9rem 1.4rem; align-items: flex-end; padding: 0.95rem 1.05rem; border-top: 1px solid var(--edge); background: var(--panel); }
-.group { display: flex; flex-direction: column; gap: 0.4rem; }
-.group.grow { flex: 1 1 18rem; min-width: 12rem; }
-.group > label { font-family: var(--data); font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink3); }
-.seg { display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center; }
-button { font-family: var(--body); font-size: 0.82rem; color: var(--ink2); background: var(--panel2); border: 1px solid var(--edge); border-radius: var(--radius); padding: 0.36rem 0.72rem; cursor: pointer; transition: color 0.14s, border-color 0.14s, background 0.14s; }
-button:hover { color: var(--ink); border-color: var(--ink3); }
-button:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
-button[aria-pressed="true"] { color: var(--night); background: var(--teal); border-color: var(--teal); font-weight: 600; }
-.transport { display: flex; align-items: center; gap: 0.7rem; }
-input[type="range"] { flex: 1 1 auto; min-width: 6rem; accent-color: var(--teal); height: 1.5rem; }
-input[type="range"]:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
-.switch { display: flex; align-items: center; gap: 0.42rem; font-size: 0.82rem; color: var(--ink2); cursor: pointer; }
-.switch input { accent-color: var(--teal); width: 0.95rem; height: 0.95rem; }
+  .overlay { position: absolute; inset: 0; pointer-events: none; }
 
-h2 { font-family: var(--display); font-size: 1.7rem; font-weight: 700; margin: 0 0 0.5rem; color: var(--ink); text-wrap: balance; }
-h2 + .sub { margin: 0 0 1.3rem; color: var(--ink3); font-size: 0.92rem; max-width: 62ch; }
-.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1px; background: var(--edge); border: 1px solid var(--edge); border-radius: var(--radius); }
-.card { background: var(--panel); padding: 1.1rem 1.15rem; }
-.card .tag { font-family: var(--data); font-size: 0.62rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink3); display: block; margin-bottom: 0.4rem; }
-.card h3 { margin: 0 0 0.4rem; font-size: 1rem; color: var(--ink); font-weight: 600; }
-.card p { margin: 0; font-size: 0.87rem; color: var(--ink2); line-height: 1.6; }
-.card.accent { background: var(--panel2); }
-.card.accent h3 { color: var(--lamp); }
+  .hud {
+    position: absolute;
+    top: 1rem; left: 1.1rem;
+    font-family: var(--mono);
+    text-shadow: 0 1px 6px rgba(0,0,0,.9);
+  }
+  #where { font-size: .95rem; color: var(--ink); }
+  #where em { color: var(--dim); font-style: normal; }
+  .here { font-size: 2.2rem; line-height: 1.1; font-variant-numeric: tabular-nums; }
+  .here.good { color: var(--ok); }
+  .here.bad { color: var(--warn); }
+  #walked { font-size: .76rem; color: var(--faint); }
 
-.tablewrap { overflow-x: auto; border: 1px solid var(--edge); border-radius: var(--radius); }
-table { width: 100%; border-collapse: collapse; font-size: 0.86rem; min-width: 32rem; }
-th, td { padding: 0.55rem 0.85rem; text-align: left; border-bottom: 1px solid var(--edge); }
-th { font-family: var(--data); font-size: 0.63rem; letter-spacing: 0.13em; text-transform: uppercase; color: var(--ink3); background: var(--panel2); font-weight: 400; }
-td { color: var(--ink2); background: var(--panel); }
-td:first-child { color: var(--ink); font-weight: 600; }
-td.num { font-family: var(--data); font-variant-numeric: tabular-nums; text-align: right; color: var(--ink); }
-tr:last-child td { border-bottom: none; }
+  .metrics {
+    position: absolute;
+    top: 1rem; right: 1.1rem;
+    font-family: var(--mono);
+    font-size: .78rem;
+    text-align: right;
+    text-shadow: 0 1px 6px rgba(0,0,0,.9);
+    display: flex;
+    flex-direction: column;
+    gap: .18rem;
+  }
+  .metric { color: var(--faint); }
+  .metric b { color: var(--ink); font-weight: 600; margin-left: .35rem; }
+  .metric.bad b { color: var(--warn); }
+  .metric.good b { color: var(--ok); }
+  .chip {
+    display: inline-block;
+    font-size: .64rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    padding: .1rem .45rem;
+    border: 1px solid currentColor;
+    margin-top: .2rem;
+  }
+  .chip.real { color: var(--ok); }
+  .chip.stand-in { color: var(--amber); }
+  .chip.mine { color: var(--cool); }
 
-.foot { border-top: 1px solid var(--edge); padding-top: 1.2rem; font-size: 0.82rem; color: var(--ink3); max-width: 70ch; }
+  /* --------------------------------------------------- objectives */
 
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
-@media (max-width: 720px) {
-  .wrap { padding: 2rem 0.85rem 3rem; gap: 1.8rem; }
-  .hud-tr { display: none; }
-  .panel { position: static; width: auto; max-height: none; margin: 0.6rem; }
-}
+  .objectives {
+    position: absolute;
+    left: 1.1rem; bottom: 1.1rem;
+    width: min(27rem, 44%);
+    background: rgba(8, 12, 16, .82);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--amber);
+    padding: .75rem .9rem .8rem;
+    font-size: .82rem;
+  }
+  #stageTag {
+    font-family: var(--mono);
+    font-size: .64rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    color: var(--amber);
+  }
+  #stageTitle { font-weight: 600; margin: .1rem 0 .45rem; }
+  #objList { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: .3rem; }
+  #objList li { display: grid; grid-template-columns: 1.1rem 1fr; gap: .4rem; color: var(--dim); }
+  #objList li.done { color: var(--ok); }
+  #objList .tick { font-family: var(--mono); }
+  #objList em { color: var(--amber); font-style: normal; }
+
+  /* ------------------------------------------------------ reticle */
+
+  .reticle {
+    position: absolute;
+    left: 50%; top: 50%;
+    width: 5px; height: 5px;
+    margin: -2.5px 0 0 -2.5px;
+    border-radius: 50%;
+    background: rgba(232, 236, 242, .35);
+  }
+  .reticle.hot { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+
+  #prompt {
+    position: absolute;
+    left: 50%; top: calc(50% + 2.2rem);
+    transform: translateX(-50%);
+    font-family: var(--mono);
+    font-size: .8rem;
+    background: rgba(8, 12, 16, .86);
+    border: 1px solid var(--line);
+    padding: .3rem .6rem;
+    white-space: nowrap;
+  }
+  kbd {
+    font-family: var(--mono);
+    background: var(--amber);
+    color: #10161d;
+    padding: 0 .3rem;
+    margin-right: .45rem;
+    font-weight: 600;
+  }
+
+  /* `display` on the element beats the user-agent `[hidden] { display: none }`, so the
+     hidden state has to be spelled out or the overlay never goes away on lock. */
+  #enter[hidden] { display: none; }
+  #enter {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-content: center;
+    gap: .5rem;
+    background: rgba(5, 7, 10, .74);
+    pointer-events: auto;
+    border: 0;
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 1rem;
+    cursor: pointer;
+  }
+  #enter span { color: var(--faint); font-size: .78rem; }
+
+  #fps {
+    position: absolute;
+    left: 1.1rem; bottom: .3rem;
+    font-family: var(--mono);
+    font-size: .68rem;
+    color: var(--faint);
+  }
+
+  /* -------------------------------------------------------- panel */
+
+  #panel {
+    position: absolute;
+    right: 1.1rem; top: 4.2rem; bottom: 1.1rem;
+    width: min(23rem, 40%);
+    overflow-y: auto;
+    background: rgba(10, 15, 20, .95);
+    border: 1px solid var(--line);
+    padding: 1rem 1.1rem 1.2rem;
+    pointer-events: auto;
+    font-size: .84rem;
+  }
+  #panel .kicker {
+    font-family: var(--mono);
+    font-size: .64rem;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--amber);
+  }
+  #panel h3 { margin: .15rem 0 .7rem; font-size: 1.05rem; }
+  #panel .row {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    font-family: var(--mono);
+    font-size: .76rem;
+    padding: .3rem 0;
+    border-bottom: 1px dotted var(--line);
+  }
+  #panel .row span:first-child { color: var(--faint); }
+  #panel p { color: var(--dim); font-size: .8rem; }
+  #panel .hint { color: var(--faint); font-size: .74rem; }
+  .warn { color: var(--warn); }
+  .ok { color: var(--ok); }
+  .close {
+    float: right;
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--dim);
+    font-size: 1rem;
+    line-height: 1;
+    padding: .1rem .4rem;
+    cursor: pointer;
+  }
+  .slider { display: block; margin: .8rem 0 .2rem; font-family: var(--mono); font-size: .7rem; color: var(--faint); }
+  #panel input[type=range] { width: 100%; accent-color: var(--amber); }
+  .readout { font-family: var(--mono); color: var(--amber); font-size: .84rem; }
+  .act {
+    display: block;
+    width: 100%;
+    margin-top: .7rem;
+    background: none;
+    border: 1px solid var(--amber);
+    color: var(--amber);
+    font-family: var(--mono);
+    font-size: .74rem;
+    padding: .42rem;
+    cursor: pointer;
+  }
+  .profile { margin-top: .8rem; }
+
+  .candhead, .cand {
+    display: grid;
+    grid-template-columns: 1fr 4.2rem 4.2rem;
+    gap: .5rem;
+    font-family: var(--mono);
+    font-size: .72rem;
+    align-items: center;
+  }
+  .candhead { color: var(--faint); padding: .3rem 0; border-bottom: 1px solid var(--line); }
+  .cand {
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: 0;
+    border-bottom: 1px dotted var(--line);
+    color: var(--ink);
+    padding: .5rem 0;
+    cursor: pointer;
+  }
+  .cand:hover { background: rgba(79, 179, 162, .08); }
+  .cand.picked { background: rgba(79, 179, 162, .16); color: var(--ok); }
+  .cand .cnum { text-align: right; font-variant-numeric: tabular-nums; }
+  .cand em { color: var(--amber); font-style: normal; }
+
+  /* --------------------------------------------------------- card */
+
+  #card {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: rgba(5, 7, 10, .82);
+    pointer-events: auto;
+    padding: 1.5rem;
+  }
+  #card[hidden] { display: none; }
+  .cardbox {
+    max-width: 40rem;
+    max-height: 100%;
+    overflow-y: auto;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-top: 3px solid var(--amber);
+    padding: 1.6rem 1.8rem 1.7rem;
+  }
+  #cardTag {
+    font-family: var(--mono);
+    font-size: .66rem;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--amber);
+  }
+  #cardTitle { font-family: var(--mono); font-size: 1.35rem; margin: .3rem 0 .9rem; }
+  #cardBody p { color: var(--dim); margin: 0 0 .8rem; }
+  #cardGo {
+    background: var(--ok);
+    border: 0;
+    color: #07100e;
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: .85rem;
+    padding: .55rem 1.2rem;
+    cursor: pointer;
+  }
+
+  /* ------------------------------------------------------ controls */
+
+  .bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.2rem;
+    align-items: flex-end;
+    padding: 1rem 0 0;
+  }
+  .group { display: flex; flex-direction: column; gap: .3rem; }
+  .group.grow { flex: 1 1 16rem; }
+  .bar label {
+    font-family: var(--mono);
+    font-size: .64rem;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+  .seg { display: flex; flex-wrap: wrap; gap: .25rem; }
+  .seg button, .transport button {
+    background: none;
+    border: 1px solid var(--line);
+    color: var(--dim);
+    font-family: var(--mono);
+    font-size: .72rem;
+    padding: .3rem .6rem;
+    cursor: pointer;
+  }
+  .seg button[aria-pressed="true"] { border-color: var(--amber); color: var(--amber); }
+  .seg button:hover, .transport button:hover { border-color: var(--dim); color: var(--ink); }
+  .transport { display: flex; gap: .5rem; align-items: center; }
+  #scrub { flex: 1; accent-color: var(--amber); }
+
+  /* --------------------------------------------------------- prose */
+
+  section { margin-top: 3rem; }
+  h2 {
+    font-family: var(--mono);
+    font-size: .78rem;
+    letter-spacing: .16em;
+    text-transform: uppercase;
+    color: var(--dim);
+    border-bottom: 1px solid var(--line);
+    padding-bottom: .5rem;
+  }
+  section p { color: var(--dim); max-width: 70ch; }
+  table { width: 100%; border-collapse: collapse; font-size: .84rem; min-width: 620px; }
+  .scroll { overflow-x: auto; }
+  th, td { text-align: left; padding: .5rem .7rem; border-bottom: 1px solid var(--line); }
+  th { font-family: var(--mono); font-size: .66rem; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); }
+  td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
+  #verdict { font-family: var(--mono); font-size: .76rem; color: var(--ok); }
+  .foot { font-family: var(--mono); font-size: .72rem; color: var(--faint); max-width: 80ch; }
+
+  button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid var(--amber);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
 </style>
 
 <div class="wrap">
 
-  <header>
-    <p class="eyebrow">Bus 18 · Three.js build · IEEE 33-bus feeder</p>
-    <h1>The same town, on the GPU</h1>
-    <p class="standfirst">
-      Identical geometry, identical data, identical solver to the canvas prototype — but every lamp
-      here is a real photometric light. <strong>The falloff on the road, the bloom around the bulb
-      and the shadow off the pole are computed, not painted.</strong> Click and walk with WASD.
-    </p>
-    <p class="verify">
-      <b>Same physics, same self-check.</b> The backward/forward sweep runs in the page and
-      re-solves every recorded control step at load to prove the port:
-      <code id="verdict">checking…</code>
-    </p>
+  <header class="top">
+    <p class="eyebrow">Bus 18 · IEEE 33-bus weak feeder · walkable</p>
+    <h1>The city</h1>
+    <p>A working evening on a real distribution feeder. You start at the desk in the control room
+      with four charging stations and 287 vehicles, and every lamp, meter and instrument in the city
+      is lit by the same power-flow solution. Click to look, <b>WASD</b> to walk, <b>Shift</b> to
+      run, <b>E</b> to use what you are looking at, <b>F</b> to acknowledge alarms.</p>
   </header>
 
-  <section class="stage">
-    <div class="viewport">
-      <canvas id="view" aria-label="First-person view of a town built on the IEEE 33-bus feeder, rendered with Three.js"></canvas>
-      <div class="scrim"></div>
-
-      <div class="hud hud-tl">
-        <div class="where" id="where">at the substation</div>
-        <div class="here" id="here">— pu</div>
-        <div class="walked" id="walked">—</div>
+  <div class="stage">
+    <canvas id="view"></canvas>
+    <div class="overlay">
+      <div class="hud">
+        <div id="where">in the <em>control room</em></div>
+        <div class="here good" id="here">1.000 pu</div>
+        <div id="walked"></div>
       </div>
 
-      <div class="hud hud-tr">
-        <div class="metric" id="mClock">time <b>—</b></div>
-        <div class="metric" id="mRun">driving <b>—</b></div>
+      <div class="metrics">
+        <div class="metric" id="mClock"></div>
+        <div class="metric" id="mRun"></div>
         <div><span class="chip" id="runChip">—</span></div>
-        <div class="metric" id="mViol">out of band <b>—</b></div>
-        <div class="metric" id="mLoss">burnt in lines <b>—</b></div>
+        <div class="metric" id="mViol"></div>
+        <div class="metric" id="mLoss"></div>
+        <div class="metric" id="mAlarm" hidden></div>
       </div>
 
-      <div id="fps">—</div>
+      <div class="objectives">
+        <div id="stageTag">Stage 1 of 6</div>
+        <div id="stageTitle">—</div>
+        <ul id="objList"></ul>
+      </div>
+
       <div class="reticle" id="reticle"></div>
-      <div class="prompt" id="prompt" hidden></div>
-      <div class="panel" id="panel" hidden></div>
+      <div id="prompt" hidden></div>
+      <div id="fps">—</div>
 
-      <div class="enter" id="enter">
-        <strong>Click to walk in</strong>
-        <span>You will take control of the mouse. Press Escape to get it back.</span>
-        <div class="keys">
-          <kbd>W A S D</kbd><kbd>mouse — look</kbd><kbd>shift — run</kbd><kbd>E — read / operate</kbd><kbd>Esc — leave</kbd>
+      <aside id="panel" hidden></aside>
+
+      <div id="card" hidden>
+        <div class="cardbox">
+          <div id="cardTag"></div>
+          <h2 id="cardTitle" style="border:0;padding:0;font-size:1.35rem;letter-spacing:-.01em;text-transform:none;color:var(--ink)"></h2>
+          <div id="cardBody"></div>
+          <button id="cardGo">Begin</button>
         </div>
+      </div>
+
+      <button id="enter">Click to enter the city<span>WASD to walk · E to use · F to acknowledge</span></button>
+    </div>
+  </div>
+
+  <div class="bar">
+    <div class="group">
+      <label id="lblRun">Who is driving</label>
+      <div class="seg" role="group" aria-labelledby="lblRun" id="runSeg"></div>
+    </div>
+    <div class="group">
+      <label id="lblGo">Go to</label>
+      <div class="seg" role="group" aria-labelledby="lblGo" id="goSeg"></div>
+    </div>
+    <div class="group grow">
+      <label for="scrub">Time of day</label>
+      <div class="transport">
+        <button id="play">Play</button>
+        <input id="scrub" type="range" min="0" max="143" value="0" step="1" aria-label="Scrub through the simulated day" />
       </div>
     </div>
-
-    <div class="controls">
-      <div class="group">
-        <label id="lblRun">Who is driving the feeder</label>
-        <div class="seg" role="group" aria-labelledby="lblRun" id="runSeg"></div>
-      </div>
-      <div class="group">
-        <label id="lblGo">Go to</label>
-        <div class="seg" role="group" aria-labelledby="lblGo" id="goSeg"></div>
-      </div>
-      <div class="group grow">
-        <label for="scrub">Time of day</label>
-        <div class="transport">
-          <button id="play">Pause</button>
-          <input id="scrub" type="range" min="0" max="143" value="0" step="1" aria-label="Scrub through the simulated day" />
-        </div>
-      </div>
-      <div class="group grow">
-        <label for="bloomRange">Bloom · shadows</label>
-        <div class="seg">
-          <input id="bloomRange" type="range" min="0" max="1.6" step="0.02" value="0.62" aria-label="Bloom strength" />
-          <label class="switch"><input type="checkbox" id="shadowsToggle" checked /> Shadows</label>
-          <span id="tier" style="font-family:var(--data);font-size:.62rem;color:var(--ink3)">—</span>
-        </div>
-      </div>
-    </div>
-  </section>
+  </div>
 
   <section>
-    <h2>What the GPU is actually doing here</h2>
-    <p class="sub">Everything in this list is impossible in the canvas build, and none of it changes a single number.</p>
-    <div class="cards">
-      <div class="card accent">
-        <span class="tag">Lighting</span>
-        <h3>Real inverse-square falloff</h3>
-        <p>Each lamp is a <code>PointLight</code> in candela, driven by the same V<sup>3.4</sup> law.
-          The light wraps over kerbs, car roofs and pavement because it is being integrated per
-          pixel — in the canvas version it was an ellipse painted on the ground.</p>
-      </div>
-      <div class="card">
-        <span class="tag">Post-processing</span>
-        <h3>Bloom that carries the voltage</h3>
-        <p>A healthy lamp blooms wide; a sagging one barely glows. The halo <em>size</em> becomes a
-          second channel for the same number. Drag the slider to see how much of the read comes
-          from it.</p>
-      </div>
-      <div class="card">
-        <span class="tag">Shadows</span>
-        <h3>Only two lights cast them</h3>
-        <p>A shadow-casting point light is six render passes. Thirty-three of them is not something
-          any browser will do, so the two nearest lamps cast and the rest do not — a swap you
-          cannot see, and the reason this holds frame rate.</p>
-      </div>
-      <div class="card">
-        <span class="tag">Geometry</span>
-        <h3>Instancing, and hanging wire</h3>
-        <p>Every building is one draw call, every window another. The conductors are tubes along a
-          curve with real sag, instead of straight lines — which is what a span between two poles
-          actually does.</p>
-      </div>
-    </div>
-  </section>
-
-  <section>
-    <h2>What the day costs, per controller</h2>
-    <p class="sub">Unchanged from every other build. That is the point.</p>
-    <div class="tablewrap">
+    <h2>The procurement shortlist</h2>
+    <p>The table stage six puts in front of you, with the column that decides it restored. Nobody
+      procures “no controller”, so uncoordinated is not on the list.</p>
+    <div class="scroll">
       <table>
         <thead>
-          <tr>
-            <th scope="col">Controller</th>
-            <th scope="col" style="text-align:right">Violation rate</th>
-            <th scope="col" style="text-align:right">Drivers served</th>
-            <th scope="col" style="text-align:right">Line losses</th>
-            <th scope="col" style="text-align:right">Worst voltage</th>
-            <th scope="col">Source</th>
-          </tr>
+          <tr><th>Controller</th><th>Violation rate</th><th>Drivers served</th><th>Line losses</th><th>Net cost</th><th>Provenance</th></tr>
         </thead>
         <tbody id="totals"></tbody>
       </table>
     </div>
   </section>
 
-  <p class="foot">
-    Three.js r185, bundled into this page — no CDN, no external assets, nothing fetched at runtime.
-    The simulation module is the same one the product ships and has no DOM dependency, which is why
-    it moved across untouched. The two learned agents remain labelled stand-ins.
-  </p>
+  <section>
+    <h2>Whether to believe any of this</h2>
+    <p id="verdict"></p>
+    <p class="foot">The city runs the same backward/forward sweep as the offline engine. On load it
+      re-solves every recorded control step and compares the two, so the numbers on the meters are
+      checked rather than trusted. Two of the four candidates are labelled stand-ins whose recorded
+      episodes are still to be exported from the thesis notebook; they are marked as such everywhere
+      they appear.</p>
+  </section>
 
 </div>
 

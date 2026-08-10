@@ -1,0 +1,558 @@
+/**
+ * The control centre.
+ *
+ * Every instrument in here is one a distribution control room actually has, and every
+ * one of them is driven by the solver rather than decorated: the mimic board is the
+ * live one-line, the annunciator latches on real band violations and has to be
+ * acknowledged, the trend wall plots the day that is actually running, and the
+ * sequence-of-events log records things as they happen rather than replaying a script.
+ *
+ * The displays are 2D canvases mapped onto planes. That is the cheap and sharp way to
+ * put a chart on a wall in a 3D scene — a texture upload beats rebuilding geometry,
+ * and text stays legible because it is drawn at native resolution.
+ */
+
+import * as THREE from 'three';
+import {
+  WORLD, N_BUS, BAND_LO, ROOM, EYE, place, mat, PALETTE, vMag, solids, STATION_SET,
+} from './core.js';
+
+const CSS = {
+  ink: '#e8ecf2',
+  dim: '#8b97a6',
+  faint: '#4a5563',
+  panel: '#10161d',
+  panelLine: '#1d2731',
+  ok: '#4fb3a2',
+  warn: '#e4776b',
+  amber: '#e3b24f',
+  cool: '#5aa9d6',
+};
+
+const MONO = '"SF Mono", "JetBrains Mono", Menlo, Consolas, monospace';
+
+/** A canvas mapped onto a plane, with the texture flagged only when it is redrawn. */
+class Screen {
+  constructor(scene, { w, h, px = 110, pos, rotY = 0, tiltX = 0 }) {
+    this.canvas = document.createElement('canvas');
+    this.canvas.width = Math.round(w * px);
+    this.canvas.height = Math.round(h * px);
+    this.ctx = this.canvas.getContext('2d');
+    this.texture = new THREE.CanvasTexture(this.canvas);
+    this.texture.colorSpace = THREE.SRGBColorSpace;
+    this.texture.anisotropy = 4;
+    const material = new THREE.MeshBasicMaterial({ map: this.texture, toneMapped: false });
+    this.mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), material);
+    this.mesh.position.set(pos.x, pos.y, pos.z);
+    this.mesh.rotation.set(tiltX, rotY, 0, 'YXZ');
+    scene.add(this.mesh);
+
+    // A bezel, so a screen reads as hardware bolted to a wall rather than a decal.
+    const bezel = new THREE.Mesh(new THREE.BoxGeometry(w + 0.22, h + 0.22, 0.12), mat.cabinet);
+    bezel.position.copy(this.mesh.position);
+    bezel.rotation.copy(this.mesh.rotation);
+    bezel.translateZ(-0.08);
+    scene.add(bezel);
+  }
+
+  get width() { return this.canvas.width; }
+  get height() { return this.canvas.height; }
+
+  clear(fill = CSS.panel) {
+    const { ctx } = this;
+    ctx.fillStyle = fill;
+    ctx.fillRect(0, 0, this.width, this.height);
+  }
+
+  label(text, x, y, { size = 15, colour = CSS.dim, align = 'left', weight = '' } = {}) {
+    const { ctx } = this;
+    ctx.font = `${weight} ${size}px ${MONO}`.trim();
+    ctx.fillStyle = colour;
+    ctx.textAlign = align;
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillText(text, x, y);
+  }
+
+  done() { this.texture.needsUpdate = true; }
+}
+
+const busColour = (v) => (v < BAND_LO ? CSS.warn : v < 0.97 ? CSS.amber : CSS.ok);
+
+export function buildRoom(scene) {
+  const group = new THREE.Group();
+
+  /* ------------------------------------------------------------ shell */
+
+  const floor = new THREE.Mesh(new THREE.PlaneGeometry(ROOM.w, ROOM.d), mat.roomFloor);
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.set(ROOM.x, 0.02, ROOM.z);
+  floor.receiveShadow = true;
+  group.add(floor);
+
+  const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(ROOM.w, ROOM.d), mat.roomWall);
+  ceiling.rotation.x = Math.PI / 2;
+  ceiling.position.set(ROOM.x, ROOM.h, ROOM.z);
+  group.add(ceiling);
+
+  const wall = (x, z, w, d) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, ROOM.h, d), mat.roomWall);
+    m.position.set(x, ROOM.h / 2, z);
+    m.castShadow = m.receiveShadow = true;
+    group.add(m);
+    solids.push({ x, z, w, d });
+  };
+  wall(ROOM.x, ROOM.north, ROOM.w, 0.4);
+  wall(ROOM.x, ROOM.south, ROOM.w, 0.4);
+  wall(ROOM.west, ROOM.z, 0.4, ROOM.d);
+  // East wall in two pieces; the gap between them is the door.
+  const doorLo = ROOM.doorZ - ROOM.doorW / 2;
+  const doorHi = ROOM.doorZ + ROOM.doorW / 2;
+  wall(ROOM.east, (ROOM.north + doorLo) / 2, 0.4, doorLo - ROOM.north);
+  wall(ROOM.east, (doorHi + ROOM.south) / 2, 0.4, ROOM.south - doorHi);
+
+  // Room lighting. Fluorescent-cool, unlike the sodium street outside — the contrast
+  // is what makes stepping out of the door feel like leaving the instruments behind.
+  // Intensity is candela and falls as 1/d². A ceiling fitting is ~3 m from the eye
+  // where a street lamp is ~13 m, so it needs roughly a twentieth of the street lamp's
+  // 1550 — not the same number. Using street values in here rendered a white-out.
+  for (const dx of [-7, 0, 7]) {
+    const panel = new THREE.Mesh(
+      new THREE.BoxGeometry(4.4, 0.1, 1.1),
+      new THREE.MeshBasicMaterial({ color: 0x9db2c4, toneMapped: false }),
+    );
+    panel.position.set(ROOM.x + dx, ROOM.h - 0.12, ROOM.z);
+    group.add(panel);
+    const l = new THREE.PointLight(0xdce8f4, 90, 20, 2);
+    l.position.set(ROOM.x + dx, ROOM.h - 0.5, ROOM.z);
+    group.add(l);
+  }
+
+  /* ------------------------------------------------------- mimic board */
+
+  const mimic = new Screen(scene, {
+    w: 15, h: 3.6, px: 112,
+    pos: { x: ROOM.west + 0.28, y: 2.55, z: ROOM.z },
+    rotY: Math.PI / 2,
+  });
+
+  function drawMimic(state) {
+    const s = mimic;
+    const W = s.width, H = s.height;
+    s.clear('#0b1116');
+    const ctx = s.ctx;
+
+    // Header strip.
+    ctx.fillStyle = '#131c25';
+    ctx.fillRect(0, 0, W, 66);
+    s.label('FEEDER 33  ·  ONE-LINE MIMIC', 22, 43, { size: 26, colour: CSS.ink });
+    s.label(state.clock, W - 22, 43, { size: 30, colour: CSS.amber, align: 'right' });
+    s.label(state.runLabel.toUpperCase(), W / 2, 43, { size: 22, colour: CSS.cool, align: 'center' });
+
+    const xOf = (col) => 90 + (col / 17) * (W - 190);
+    const yOf = (row) => 250 + row * 78;
+
+    // Branches first, coloured by the loss they are carrying.
+    ctx.lineWidth = 4;
+    for (let i = 0; i < WORLD.branches.length; i++) {
+      const br = WORLD.branches[i];
+      const a = place.get(br.from), b = place.get(br.to);
+      const heat = Math.min(1, state.branchLoss[i + 1] / 4);
+      ctx.strokeStyle = heat > 0.15
+        ? `rgb(${Math.round(90 + heat * 150)},${Math.round(70 - heat * 30)},${Math.round(70 - heat * 30)})`
+        : '#2b3a47';
+      ctx.beginPath();
+      ctx.moveTo(xOf(a.col), yOf(a.row));
+      ctx.lineTo(xOf(b.col), yOf(b.row));
+      ctx.stroke();
+    }
+
+    // The source, drawn as the grid tie it is.
+    ctx.strokeStyle = CSS.cool;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(38, yOf(0));
+    ctx.lineTo(xOf(0), yOf(0));
+    ctx.stroke();
+    s.label('GRID', 38, yOf(0) - 16, { size: 16, colour: CSS.cool });
+
+    // Buses.
+    for (const p of place.values()) {
+      const v = vMag[p.bus];
+      const x = xOf(p.col), y = yOf(p.row);
+      ctx.fillStyle = busColour(v);
+      ctx.beginPath();
+      ctx.arc(x, y, STATION_SET.has(p.bus) ? 11 : 7, 0, Math.PI * 2);
+      ctx.fill();
+      if (STATION_SET.has(p.bus)) {
+        ctx.strokeStyle = CSS.ok;
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.arc(x, y, 17, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+      if (v < BAND_LO) {
+        s.label(v.toFixed(3), x, y - 20, { size: 14, colour: CSS.warn, align: 'center' });
+      }
+      s.label(String(p.bus), x, y + 30, { size: 13, colour: CSS.faint, align: 'center' });
+    }
+
+    // You, on the board, if you are out in the town.
+    if (state.youBus && !state.inside) {
+      const p = place.get(state.youBus);
+      const x = xOf(p.col), y = yOf(p.row);
+      ctx.strokeStyle = CSS.ink;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(x, y, 24, 0, Math.PI * 2);
+      ctx.stroke();
+      s.label('YOU', x, y - 32, { size: 14, colour: CSS.ink, align: 'center' });
+    }
+
+    // Footer readouts.
+    const foot = H - 24;
+    ctx.fillStyle = '#131c25';
+    ctx.fillRect(0, H - 58, W, 58);
+    s.label(`WORST  ${state.vMin.toFixed(4)} pu @ BUS ${state.vMinBus}`, 22, foot,
+      { size: 22, colour: state.vMin < BAND_LO ? CSS.warn : CSS.ok });
+    s.label(`OUT OF BAND  ${state.violations} / ${N_BUS}`, W * 0.42, foot,
+      { size: 22, colour: state.violations ? CSS.warn : CSS.ok });
+    s.label(`LINE LOSS  ${state.lossKw.toFixed(0)} kW`, W - 22, foot, { size: 22, colour: CSS.amber, align: 'right' });
+    s.done();
+  }
+
+  /* ------------------------------------------------------- annunciator */
+
+  const ALARMS = [
+    { id: 'uv', text: 'UNDER\nVOLTAGE', test: (s) => s.violations > 0 },
+    { id: 'end', text: 'FEEDER END\nLOW', test: () => vMag[18] < BAND_LO },
+    { id: 'lat', text: 'LATERAL\nLOW', test: () => [26, 27, 28, 29, 30, 31, 32, 33].some((b) => vMag[b] < BAND_LO) },
+    { id: 'loss', text: 'HIGH LINE\nLOSS', test: (s) => s.lossKw > 200 },
+    { id: 'man', text: 'STATION IN\nMANUAL', test: (s) => s.anyManual },
+    { id: 'sub', text: 'SOURCE\nSAG', test: () => vMag[1] < 0.97 },
+    { id: 'pv', text: 'PV ARRAY\nOFFLINE', test: (s) => s.solar <= 0 },
+    { id: 'std', text: 'STAND-IN\nCONTROLLER', test: (s) => s.standIn },
+  ];
+
+  const annun = new Screen(scene, {
+    w: 6.4, h: 2.4, px: 130,
+    pos: { x: ROOM.x - 6.2, y: 2.7, z: ROOM.north + 0.28 },
+    rotY: 0,
+  });
+
+  // Annunciator behaviour, as built: a new alarm flashes until acknowledged, then
+  // burns steady while the condition persists, then goes dark when it clears.
+  const alarmState = new Map(ALARMS.map((a) => [a.id, { active: false, acked: false }]));
+  let alarmFlash = false;
+
+  function drawAnnunciator() {
+    const s = annun;
+    const W = s.width, H = s.height;
+    s.clear('#0d1319');
+    s.label('ALARM ANNUNCIATOR', 16, 30, { size: 18, colour: CSS.dim });
+    const anyUnacked = ALARMS.some((a) => alarmState.get(a.id).active && !alarmState.get(a.id).acked);
+    s.label(anyUnacked ? 'PRESS  F  TO ACKNOWLEDGE' : 'ALL ACKNOWLEDGED', W - 16, 30,
+      { size: 18, colour: anyUnacked ? CSS.amber : CSS.faint, align: 'right' });
+
+    const cols = 4, rows = 2;
+    const padX = 14, padY = 44;
+    const tw = (W - padX * (cols + 1)) / cols;
+    const th = (H - padY - padX * rows) / rows;
+    ALARMS.forEach((a, i) => {
+      const cx = padX + (i % cols) * (tw + padX);
+      const cy = padY + Math.floor(i / cols) * (th + padX);
+      const st = alarmState.get(a.id);
+      const lit = st.active && (st.acked || alarmFlash);
+      s.ctx.fillStyle = lit ? (st.acked ? '#3a1f1c' : '#5c2b25') : '#151d25';
+      s.ctx.fillRect(cx, cy, tw, th);
+      s.ctx.strokeStyle = st.active ? CSS.warn : '#212b35';
+      s.ctx.lineWidth = 3;
+      s.ctx.strokeRect(cx, cy, tw, th);
+      const lines = a.text.split('\n');
+      lines.forEach((ln, j) => {
+        s.label(ln, cx + tw / 2, cy + th / 2 + (j - (lines.length - 1) / 2) * 24 + 8,
+          { size: 20, colour: st.active ? (lit ? '#ffd9d2' : CSS.warn) : CSS.faint, align: 'center' });
+      });
+    });
+    s.done();
+  }
+
+  function updateAlarms(state) {
+    let raised = null;
+    for (const a of ALARMS) {
+      const st = alarmState.get(a.id);
+      const now = a.test(state);
+      if (now && !st.active) { st.active = true; st.acked = false; raised = a; }
+      if (!now && st.active) { st.active = false; st.acked = false; }
+    }
+    return raised;
+  }
+
+  function ackAlarms() {
+    let n = 0;
+    for (const [, st] of alarmState) if (st.active && !st.acked) { st.acked = true; n++; }
+    return n;
+  }
+
+  const alarmsPending = () => ALARMS.filter((a) => {
+    const st = alarmState.get(a.id);
+    return st.active && !st.acked;
+  }).length;
+
+  /* -------------------------------------------------------- trend wall */
+
+  const trend = new Screen(scene, {
+    w: 7, h: 2.6, px: 130,
+    pos: { x: ROOM.x + 6.4, y: 2.6, z: ROOM.north + 0.28 },
+  });
+
+  function drawTrend(state) {
+    const s = trend;
+    const W = s.width, H = s.height;
+    s.clear('#0d1319');
+    s.label('TRENDS · 24 HOURS', 16, 30, { size: 18, colour: CSS.dim });
+    s.label(state.runLabel.toUpperCase(), W - 16, 30, { size: 18, colour: CSS.cool, align: 'right' });
+
+    const frames = state.frames;
+    const n = frames.length;
+    const plot = (y0, y1, get, lo, hi, colour, title, fmt) => {
+      const ctx = s.ctx;
+      ctx.strokeStyle = '#1d2731';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(56, y0, W - 76, y1 - y0);
+      s.label(title, 56, y0 - 8, { size: 16, colour: CSS.dim });
+      const xs = (i) => 56 + (i / (n - 1)) * (W - 76);
+      const ys = (v) => y1 - ((v - lo) / (hi - lo)) * (y1 - y0);
+      if (title.startsWith('WORST')) {
+        ctx.strokeStyle = CSS.warn;
+        ctx.setLineDash([6, 5]);
+        ctx.beginPath();
+        ctx.moveTo(56, ys(BAND_LO));
+        ctx.lineTo(W - 20, ys(BAND_LO));
+        ctx.stroke();
+        ctx.setLineDash([]);
+        s.label('0.95', 50, ys(BAND_LO) + 5, { size: 13, colour: CSS.warn, align: 'right' });
+      }
+      ctx.strokeStyle = colour;
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      frames.forEach((f, i) => {
+        const v = Math.max(lo, Math.min(hi, get(f)));
+        i ? ctx.lineTo(xs(i), ys(v)) : ctx.moveTo(xs(i), ys(v));
+      });
+      ctx.stroke();
+      // Where the day currently is.
+      const cx = xs(state.frameIndex);
+      ctx.strokeStyle = CSS.ink;
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(cx, y0); ctx.lineTo(cx, y1);
+      ctx.stroke();
+      s.label(fmt(get(frames[state.frameIndex])), W - 22, y0 + 20, { size: 20, colour, align: 'right' });
+    };
+
+    plot(64, 168, (f) => f.vmin, 0.82, 1.01, CSS.ok, 'WORST BUS VOLTAGE (pu)', (v) => v.toFixed(3));
+    plot(216, 314, (f) => f.loss, 0, 520, CSS.amber, 'LINE LOSS (kW)', (v) => v.toFixed(0) + ' kW');
+    s.done();
+  }
+
+  /* ------------------------------------------------ sequence of events */
+
+  const soe = new Screen(scene, {
+    w: 7, h: 2.4, px: 130,
+    pos: { x: ROOM.x - 6.0, y: 2.5, z: ROOM.south - 0.28 },
+    rotY: Math.PI,
+  });
+
+  const events = [];
+  function logEvent(clock, text, tone = 'info') {
+    events.push({ clock, text, tone });
+    if (events.length > 200) events.shift();
+    drawSoe();
+  }
+
+  function drawSoe() {
+    const s = soe;
+    s.clear('#0d1319');
+    s.label('SEQUENCE OF EVENTS', 16, 30, { size: 18, colour: CSS.dim });
+    const rows = 11;
+    const shown = events.slice(-rows);
+    shown.forEach((e, i) => {
+      const y = 62 + i * 24;
+      s.label(e.clock, 16, y, { size: 17, colour: CSS.faint });
+      s.label(e.text, 92, y, {
+        size: 17,
+        colour: e.tone === 'alarm' ? CSS.warn : e.tone === 'good' ? CSS.ok : CSS.ink,
+      });
+    });
+    if (!events.length) s.label('no events logged', 16, 62, { size: 17, colour: CSS.faint });
+    s.done();
+  }
+
+  /* -------------------------------------------------------- dispatch desk */
+
+  const DESK = { x: ROOM.x - 2.6, z: ROOM.z };
+  {
+    const top = new THREE.Mesh(new THREE.BoxGeometry(1.9, 0.12, 7.2), mat.desk);
+    top.position.set(DESK.x, 0.98, DESK.z);
+    top.castShadow = top.receiveShadow = true;
+    group.add(top);
+    const front = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.9, 7.0), mat.cabinet);
+    front.position.set(DESK.x, 0.47, DESK.z);
+    group.add(front);
+    solids.push({ x: DESK.x, z: DESK.z, w: 1.9, d: 7.2 });
+
+    const chair = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.34, 0.5, 10), mat.cabinet);
+    chair.position.set(DESK.x + 1.7, 0.6, DESK.z);
+    group.add(chair);
+  }
+
+  // Four station consoles, one per charging station, angled up toward the operator.
+  // They sit at desk height rather than eye height: a monitor you have to look over is
+  // a monitor that hides the mimic board, which is the one thing that must stay visible.
+  // Sized and placed to sit on the desk surface (y 1.04) without reaching high enough
+  // to cover the laterals on the mimic board behind them.
+  const consoles = WORLD.stations.map((bus, si) => {
+    const z = DESK.z - 2.55 + si * 1.7;
+    const screen = new Screen(scene, {
+      w: 1.15, h: 0.68, px: 300,
+      pos: { x: DESK.x - 0.3, y: 1.36, z },
+      rotY: Math.PI / 2, tiltX: -0.45,
+    });
+    return { bus, si, screen, z };
+  });
+
+  function drawConsole(c, state) {
+    const s = c.screen;
+    const W = s.width, H = s.height;
+    const taken = state.manual[c.si] !== null;
+    s.clear(taken ? '#1b1710' : '#0d1319');
+    s.label(`STATION ${c.si + 1} · BUS ${c.bus}`, 14, 32, { size: 22, colour: CSS.ink });
+    s.label(taken ? 'MANUAL' : 'AUTO', W - 14, 32, { size: 18, colour: taken ? CSS.amber : CSS.ok, align: 'right' });
+
+    const kw = state.stationKw[c.si];
+    const v = vMag[c.bus];
+    s.label(kw < -1 ? `${Math.abs(kw).toFixed(0)} kW DRAWN` : kw > 1 ? `${kw.toFixed(0)} kW RETURNED` : 'IDLE',
+      14, 82, { size: 34, colour: CSS.amber });
+    s.label(`${state.plugged[c.si]} plugged`, 14, 118, { size: 20, colour: CSS.dim });
+    s.label(`${v.toFixed(4)} pu`, W - 14, 118, { size: 20, colour: busColour(v), align: 'right' });
+
+    // Power bar: full scale is the 900 kW the console can command either way.
+    const bx = 14, by = 138, bw = W - 28, bh = 22;
+    s.ctx.fillStyle = '#1a232c';
+    s.ctx.fillRect(bx, by, bw, bh);
+    const frac = Math.min(1, Math.abs(kw) / 900);
+    s.ctx.fillStyle = kw > 0 ? CSS.cool : CSS.amber;
+    s.ctx.fillRect(bx + bw / 2, by, (kw > 0 ? 1 : -1) * frac * (bw / 2), bh);
+    s.ctx.fillStyle = CSS.faint;
+    s.ctx.fillRect(bx + bw / 2 - 1, by - 3, 2, bh + 6);
+    s.done();
+  }
+
+  /* ------------------------------------------------ procurement terminal */
+
+  const terminal = new Screen(scene, {
+    w: 2.2, h: 1.5, px: 190,
+    pos: { x: ROOM.east - 1.5, y: 1.75, z: ROOM.z - 6.0 },
+    rotY: -Math.PI / 2 + 0.5,
+  });
+  {
+    const stand = new THREE.Mesh(new THREE.BoxGeometry(1.1, 1.05, 1.6), mat.cabinet);
+    stand.position.set(ROOM.east - 1.35, 0.52, ROOM.z - 6.0);
+    stand.castShadow = true;
+    group.add(stand);
+    solids.push({ x: ROOM.east - 1.35, z: ROOM.z - 6.0, w: 1.1, d: 1.6 });
+  }
+
+  function drawTerminal(state) {
+    const s = terminal;
+    const W = s.width, H = s.height;
+    s.clear('#0d1319');
+    s.label('PROCUREMENT · FOUR CANDIDATES', 16, 32, { size: 20, colour: CSS.ink });
+    s.label('SAME FEEDER, SAME DAY, SAME FLEET', 16, 58, { size: 15, colour: CSS.faint });
+
+    const cols = [16, W - 250, W - 130, W - 20];
+    s.label('CONTROLLER', cols[0], 96, { size: 16, colour: CSS.dim });
+    s.label('VIOLATIONS', cols[1], 96, { size: 16, colour: CSS.dim, align: 'right' });
+    s.label('NET COST', cols[2], 96, { size: 16, colour: CSS.dim, align: 'right' });
+
+    WORLD.runs.forEach((r, i) => {
+      const y = 132 + i * 38;
+      const picked = state.picked === i;
+      if (picked) {
+        s.ctx.fillStyle = '#1b2a25';
+        s.ctx.fillRect(8, y - 24, W - 16, 32);
+      }
+      const star = r.provenance === 'placeholder' ? ' *' : '';
+      s.label(r.label.replace(/ \(.*\)/, '') + star, cols[0], y, { size: 18, colour: CSS.ink });
+      s.label(r.violationRate.toFixed(3), cols[1], y, { size: 18, colour: CSS.ink, align: 'right' });
+      s.label('$' + Math.round(r.netCostUsd ?? 0), cols[2], y, { size: 18, colour: CSS.ink, align: 'right' });
+    });
+
+    s.label('* labelled stand-in, not the trained agent', 16, H - 46, { size: 14, colour: CSS.faint });
+    s.label(state.picked === null ? 'PRESS  E  TO CHOOSE' : 'DEPLOYED — WALK THE FEEDER',
+      16, H - 18, { size: 17, colour: state.picked === null ? CSS.amber : CSS.ok });
+    s.done();
+  }
+
+  /* --------------------------------------------------- relay cabinets */
+
+  const relayLeds = [];
+  {
+    for (let i = 0; i < 5; i++) {
+      const x = ROOM.west + 1.6 + i * 1.5;
+      const cab = new THREE.Mesh(new THREE.BoxGeometry(1.3, 2.2, 0.7), mat.cabinet);
+      cab.position.set(x, 1.1, ROOM.south - 0.6);
+      cab.castShadow = cab.receiveShadow = true;
+      group.add(cab);
+      solids.push({ x, z: ROOM.south - 0.6, w: 1.3, d: 0.7 });
+      for (let j = 0; j < 3; j++) {
+        const led = new THREE.Mesh(
+          new THREE.SphereGeometry(0.045, 6, 5),
+          new THREE.MeshBasicMaterial({ color: PALETTE.cool, toneMapped: false }),
+        );
+        led.position.set(x - 0.4 + j * 0.4, 1.75, ROOM.south - 0.96);
+        group.add(led);
+        relayLeds.push(led);
+      }
+    }
+  }
+
+  scene.add(group);
+
+  /* ------------------------------------------------------------ redraw */
+
+  const OK = new THREE.Color(PALETTE.cool);
+  const BAD = new THREE.Color(PALETTE.sick);
+
+  function redraw(state) {
+    drawMimic(state);
+    drawTrend(state);
+    drawAnnunciator();
+    consoles.forEach((c) => drawConsole(c, state));
+    drawTerminal(state);
+    // Relay panel LEDs: one per bus, first 15 buses, red where the protection would
+    // be seeing an undervoltage.
+    relayLeds.forEach((led, i) => {
+      const bus = i + 2;
+      led.material.color.copy(bus <= N_BUS && vMag[bus] < BAND_LO ? BAD : OK);
+    });
+  }
+
+  function setFlash(on) {
+    if (alarmFlash === on) return;
+    alarmFlash = on;
+    drawAnnunciator();
+  }
+
+  const inside = (x, z) =>
+    x > ROOM.west && x < ROOM.east && z > ROOM.north && z < ROOM.south;
+
+  /** Where the day starts: standing back from the desk, facing the mimic board. */
+  const spawn = { x: DESK.x + 3.4, y: EYE, z: DESK.z, yaw: Math.PI / 2 };
+
+  return {
+    redraw, logEvent, ackAlarms, updateAlarms, alarmsPending, setFlash, drawSoe,
+    inside, spawn, consoles, desk: DESK, terminal,
+    events,
+  };
+}
