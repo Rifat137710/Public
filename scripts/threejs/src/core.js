@@ -108,18 +108,40 @@ export function solveAt(day, stationKw) {
 }
 
 /**
- * Re-solve every recorded step and compare with the engine that recorded it. A port
- * that agrees to 1e-4 pu across 576 steps is a port; one that is merely believed is
- * a liability, because everything the city teaches is downstream of this.
+ * Switch between the weak feeder and the canonical stiff one.
+ *
+ * Branch 0 is the substation source impedance, and it is the single structural
+ * difference between the two grids. Setting it to zero is the whole change — which is
+ * why a town that behaves completely differently is one line of arithmetic away.
+ */
+export let grid = 'weak';
+export function setGrid(kind) {
+  grid = kind === 'strong' ? 'strong' : 'weak';
+  net.branchR[0] = grid === 'strong' ? 0 : WORLD.source.rPu;
+  net.branchX[0] = grid === 'strong' ? 0 : WORLD.source.xPu;
+}
+
+/**
+ * Re-solve every recorded step, on both grids, and compare with the engine that
+ * recorded it. A port that agrees to 1e-4 pu across 1152 steps is a port; one that is
+ * merely believed is a liability, because everything the city teaches is downstream
+ * of this.
  */
 export const check = (() => {
   let worstV = 0, worstViol = 0, n = 0;
-  for (const run of WORLD.runs) run.frames.forEach((f, i) => {
-    const r = solveAt(WORLD.day[i], f.kw);
-    worstV = Math.max(worstV, Math.abs(r.vMin - f.vmin));
-    worstViol = Math.max(worstViol, Math.abs(r.violations - f.viol));
-    n++;
-  });
+  const sweep = (runs) => {
+    for (const run of runs) run.frames.forEach((f, i) => {
+      const r = solveAt(WORLD.day[i], f.kw);
+      worstV = Math.max(worstV, Math.abs(r.vMin - f.vmin));
+      worstViol = Math.max(worstViol, Math.abs(r.violations - f.viol));
+      n++;
+    });
+  };
+  setGrid('weak');
+  sweep(WORLD.runs);
+  setGrid('strong');
+  sweep(WORLD.runsStrong);
+  setGrid('weak');
   return { worstV, worstViol, n, ok: worstV < 5e-4 && worstViol === 0 };
 })();
 

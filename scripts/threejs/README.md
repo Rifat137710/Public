@@ -67,6 +67,39 @@ Things that cost real time to find:
   back to the controller; its `setup` used to call `clearManual()` first, which
   completed the objective before the learner arrived.
 
+## The feeder switch, and what it does not show
+
+After the six stages, the town can be rebuilt on the canonical stiff feeder — the same
+day, the same fleet, the same controllers, with the substation impedance taken out.
+Across the day that is worth a great deal:
+
+| controller | violations weak → stiff | drivers served | line loss |
+| --- | --- | --- | --- |
+| Droop (IEEE 1547) | 0.0445 → 0.0083 | 162 → 186 | 1116 → 923 kWh |
+| SafeSAC | 0.0160 → 0.0000 | 159 → 204 | 947 → 725 kWh |
+
+You can buy safety with control or with copper, and choosing between them is the actual
+engineering decision. It is also not a free pass: even on the stiff feeder, uncoordinated
+charging still has twenty buses outside the band at the evening peak.
+
+Two things about how this is built:
+
+- **The stiff-grid episodes are run, not replayed.** Droop reacts to its own local
+  voltage, so on a stiffer source it issues genuinely different commands. Re-solving the
+  weak-grid record against a stiffer source would show a controller that never existed.
+  `world.json` therefore carries two sets of episodes, and the self-check verifies all
+  1152 recorded steps across both.
+- **It cannot demonstrate distribution shift.** The natural thing to want here is to
+  watch the shifted agent become reasonable on the grid it was trained for. It does not:
+  it charges nobody on either feeder, because it is a labelled stand-in whose refusal is
+  written into it rather than learned. The switch shows what the network is worth. It
+  will not show shift arising on its own until the trained episodes are exported from
+  the notebook, and the stage-6 debrief says so in as many words.
+
+The switch stays locked until the arc is finished, and every stage resets the town to
+the weak feeder — a learner who stiffens the source during stage 2 has not solved the
+problem the other five stages are about, they have removed it.
+
 ## Getting around without a mouse
 
 Pointer lock is the nicer way to look around, and it is still the default — but it is

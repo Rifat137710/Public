@@ -27,6 +27,7 @@ import {
   Z_BASE_OHM,
   nominalLoadPu,
 } from '../src/sim/network.js';
+import type { GridKind } from '../src/sim/network.js';
 import { LiveSim, PV_CAPACITY_KW } from '../src/sim/live.js';
 import { droop, placeholderController, uncoordinated } from '../src/sim/controllers.js';
 import type { Controller } from '../src/sim/controllers.js';
@@ -34,6 +35,18 @@ import { STEPS_PER_DAY, clockOf, clearSkyFraction, loadShape } from '../src/sim/
 import { PLACES } from '../src/ui/layout.js';
 
 const SCENARIO = { grid: 'weak' as const, loadScale: 0.5, seed: 137710 };
+
+/**
+ * The same day on the canonical stiff feeder — identical loads, identical fleet, zero
+ * substation impedance.
+ *
+ * This has to be run, not replayed. Droop reacts to its own local voltage, so its
+ * commands on a stiff grid are genuinely different commands; taking the weak-grid
+ * record and re-solving it against a stiffer source would show you a controller that
+ * never existed. Only the loads are shared between the two, because loads do not care
+ * what is upstream of them.
+ */
+const SCENARIO_STRONG = { ...SCENARIO, grid: 'strong' as const };
 /** Every other five-minute step: 144 frames a day is smooth enough to watch. */
 const FRAME_STRIDE = 2;
 
@@ -98,8 +111,11 @@ function captureDay() {
   return frames;
 }
 
-function capture(controller: Controller, projection: boolean) {
-  const sim = new LiveSim(SCENARIO);
+/** Widened past the literal type of SCENARIO so the stiff-grid scenario also fits. */
+type Scenario = { grid: GridKind; loadScale: number; seed: number };
+
+function capture(controller: Controller, projection: boolean, scenario: Scenario = SCENARIO) {
+  const sim = new LiveSim(scenario);
   controller.reset?.();
   const frames: unknown[] = [];
 
@@ -176,6 +192,26 @@ const world = {
     capture(sacLag, false),
     capture(safeSac, true),
   ],
+  /**
+   * The same four controllers living through the same day on the stiff feeder. The
+   * viewer switches to these when the grid is switched, and drops the source impedance
+   * to zero to match — so what it shows is what those controllers actually did there.
+   */
+  runsStrong: [
+    capture(uncoordinated, false, SCENARIO_STRONG),
+    capture(droop, false, SCENARIO_STRONG),
+    capture(sacLag, false, SCENARIO_STRONG),
+    capture(safeSac, true, SCENARIO_STRONG),
+  ],
+  /** The stage-6 shortlist, rerun on the grid the shifted agent was trained for. */
+  candidatesStrong: [droop, sacLag, safeSac, sacLagShifted].map((c) => {
+    const r = capture(c, c.id === 'safesac', SCENARIO_STRONG);
+    return {
+      id: r.id, label: r.label, provenance: r.provenance,
+      violationRate: r.violationRate, socMet: r.socMet,
+      totalLossKwh: r.totalLossKwh, netCostUsd: r.netCostUsd, vMinPu: r.vMinPu,
+    };
+  }),
   /**
    * The stage-6 shortlist. Uncoordinated is not on it — nobody procures "no
    * controller" — and the shifted agent is, which is what makes the table a trap.

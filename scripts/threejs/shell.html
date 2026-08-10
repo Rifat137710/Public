@@ -371,6 +371,9 @@
     cursor: pointer;
   }
   .seg button[aria-pressed="true"] { border-color: var(--amber); color: var(--amber); }
+  .seg button:disabled { opacity: .38; cursor: not-allowed; }
+  .seg button:disabled:hover { border-color: var(--line); color: var(--dim); }
+  #gridNote { font-size: .7rem; color: var(--faint); margin: .25rem 0 0; max-width: 20rem; }
   .seg button:hover, .transport button:hover { border-color: var(--dim); color: var(--ink); }
   .transport { display: flex; gap: .5rem; align-items: center; }
   #scrub { flex: 1; accent-color: var(--amber); }
@@ -492,6 +495,12 @@
       <label id="lblGo">Go to</label>
       <div class="seg" role="group" aria-labelledby="lblGo" id="goSeg"></div>
     </div>
+    <div class="group">
+      <label id="lblGrid">The feeder itself</label>
+      <div class="seg" role="group" aria-labelledby="lblGrid" id="gridSeg"></div>
+      <p id="gridNote" hidden>Same day, same fleet, same controllers — only the
+        substation impedance changes.</p>
+    </div>
     <div class="group grow">
       <label for="scrub">Time of day</label>
       <div class="transport">
@@ -521,7 +530,8 @@
   <section>
     <h2>The procurement shortlist</h2>
     <p>The table stage six puts in front of you, with the column that decides it restored. Nobody
-      procures “no controller”, so uncoordinated is not on the list.</p>
+      procures “no controller”, so uncoordinated is not on the list. These figures are for
+      <b id="totalsGrid">the weak feeder</b> and follow the feeder switch above.</p>
     <div class="scroll">
       <table>
         <thead>

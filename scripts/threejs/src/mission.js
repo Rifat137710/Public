@@ -197,6 +197,10 @@ export const STAGES = [
           'Whether you avoided it deliberately or by luck, the point stands: a table with a safety column and a cost column cannot distinguish a good controller from one that does nothing.',
         );
       }
+      lines.push(
+        'The feeder switch is now unlocked. Rebuild the town on a stiff source and walk it again: the same controllers, the same fleet, the same evening, with the substation impedance taken out. Droop goes from breaking the band 4.5% of the day to 0.8%, and SafeSAC to never — and both serve more drivers while doing it. You can buy safety with control or you can buy it with copper, and that choice is the actual engineering decision.',
+        'One caveat, stated plainly: the shifted agent charges nobody on either grid, because it is a labelled stand-in whose refusal is written into it rather than learned. Switching grids shows you what the network is worth. It cannot show you distribution shift arising on its own, and will not until the trained episodes are exported from the notebook.',
+      );
       return lines;
     },
   },
@@ -296,6 +300,9 @@ export class Progress {
   beginStage() {
     this.reset();
     this.phase = 'brief';
+    // Every stage is set on the weak feeder. Otherwise a learner who unlocked the
+    // stiff grid and replayed stage 2 would be shown a problem that is not there.
+    this.api.setGrid('weak');
     this.stage.setup(this.api);
   }
 

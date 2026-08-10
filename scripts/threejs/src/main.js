@@ -16,7 +16,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 import {
   WORLD, N_BUS, BAND_LO, BAND_HI, EYE, ROOM, SUB, ROAD_W, place, solids, maxX, check,
-  solveAt, vMag, branchLossKw, STATION_SET, PALETTE,
+  solveAt, setGrid, vMag, branchLossKw, STATION_SET, PALETTE,
 } from './core.js';
 import { buildCity } from './city.js';
 import { buildRoom } from './room.js';
@@ -114,7 +114,18 @@ let solution = null;
 let panelTarget = null;
 const manual = [null, null, null, null];
 
-const run = () => WORLD.runs[runIndex];
+/**
+ * Which feeder the town is on. The stiff grid is not a re-solve of the weak grid's
+ * commands — droop reacts to its own local voltage, so on a stiffer source it issues
+ * genuinely different commands. Switching swaps both the source impedance and the
+ * recorded episodes, so what you see is what those controllers actually did there.
+ */
+let gridKind = 'weak';
+let cfCache = { key: null, rows: null };
+const runSet = () => (gridKind === 'strong' ? WORLD.runsStrong : WORLD.runs);
+const candidateSet = () => (gridKind === 'strong' ? WORLD.candidatesStrong : WORLD.candidates);
+
+const run = () => runSet()[runIndex];
 const frame = () => run().frames[frameIndex];
 const commands = () => frame().kw.map((k, i) => (manual[i] === null ? k : manual[i]));
 const insideRoom = () => room.inside(camera.position.x, camera.position.z);
@@ -123,7 +134,21 @@ const api = {
   setRun(i) { runIndex = i; syncRunButtons(); },
   setFrame(i) { frameIndex = i; el('scrub').value = String(i); },
   clearManual() { manual.fill(null); },
+  // Every stage is set on the weak feeder. The stiff one is a thing you go and look at
+  // after the arc, not a difficulty setting you can leave on by accident.
+  setGrid(kind) { applyGrid(kind); },
 };
+
+function applyGrid(kind) {
+  gridKind = kind === 'strong' ? 'strong' : 'weak';
+  setGrid(gridKind);
+  cfCache.key = null;
+  syncGridButtons();
+  renderTotals();
+  room.invalidate();
+  resolveNow();
+  updateHud();
+}
 
 const progress = new Progress(api);
 
@@ -241,11 +266,10 @@ function nearestBus() {
  * `solveAt` writes into the shared voltage buffer, so the active scenario is re-solved
  * afterwards to put the world back exactly as it was.
  */
-let cfCache = { key: null, rows: null };
 function counterfactuals(bus) {
-  const key = `${bus}|${frameIndex}|${manual.join(',')}`;
+  const key = `${bus}|${frameIndex}|${gridKind}|${manual.join(',')}`;
   if (cfCache.key === key) return cfCache.rows;
-  const rows = WORLD.runs.map((r, i) => {
+  const rows = runSet().map((r, i) => {
     solveAt(WORLD.day[frameIndex], r.frames[frameIndex].kw);
     return { label: r.label.replace(/ \(.*\)/, ''), v: vMag[bus], standIn: r.provenance === 'placeholder', index: i };
   });
@@ -357,7 +381,7 @@ function renderPanel() {
     progress.observeConsole(t.si);
   } else if (t.kind === 'terminal') {
     progress.observeTerminal();
-    const rows = WORLD.candidates.map((c, i) => `
+    const rows = candidateSet().map((c, i) => `
       <button class="cand${progress.picked === i ? ' picked' : ''}" data-pick="${i}">
         <span class="cname">${c.label}${c.provenance === 'placeholder' ? ' <em>*</em>' : ''}</span>
         <span class="cnum">${c.violationRate.toFixed(3)}</span>
@@ -372,7 +396,7 @@ function renderPanel() {
     panel.querySelectorAll('[data-pick]').forEach((b) => {
       b.onclick = () => {
         progress.picked = Number(b.dataset.pick);
-        room.logEvent(frame().clock, `deployed ${WORLD.candidates[progress.picked].label}`, 'info');
+        room.logEvent(frame().clock, `deployed ${candidateSet()[progress.picked].label}`, 'info');
         redrawInstruments();
         renderPanel();
         checkObjectives();
@@ -445,9 +469,12 @@ function dismissCard() {
     showCard('brief');
   } else {
     el('card').hidden = true;
-    el('objList').innerHTML = '<li class="done"><span class="tick">✓</span><span>All six stages complete. The city is yours to walk.</span></li>';
+    unlockGrid();
+    el('objList').innerHTML =
+      '<li class="done"><span class="tick">✓</span><span>All six stages complete.</span></li>' +
+      '<li><span class="tick">→</span><span>The <b>feeder switch</b> is now unlocked. Rebuild the town on a stiff source and walk it again.</span></li>';
     el('stageTag').textContent = 'Free play';
-    el('stageTitle').textContent = 'Walk the feeder';
+    el('stageTitle').textContent = 'What the network itself is worth';
     return;
   }
   renderObjectives();
@@ -694,6 +721,43 @@ function syncRunButtons() {
   [...runSeg.children].forEach((c, j) => c.setAttribute('aria-pressed', String(j === runIndex)));
 }
 
+/**
+ * The feeder switch. Locked until the arc is finished, because a learner who stiffens
+ * the source during stage 2 is not being shown the problem the other five stages are
+ * about — they have quietly removed it.
+ */
+let gridUnlocked = false;
+const gridSeg = el('gridSeg');
+[['Weak feeder', 'weak'], ['Stiff feeder', 'strong']].forEach(([label, kind]) => {
+  const b = document.createElement('button');
+  b.textContent = label;
+  b.dataset.grid = kind;
+  b.onclick = () => {
+    if (!gridUnlocked) return;
+    applyGrid(kind);
+    room.logEvent(frame().clock, `feeder rebuilt as the ${kind === 'strong' ? 'stiff' : 'weak'} grid`, 'info');
+    checkObjectives();
+  };
+  gridSeg.appendChild(b);
+});
+
+function syncGridButtons() {
+  [...gridSeg.children].forEach((c) => {
+    c.setAttribute('aria-pressed', String(c.dataset.grid === gridKind));
+    c.disabled = !gridUnlocked;
+    c.title = gridUnlocked
+      ? 'Same day, same fleet, same controllers — only the substation impedance changes'
+      : 'Unlocks when you finish the six stages';
+  });
+  el('gridNote').hidden = !gridUnlocked;
+}
+
+function unlockGrid() {
+  if (gridUnlocked) return;
+  gridUnlocked = true;
+  syncGridButtons();
+}
+
 const goSeg = el('goSeg');
 [['Control room', room.spawn.x, room.spawn.z, room.spawn.yaw],
  ['Substation gate', -20, -12, -0.5],
@@ -735,15 +799,15 @@ el('verdict').textContent = check.ok
   : `MISMATCH — ${check.worstV.toExponential(2)} pu. Do not trust these numbers.`;
 
 const totals = el('totals');
-WORLD.candidates.forEach((r) => {
-  const tr = document.createElement('tr');
-  tr.innerHTML = `<td>${r.label}</td><td class="num">${r.violationRate.toFixed(3)}</td>` +
+function renderTotals() {
+  totals.innerHTML = candidateSet().map((r) =>
+    `<tr><td>${r.label}</td><td class="num">${r.violationRate.toFixed(3)}</td>` +
     `<td class="num">${Math.round(r.socMet * 287)} of 287</td>` +
     `<td class="num">${r.totalLossKwh.toFixed(0)} kWh</td>` +
     `<td class="num">$${r.netCostUsd}</td>` +
-    `<td>${r.provenance === 'placeholder' ? 'labelled stand-in' : 'production controller'}</td>`;
-  totals.appendChild(tr);
-});
+    `<td>${r.provenance === 'placeholder' ? 'labelled stand-in' : 'production controller'}</td></tr>`).join('');
+  el('totalsGrid').textContent = gridKind === 'strong' ? 'the stiff feeder' : 'the weak feeder';
+}
 
 /* ================================================================== */
 /*  Quality ladder                                                    */
@@ -857,6 +921,8 @@ camera.rotation.set(0, room.spawn.yaw, 0, 'YXZ');
 
 progress.beginStage();
 syncRunButtons();
+syncGridButtons();
+renderTotals();
 resolveNow();
 room.logEvent('00:00', 'control room staffed · day begins', 'info');
 updateHud();
@@ -870,6 +936,9 @@ window.__city = {
   solution: () => solution,
   setRun: (i) => { runIndex = i; syncRunButtons(); resolveNow(); updateHud(); },
   setFrame: (i) => { frameIndex = i; resolveNow(); updateHud(); },
+  setFeeder: applyGrid,
+  gridUnlocked: () => gridUnlocked,
+  pause: () => { playing = false; el('play').textContent = 'Play'; },
   dismissCard,
   state: () => ({ runIndex, frameIndex, manual: [...manual], inside: insideRoom(), picked: progress.picked }),
   objectives: () => progress.status(liveState()),
