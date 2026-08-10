@@ -21,6 +21,7 @@ import {
 import { buildCity } from './city.js';
 import { buildRoom } from './room.js';
 import { STAGES, Progress } from './mission.js';
+import { FleetRun, fleetCheck } from './fleet.js';
 
 const el = (id) => document.getElementById(id);
 
@@ -137,6 +138,17 @@ const api = {
   // Every stage is set on the weak feeder. The stiff one is a thing you go and look at
   // after the arc, not a difficulty setting you can leave on by accident.
   setGrid(kind) { applyGrid(kind); },
+  /**
+   * Start a stage at midnight with a fresh fleet. Stages used to open at the evening
+   * peak to get to the interesting part quickly, but a run can only be scored if it is
+   * played from the beginning — a state of charge is the integral of the whole day —
+   * and a stage that cannot be scored never leaves a dot on the map.
+   */
+  startDay() {
+    frameIndex = 0;
+    el('scrub').value = '0';
+    startRun();
+  },
 };
 
 function applyGrid(kind) {
@@ -153,6 +165,57 @@ function applyGrid(kind) {
 const progress = new Progress(api);
 
 let feederTableDue = true;
+
+/* ------------------------------------------------------------ the map */
+
+const DOT_COLOURS = ['#e3b24f', '#5aa9d6', '#e4776b', '#4fb3a2'];
+
+/**
+ * A run counts when the day is played from the beginning to the end. Scrubbing the
+ * clock ends it: a fleet's state of charge is the integral of everything that happened
+ * before now, and you cannot skip the middle of a day and still score it.
+ */
+const fleetRun = new FleetRun();
+let runLive = false;
+const myDots = [];
+
+function referenceDots() {
+  return runSet().map((r, i) => ({
+    label: r.label,
+    violationRate: r.violationRate,
+    socMet: r.socMet,
+    colour: DOT_COLOURS[i % DOT_COLOURS.length],
+    mine: false,
+    provenance: r.provenance,
+  }));
+}
+
+const allDots = () => [...referenceDots(), ...myDots];
+const dotsKey = () => `${gridKind}|${myDots.length}`;
+
+function startRun() {
+  fleetRun.reset();
+  runLive = true;
+}
+
+function endRunIfComplete() {
+  if (!runLive) return;
+  runLive = false;
+  const t = fleetRun.totals();
+  myDots.push({
+    label: `Your run ${myDots.length + 1}`,
+    violationRate: t.violationRate,
+    socMet: t.socMet,
+    totalLossKwh: t.totalLossKwh,
+    vMinPu: t.vMinPu,
+    driversMet: t.driversMet,
+    colour: '#e8ecf2',
+    mine: true,
+  });
+  room.logEvent('23:55', `run scored — ${t.driversMet} of ${t.fleetSize} served, ${(t.violationRate * 100).toFixed(2)}% bus-steps out of band`, 'good');
+  renderDotList();
+  redrawInstruments();
+}
 
 function resolveNow() {
   const kw = commands();
@@ -202,6 +265,8 @@ function flushInstruments() {
     picked: progress.picked,
     youBus: nearestBus(),
     inside: insideRoom(),
+    dots: allDots(),
+    dotsKey: dotsKey(),
   });
 }
 
@@ -518,6 +583,24 @@ function announce(text) {
   el('announce').textContent = text;
 }
 
+/** The map, as a table. Same dots, readable without walking to the wall. */
+function renderDotList() {
+  const rows = allDots().map((d) => {
+    const stand = d.provenance === 'placeholder' ? ' <em>*</em>' : '';
+    return `<tr${d.mine ? ' class="mine"' : ''}>
+      <td><span class="swatch" style="background:${d.colour}"></span>${d.label}${stand}</td>
+      <td class="num">${d.violationRate.toFixed(4)}</td>
+      <td class="num">${Math.round(d.socMet * 287)} of 287</td>
+      <td class="num">${d.totalLossKwh ? d.totalLossKwh.toFixed(0) + ' kWh' : '—'}</td></tr>`;
+  }).join('');
+  el('dotBody').innerHTML = rows;
+  el('runState').textContent = runLive
+    ? 'Run in progress — play it to midnight to score it.'
+    : myDots.length
+      ? `${myDots.length} of your own run${myDots.length === 1 ? '' : 's'} scored.`
+      : 'Press Play from the start of the day to score a run of your own.';
+}
+
 /** The mimic board as a table, for reading rather than walking. */
 const feederRows = [...place.values()].map((p) => {
   const tr = document.createElement('tr');
@@ -780,7 +863,11 @@ scrub.oninput = () => {
   frameIndex = Number(scrub.value);
   playing = false;
   el('play').textContent = 'Play';
-  resolveNow(); updateHud();
+  // A state of charge is the integral of everything before now. You cannot skip the
+  // middle of a day and still score it, so scrubbing ends the run rather than
+  // producing a dot that quietly leaves a few hours out.
+  if (runLive) { runLive = false; room.logEvent(frame().clock, 'clock moved by hand — run not scored', 'info'); }
+  resolveNow(); updateHud(); renderDotList();
 };
 el('play').onclick = () => {
   if (!playing && frameIndex >= WORLD.day.length - 1) {
@@ -790,9 +877,29 @@ el('play').onclick = () => {
     updateHud();
   }
   playing = !playing;
+  // Playing from the top starts a scoreable run; resuming from the middle does not.
+  if (playing && frameIndex === 0) startRun();
   el('play').textContent = playing ? 'Pause' : 'Play';
+  renderDotList();
 };
+
+const speedSeg = el('speedSeg');
+[['×1', 1], ['×4', 4], ['×16', 16], ['×64', 64]].forEach(([label, n]) => {
+  const b = document.createElement('button');
+  b.textContent = label;
+  b.dataset.speed = String(n);
+  b.title = `${(WORLD.day.length * 110 / n / 1000).toFixed(0)} seconds a day`;
+  b.onclick = () => { stepsPerTick = n; syncSpeedButtons(); };
+  speedSeg.appendChild(b);
+});
+function syncSpeedButtons() {
+  [...speedSeg.children].forEach((c) => c.setAttribute('aria-pressed', String(Number(c.dataset.speed) === stepsPerTick)));
+}
 el('cardGo').onclick = dismissCard;
+
+el('fleetVerdict').textContent = fleetCheck.ok
+  ? `${fleetCheck.n} recorded runs replayed through the fleet, worst drivers-served disagreement ${fleetCheck.worstSoc.toExponential(1)}, worst violation-rate disagreement ${fleetCheck.worstViol.toExponential(1)}.`
+  : `MISMATCH — service off by ${fleetCheck.worstSoc.toExponential(2)}. Do not trust the map.`;
 
 el('verdict').textContent = check.ok
   ? `${check.n} recorded control steps re-solved in the browser, worst voltage disagreement ${check.worstV.toExponential(1)} pu, violation counts identical.`
@@ -836,6 +943,16 @@ function setTier(next) {
 /* ================================================================== */
 
 let lastT = 0, lastTick = 0, frames = 0, fpsT = 0, slowSeconds = 0, flashT = 0;
+
+/**
+ * How fast the day runs, in five-minute steps per tick.
+ *
+ * The fleet sees every step at every speed — only the render and the instruments skip
+ * the intermediate ones — so a run scored at ×64 is scored identically to one at ×1.
+ * The default is one step a tick, which puts a whole day at about half a minute: long
+ * enough to walk out to the far end of the feeder while it happens.
+ */
+let stepsPerTick = 1;
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function loop(t) {
@@ -853,9 +970,24 @@ function loop(t) {
       el('play').textContent = 'Replay the day';
       room.logEvent('23:55', 'day complete', 'info');
     } else {
-      frameIndex++;
+      // Two five-minute steps per tick. The export is now every step so a run can be
+      // scored the way the engine scores one, but a 288-step day at one step per tick
+      // would take twice as long to watch. The fleet still sees every step; only the
+      // instruments and the render skip the intermediate one.
+      for (let s = 0; s < stepsPerTick && frameIndex < WORLD.day.length - 1; s++) {
+        frameIndex++;
+        // The fleet plugs in and unplugs before the step is dispatched, exactly as the
+        // engine orders it: connections, then solve, then move the energy.
+        if (runLive) fleetRun.updateConnections(frameIndex);
+        resolveNow();
+        if (runLive) {
+          fleetRun.record(solution);
+          const kw = commands();
+          for (let k = 0; k < 4; k++) fleetRun.dispatchStation(k, kw[k]);
+        }
+      }
       scrub.value = String(frameIndex);
-      resolveNow();
+      if (runLive && frameIndex >= WORLD.day.length - 1) endRunIfComplete();
 
       const raised = room.updateAlarms({
         violations: solution.violations,
@@ -922,7 +1054,9 @@ camera.rotation.set(0, room.spawn.yaw, 0, 'YXZ');
 progress.beginStage();
 syncRunButtons();
 syncGridButtons();
+syncSpeedButtons();
 renderTotals();
+renderDotList();
 resolveNow();
 room.logEvent('00:00', 'control room staffed · day begins', 'info');
 updateHud();
@@ -934,10 +1068,21 @@ window.__city = {
   camera, controls, focused, openPanel, closePanel, check, progress, room, city,
   updateHud, resolveNow,
   solution: () => solution,
-  setRun: (i) => { runIndex = i; syncRunButtons(); resolveNow(); updateHud(); },
-  setFrame: (i) => { frameIndex = i; resolveNow(); updateHud(); },
+  // These mirror what the real controls do, checkObjectives included — a hook that
+  // skips it lets a test pass a stage the interface would not have advanced.
+  setRun: (i) => { runIndex = i; syncRunButtons(); resolveNow(); updateHud(); checkObjectives(); },
+  setFrame: (i) => { frameIndex = i; resolveNow(); updateHud(); checkObjectives(); },
+  ackAlarms: () => {
+    const n = room.ackAlarms();
+    if (n) { progress.observeAck(n); updateHud(); checkObjectives(); }
+    return n;
+  },
   setFeeder: applyGrid,
   gridUnlocked: () => gridUnlocked,
+  myDots: () => myDots,
+  refDots: referenceDots,
+  fleetCheck,
+  setSpeed: (n) => { stepsPerTick = n; syncSpeedButtons(); },
   pause: () => { playing = false; el('play').textContent = 'Play'; },
   dismissCard,
   state: () => ({ runIndex, frameIndex, manual: [...manual], inside: insideRoom(), picked: progress.picked }),

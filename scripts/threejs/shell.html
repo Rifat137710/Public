@@ -396,7 +396,7 @@
   th, td { text-align: left; padding: .5rem .7rem; border-bottom: 1px solid var(--line); }
   th { font-family: var(--mono); font-size: .66rem; letter-spacing: .12em; text-transform: uppercase; color: var(--faint); }
   td.num { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
-  #verdict { font-family: var(--mono); font-size: .76rem; color: var(--ok); }
+  #verdict, #fleetVerdict { font-family: var(--mono); font-size: .76rem; color: var(--ok); }
   .foot { font-family: var(--mono); font-size: .72rem; color: var(--faint); max-width: 80ch; }
 
   button:focus-visible, input:focus-visible, [tabindex]:focus-visible {
@@ -416,6 +416,18 @@
     clip-path: inset(50%);
     white-space: nowrap;
   }
+
+  .swatch {
+    display: inline-block;
+    width: .6rem; height: .6rem;
+    border-radius: 50%;
+    margin-right: .5rem;
+    vertical-align: baseline;
+  }
+  #dotBody tr.mine td { color: var(--ink); }
+  #dotBody tr.mine .swatch { background: none !important; border: 2px solid var(--ink); }
+  #dotBody em { color: var(--amber); font-style: normal; }
+  #runState { color: var(--amber); }
 
   #feeder td.v { font-family: var(--mono); font-variant-numeric: tabular-nums; text-align: right; }
   #feeder td.s { font-family: var(--mono); font-size: .74rem; }
@@ -505,10 +517,27 @@
       <label for="scrub">Time of day</label>
       <div class="transport">
         <button id="play">Play</button>
-        <input id="scrub" type="range" min="0" max="143" value="0" step="1" aria-label="Scrub through the simulated day" />
+        <span class="seg" role="group" aria-label="Speed" id="speedSeg"></span>
+        <input id="scrub" type="range" min="0" max="287" value="0" step="1" aria-label="Scrub through the simulated day" />
       </div>
     </div>
   </div>
+
+  <section>
+    <h2>The map — every run you finish leaves a dot</h2>
+    <p>Safety on one axis, service on the other. A controller comparison with only the
+      first column cannot tell a good controller from one that does nothing. Your own
+      runs are scored by walking the same 287-vehicle fleet the engine walks, counting
+      the drivers who reached the charge they came for. <span id="runState"></span></p>
+    <div class="scroll">
+      <table>
+        <thead>
+          <tr><th>Run</th><th>Violation rate</th><th>Drivers served</th><th>Line losses</th></tr>
+        </thead>
+        <tbody id="dotBody"></tbody>
+      </table>
+    </div>
+  </section>
 
   <section>
     <h2>The feeder, in text</h2>
@@ -545,6 +574,7 @@
   <section>
     <h2>Whether to believe any of this</h2>
     <p id="verdict"></p>
+    <p id="fleetVerdict"></p>
     <p class="foot">The city runs the same backward/forward sweep as the offline engine. On load it
       re-solves every recorded control step and compares the two, so the numbers on the meters are
       checked rather than trusted. Two of the four candidates are labelled stand-ins whose recorded

@@ -388,6 +388,73 @@ export function buildRoom(scene) {
     s.done();
   }
 
+  /* ------------------------------------------------------- the map wall */
+
+  const mapScreen = new Screen(scene, {
+    w: 5.6, h: 3.3, px: 150,
+    pos: { x: ROOM.x + 5.6, y: 2.4, z: ROOM.south - 0.28 },
+    rotY: Math.PI,
+  });
+
+  /**
+   * The Pareto map: every finished run leaves a dot. Safety on one axis, service on
+   * the other, because a controller comparison with only the first column cannot tell
+   * a good controller from one that does nothing.
+   */
+  function drawMap(dots) {
+    const s = mapScreen;
+    const W = s.width, H = s.height;
+    s.clear('#0d1319');
+    s.label('EVERY RUN YOU FINISH LEAVES A DOT', 16, 30, { size: 20, colour: CSS.dim });
+
+    const L = 74, R = W - 24, T = 56, B = H - 52;
+    const xs = (v) => L + Math.min(1, v / 0.36) * (R - L);
+    const ys = (v) => B - Math.min(1, v) * (B - T);
+
+    s.ctx.strokeStyle = '#1d2731';
+    s.ctx.lineWidth = 1;
+    s.ctx.strokeRect(L, T, R - L, B - T);
+    for (let g = 1; g < 4; g++) {
+      const y = T + (g / 4) * (B - T);
+      s.ctx.beginPath(); s.ctx.moveTo(L, y); s.ctx.lineTo(R, y); s.ctx.stroke();
+    }
+    s.label('← safer', L + 6, B + 26, { size: 15, colour: CSS.faint });
+    s.label('violation rate', (L + R) / 2, B + 26, { size: 15, colour: CSS.faint, align: 'center' });
+    s.label('more', 62, T + 14, { size: 15, colour: CSS.faint, align: 'right' });
+    s.label('served', 62, T + 32, { size: 15, colour: CSS.faint, align: 'right' });
+    s.label('↑', 62, T - 6, { size: 15, colour: CSS.faint, align: 'right' });
+
+    for (const d of dots) {
+      const x = xs(d.violationRate), y = ys(d.socMet);
+      s.ctx.fillStyle = d.mine ? CSS.ink : d.colour;
+      s.ctx.strokeStyle = d.mine ? CSS.ink : d.colour;
+      s.ctx.lineWidth = 2.5;
+      s.ctx.beginPath();
+      if (d.mine) {
+        // The learner's own runs are hollow, so a crowd of them stays legible against
+        // the four reference controllers.
+        s.ctx.arc(x, y, 8, 0, Math.PI * 2);
+        s.ctx.stroke();
+      } else {
+        s.ctx.arc(x, y, 7, 0, Math.PI * 2);
+        s.ctx.fill();
+      }
+    }
+
+    // Legend down the right, inside the plot, since the room wall has no margin.
+    let ly = T + 18;
+    for (const d of dots.filter((x) => !x.mine)) {
+      s.ctx.fillStyle = d.colour;
+      s.ctx.beginPath(); s.ctx.arc(R - 150, ly - 5, 5, 0, Math.PI * 2); s.ctx.fill();
+      s.label(d.label.replace(/ \(.*\)/, ''), R - 138, ly, { size: 15, colour: CSS.dim });
+      ly += 22;
+    }
+    const mine = dots.filter((d) => d.mine).length;
+    s.label(mine ? `${mine} of your own` : 'none of your own yet', R - 150, ly + 4,
+      { size: 15, colour: mine ? CSS.ink : CSS.faint });
+    s.done();
+  }
+
   /* -------------------------------------------------------- dispatch desk */
 
   const DESK = { x: ROOM.x - 2.6, z: ROOM.z };
@@ -548,6 +615,7 @@ export function buildRoom(scene) {
     if (changed('mimic', `${step}|${state.youBus}|${state.inside}`)) drawMimic(state);
     if (changed('trend', `${state.frameIndex}|${state.runLabel}`)) drawTrend(state);
     if (changed('term', String(state.picked))) drawTerminal(state);
+    if (changed('map', state.dotsKey)) drawMap(state.dots);
     consoles.forEach((c) => {
       const own = `${state.stationKw[c.si]}|${state.manual[c.si]}|${state.plugged[c.si]}|${vMag[c.bus].toFixed(4)}`;
       if (changed('c' + c.si, own)) drawConsole(c, state);
@@ -577,7 +645,7 @@ export function buildRoom(scene) {
   const spawn = { x: DESK.x + 3.4, y: EYE, z: DESK.z, yaw: Math.PI / 2 };
 
   return {
-    redraw, invalidate, logEvent, ackAlarms, updateAlarms, alarmsPending, setFlash, drawSoe,
+    redraw, invalidate, logEvent, ackAlarms, updateAlarms, alarmsPending, setFlash, drawSoe, drawMap,
     inside, spawn, consoles, desk: DESK, terminal,
     events,
   };

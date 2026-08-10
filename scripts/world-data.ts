@@ -31,7 +31,10 @@ import type { GridKind } from '../src/sim/network.js';
 import { LiveSim, PV_CAPACITY_KW } from '../src/sim/live.js';
 import { droop, placeholderController, uncoordinated } from '../src/sim/controllers.js';
 import type { Controller } from '../src/sim/controllers.js';
-import { STEPS_PER_DAY, clockOf, clearSkyFraction, loadShape } from '../src/sim/profiles.js';
+import { STEPS_PER_DAY, HOURS_PER_STEP, clockOf, clearSkyFraction, loadShape } from '../src/sim/profiles.js';
+import {
+  buildFleet, MAX_CHARGE_KW, MAX_DISCHARGE_KW, CHARGER_EFFICIENCY, SOC_FLOOR_DISCHARGE,
+} from '../src/sim/fleet.js';
 import { PLACES } from '../src/ui/layout.js';
 
 const SCENARIO = { grid: 'weak' as const, loadScale: 0.5, seed: 137710 };
@@ -47,8 +50,19 @@ const SCENARIO = { grid: 'weak' as const, loadScale: 0.5, seed: 137710 };
  * what is upstream of them.
  */
 const SCENARIO_STRONG = { ...SCENARIO, grid: 'strong' as const };
-/** Every other five-minute step: 144 frames a day is smooth enough to watch. */
-const FRAME_STRIDE = 2;
+
+/** The same fleet LiveSim builds, from the same seed. Deterministic, so this matches. */
+const FLEET = buildFleet({ seed: SCENARIO.seed, stationCount: STATION_BUSES.length });
+/**
+ * Every step, not every other one.
+ *
+ * The display only needs 144 frames a day to look smooth, and that is what this used
+ * to export. But the viewer now scores a learner's own run by walking the fleet, and
+ * the engine walks it 288 times; scoring at half resolution would put an approximate
+ * dot on the same chart as exact ones. The viewer advances two frames per tick so the
+ * day still takes about the same wall-clock time.
+ */
+const FRAME_STRIDE = 1;
 
 const sacLag = placeholderController({
   id: 'sac-lag',
@@ -128,8 +142,9 @@ function capture(controller: Controller, projection: boolean, scenario: Scenario
     frames.push({
       t: step,
       clock: clockOf(step),
-      kw: record.safeKw.map((k) => Number(k.toFixed(1))),
-      raw: record.rawKw.map((k) => Number(k.toFixed(1))),
+      // Three decimals, not one: these commands are replayed through the fleet to score
+      // a run, and a tenth of a kilowatt per station per step accumulates.
+      kw: record.safeKw.map((k) => Number(k.toFixed(3))),
       plugged,
       // Recorded scalars, kept so the viewer's own solver can be checked against
       // the engine that produced them rather than trusted.
@@ -183,6 +198,34 @@ const world = {
     xPu: Number((WEAK_SOURCE.xOhm / Z_BASE_OHM).toFixed(7)),
   },
   kwPerPu: KW_PER_PU,
+  /**
+   * The fleet itself, and the constants that govern it.
+   *
+   * Exported so the viewer can score a learner's own run the way the engine scores
+   * one — counting vehicles that reached their target state of charge — instead of
+   * inventing a service metric that happens to be computable from what was already
+   * here. Two hundred and eighty-seven vehicles is a few kilobytes; a fabricated
+   * denominator would cost the entry its credibility.
+   */
+  // Full precision, deliberately. Service is scored by `soc >= targetSoc - 1e-6`, so a
+  // target rounded to four decimals carries an error fifty times the tolerance it is
+  // compared against, and one vehicle in 287 lands on the wrong side of it.
+  fleet: FLEET.map((v) => ({
+    s: v.station,
+    cap: v.capacityKwh,
+    a: v.arrivalStep,
+    d: v.departureStep,
+    soc0: v.arrivalSoc,
+    tgt: v.targetSoc,
+    v2g: v.v2gEnabled ? 1 : 0,
+  })),
+  fleetConstants: {
+    maxChargeKw: MAX_CHARGE_KW,
+    maxDischargeKw: MAX_DISCHARGE_KW,
+    chargerEfficiency: CHARGER_EFFICIENCY,
+    socFloorDischarge: SOC_FLOOR_DISCHARGE,
+    hoursPerStep: HOURS_PER_STEP,
+  },
   day: captureDay(),
   stations: STATION_BUSES,
   pv: PV_BUSES,

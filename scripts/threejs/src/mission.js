@@ -21,9 +21,20 @@ const RUN = {
   safeSac: runById('safesac'),
 };
 
-/** Frames either side of the evening peak, where the day actually hurts. */
-const PEAK_LO = 108;   // 18:00
-const PEAK_HI = 143;   // 23:55
+/**
+ * Frame indices are derived from the clock, not written down. The export stride has
+ * changed once already; a stage that hardcodes "frame 127" silently means a different
+ * time of day the moment it changes again.
+ */
+const CLOCK = WORLD.runs[0].frames;
+export const frameAt = (clock) => {
+  const i = CLOCK.findIndex((f) => f.clock === clock);
+  return i < 0 ? 0 : i;
+};
+
+/** The evening peak, where the day actually hurts. */
+const PEAK_LO = frameAt('18:00');
+const PEAK_HI = CLOCK.length - 1;
 const isPeak = (i) => i >= PEAK_LO && i <= PEAK_HI;
 
 /** Buses far enough out that the drop has had room to accumulate. */
@@ -43,7 +54,7 @@ export const STAGES = [
       'Two hundred and eighty-seven vehicles will plug in tonight. The four consoles on the desk in front of you decide how hard each station pulls. Negative charges the cars; positive sends power back.',
       'There is no safety system running. It is just you. Take all four consoles off the controller, get the town through the evening peak, and then go outside and look at what you did.',
     ],
-    setup: (api) => { api.setRun(RUN.uncoordinated); api.setFrame(60); api.clearManual(); },
+    setup: (api) => { api.setRun(RUN.uncoordinated); api.clearManual(); },
     objectives: [
       { id: 'take', text: 'Take all four station consoles off the controller', done: (s) => s.manual.every((m) => m !== null) },
       { id: 'peak', text: 'Run the day through the evening peak (21:00)', done: (s) => s.reachedPeak },
@@ -70,7 +81,7 @@ export const STAGES = [
     // Deliberately does *not* clear the manual settings: stage 1 required taking all
     // four consoles, so handing them back is a real action the learner performs. A
     // setup that cleared them would tick its own first objective before you arrived.
-    setup: (api) => { api.setRun(RUN.uncoordinated); api.setFrame(120); },
+    setup: (api) => { api.setRun(RUN.uncoordinated); },
     objectives: [
       { id: 'auto', text: 'Give all four stations back to the controller', done: (s) => s.manual.every((m) => m === null) },
       {
@@ -99,7 +110,7 @@ export const STAGES = [
       'Droop control is the answer the industry already agreed on. Every station watches its own local voltage and backs off in proportion as that voltage falls. No communication, no model, no training — a straight line on a graph, implemented in a box on a pole.',
       'Put the feeder on droop and go back to the two buses you just read. Bus 9 and bus 18, the same evening, the same fleet.',
     ],
-    setup: (api) => { api.setRun(RUN.droop); api.setFrame(127); api.clearManual(); },
+    setup: (api) => { api.setRun(RUN.droop); api.clearManual(); },
     objectives: [
       { id: 'sel', text: 'Put the feeder on Droop (IEEE 1547)', done: (s) => s.runIndex === RUN.droop },
       { id: 'b9', text: 'Read bus 9 under droop', done: (s) => s.readUnder(RUN.droop, 9) },
@@ -123,7 +134,7 @@ export const STAGES = [
       'A soft actor-critic agent with a Lagrangian penalty on constraint violation. It sees the whole feeder, not just one bus, and it optimises the trade-off droop had to hard-code.',
       'It scores well. Go and find the moment it does not — stay on the feeder until a bus drops below the floor, and read the meter where it hurts most.',
     ],
-    setup: (api) => { api.setRun(RUN.sacLag); api.setFrame(112); },
+    setup: (api) => { api.setRun(RUN.sacLag); },
     objectives: [
       { id: 'sel', text: 'Put the feeder on SAC-Lag', done: (s) => s.runIndex === RUN.sacLag },
       { id: 'catch', text: 'Be outside when a bus falls below 0.95 pu', done: (s) => s.caughtViolation },
@@ -148,7 +159,7 @@ export const STAGES = [
       'The guarantee no longer comes from the reward function. It comes from the network model.',
       'Check both halves of the claim: that the cars are still being served, and that the far end still holds.',
     ],
-    setup: (api) => { api.setRun(RUN.safeSac); api.setFrame(127); },
+    setup: (api) => { api.setRun(RUN.safeSac); },
     objectives: [
       { id: 'sel', text: 'Put the feeder on SafeSAC', done: (s) => s.runIndex === RUN.safeSac },
       { id: 'svc', text: 'Open a station console and check cars are still charging', done: (s) => s.consolesOpened.size > 0 },
@@ -304,6 +315,9 @@ export class Progress {
     // stiff grid and replayed stage 2 would be shown a problem that is not there.
     this.api.setGrid('weak');
     this.stage.setup(this.api);
+    // Always last: a stage's setup may pick a controller, but the day itself starts at
+    // midnight with a fresh fleet so the run it produces can be scored.
+    this.api.startDay();
   }
 
   next() {
