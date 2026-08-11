@@ -11,6 +11,7 @@
 import { WORLD, N_BUS } from '../../shared/grid.js';
 import { check } from '../../shared/grid.js';
 import { CONTROLLERS, byId, FLEET_SIZE, STEPS, dayFor, allFor, priceTier, priceAt } from './sim.js';
+import { RESULTS, EVALUATION } from '../../../src/content/thesis.ts';
 
 const $ = (id) => document.getElementById(id);
 const svgns = 'http://www.w3.org/2000/svg';
@@ -147,16 +148,18 @@ const LESSONS = [
 /*  The thesis's own measured results                                 */
 /* ================================================================== */
 
-const THESIS = {
-  caption: '25 evaluation episodes per method, weak feeder, shared seeds, load scale 0.50.',
-  rows: [
-    { m: 'No control', v: 0.1156, s: 0.9955, c: 230.73, note: 'charges everyone, breaks the range most often' },
-    { m: 'Droop (IEEE 1547)', v: 0.0521, s: 0.3245, c: 66.27, note: 'safe by refusing two drivers in three' },
-    { m: 'SAC-Lag (plain RL)', v: 0.0904, s: 0.2767, c: 104.29, note: 'traded the penalty away and served fewer' },
-    { m: 'SafeSAC', v: 0.0913, s: 0.5688, c: 125.94, note: 'twice SAC-Lag’s drivers for the same violations', win: true },
-    { m: 'SafeSAC, moved to a grid it did not train on', v: 0.1058, s: 0.4469, c: 69.66, note: 'degrades, keeps serving' },
-    { m: 'SAC-Lag, moved to a grid it did not train on', v: 0.0151, s: 0.0000, c: -38.17, note: 'best safety score on the board, and it charges nobody' },
-  ],
+/**
+ * Imported from the trainer's copy rather than re-typed here. These numbers appear on
+ * two builds and in a paper; three transcriptions of the same CSV is two too many, and
+ * the one that drifts will be the one nobody re-checks.
+ */
+const THESIS_NOTE = {
+  uncoord: 'charges nearly everyone, and breaks the range most often',
+  droop: 'safe by turning away two drivers in three',
+  'sac-lag': 'dominated by the standard — worse on both counts',
+  safesac: 'twice SAC-Lag’s drivers at the same violation rate',
+  'safesac-shift': 'moved to a grid it never trained on: degrades, keeps serving',
+  'sac-lag-shift': 'best safety score in the report, and zero kWh into any battery',
 };
 
 /* ================================================================== */
@@ -457,15 +460,20 @@ function buildLessons() {
 
 function buildThesis() {
   $('thesis').innerHTML = `<thead><tr>
-      <th>Method</th><th>Violation rate</th><th>Drivers charged</th><th>Net cost</th><th></th>
+      <th>Method</th><th>Out of range</th><th>Drivers charged</th><th>Into batteries</th><th>Net cost</th><th></th>
     </tr></thead><tbody>` +
-    THESIS.rows.map((r) => `<tr class="${r.win ? 'win' : ''}">
-      <td>${r.m}</td>
-      <td class="num-cell">${(r.v * 100).toFixed(2)}%</td>
-      <td class="num-cell">${(r.s * 100).toFixed(1)}%</td>
-      <td class="num-cell">${r.c < 0 ? '−' : ''}$${Math.abs(r.c).toFixed(0)}</td>
-      <td class="small muted" style="text-align:left">${r.note}</td>
+    RESULTS.map((r) => `<tr class="${r.id === 'safesac' ? 'win' : ''}">
+      <td>${r.label}</td>
+      <td class="num-cell">${(r.violationRate * 100).toFixed(2)}%</td>
+      <td class="num-cell">${(r.socMet * 100).toFixed(1)}%</td>
+      <td class="num-cell">${r.chargeKwh === 0 ? '<b>0</b>' : Math.round(r.chargeKwh)} kWh</td>
+      <td class="num-cell">${r.netCostUsd < 0 ? '−' : ''}$${Math.abs(r.netCostUsd).toFixed(0)}</td>
+      <td class="small muted" style="text-align:left">${THESIS_NOTE[r.id] ?? ''}</td>
     </tr>`).join('') + '</tbody>';
+
+  $('thesisCaption').textContent =
+    `${EVALUATION.episodes} evaluation episodes per method on the weak feeder, shared seeds, `
+    + `load scale ${EVALUATION.loadScale.toFixed(2)}.`;
 }
 
 /* ================================================================== */

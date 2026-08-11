@@ -222,7 +222,7 @@ export function pickVerdict(
         chosen.netCostUsd,
       )}. The column you were not shown reads ${chosen.socMet.toFixed(
         3,
-      )}. It earned that safety record by declining to operate, and because every vehicle in this scenario could physically have been charged in the time it was plugged in, that was a decision rather than a shortage. This is the failure that never shows up in the field, because reality does not hand you the counterfactual.`,
+      )}. It earned that safety record by declining to operate: zero kilowatt-hours into batteries across twenty-five evaluation episodes, against 540 to 1130 for every other row on the table. Not a shortage — a decision, made by an agent trained on a stronger grid than the one it was sold for. This is the failure that never shows up in the field, because reality does not hand you the counterfactual.`,
     };
   }
 
@@ -318,7 +318,7 @@ its own plugged-in window, so unmet service is attributable to the controller an
 not to a shortage.
 ${
   dots.some((d) => d.provenance === 'placeholder')
-    ? '<br><br>* SAC-Lag and SafeSAC are labelled stand-ins, not the trained agents.'
+    ? '<br><br>* The SAC-Lag and SafeSAC dots on the map are labelled stand-ins driven by the simulator. The procurement table is the thesis’s own measured evaluation of the trained agents.'
     : ''
 }
 <br><br>Built on <em>Safe Deep Reinforcement Learning for Vehicle-to-Grid Voltage Support in

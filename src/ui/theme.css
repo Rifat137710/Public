@@ -600,15 +600,44 @@ button.ctl.quiet:hover:not(:disabled) {
   font-variant-numeric: tabular-nums;
 }
 
+/* `text-transform` is inherited, and the console it sits in is a mono, upper-case
+   instrument panel. These two are prose — several lines of it — so they set the family
+   and the casing themselves rather than inheriting a treatment meant for meter labels. */
+.leaderboard .source-note {
+  margin: 0.9rem 0 0;
+  font-family: var(--sans, ui-sans-serif, system-ui, sans-serif);
+  font-size: 0.76rem;
+  line-height: 1.6;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--ink-3);
+  max-width: 62ch;
+}
+
+/* The reveal's last turn of the screw. It earns the emphasis: it is the column that was
+   never on the table, and it is the reason the safest-looking row was the worst one. */
+.leaderboard .source-note.sting {
+  border-left: 2px solid var(--warn);
+  padding-left: 0.7rem;
+  color: var(--ink-2);
+}
+
+.leaderboard .source-note strong {
+  color: var(--warn);
+}
+
 .leaderboard caption {
   text-align: left;
   font-family: var(--mono);
   font-size: 0.68rem;
   letter-spacing: 0.1em;
-  text-transform: uppercase;
   color: var(--ink-3);
   padding-bottom: 0.75rem;
+  /* A sentence naming where the numbers came from, not a label. Upper-casing something
+     this long turns it into decoration nobody reads, and this one has to be read. */
+  text-transform: none;
 }
+
 
 .leaderboard th {
   text-align: left;

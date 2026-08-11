@@ -5,7 +5,14 @@
  * the rules, and what does it cost. The service column exists and is deliberately not
  * shown until after the learner has committed to a choice — because that is exactly
  * the position a real engineer is in, and the moment of being caught is the lesson.
+ *
+ * The rows are the thesis's own evaluation, transcribed in `content/thesis.ts`, not runs
+ * of this simulator. That is what makes the table a report rather than a demonstration,
+ * and it is also why the trap holds up: nobody arranged for the safest, cheapest row to
+ * be the one that charges nobody. It was measured.
  */
+
+import { EVALUATION } from '../content/thesis.js';
 
 export interface Candidate {
   id: string;
@@ -34,7 +41,7 @@ export function Leaderboard({ candidates, chosen, onChoose }: Props) {
         <caption>
           {revealed
             ? 'The column nobody asked for'
-            : 'Four candidate controllers. Same feeder, same day, same fleet.'}
+            : `Five candidate controllers, as evaluated by the vendor: ${EVALUATION.episodes} episodes each on this feeder, shared seeds.`}
         </caption>
         <thead>
           <tr>
@@ -51,10 +58,7 @@ export function Leaderboard({ candidates, chosen, onChoose }: Props) {
             const collapsed = revealed && c.socMet < 0.02;
             return (
               <tr key={c.id} data-chosen={isChoice} data-collapsed={collapsed}>
-                <td>
-                  {c.label}
-                  {c.provenance === 'placeholder' && <span className="star"> *</span>}
-                </td>
+                <td>{c.label}</td>
                 <td className="num">
                   {c.violationRate.toFixed(3)}
                   {c.violationRate === bestSafety && <span className="best"> best</span>}
@@ -86,6 +90,27 @@ export function Leaderboard({ candidates, chosen, onChoose }: Props) {
           })}
         </tbody>
       </table>
+
+      {/* Always shown. It gives nothing away — a real report states its method — and it
+          is what stops the numbers here being read against the map, which counts
+          differently on both axes. */}
+      <p className="source-note">
+        Measured in the thesis notebook, not by this simulator. Violation rate is the
+        fraction of the day&rsquo;s {EVALUATION.steps} five-minute steps with any bus
+        outside the band; vehicles served is over the {Math.round(EVALUATION.departures)}{' '}
+        that departed during the episode. The map on the left counts both differently, so
+        these rows do not belong on it.
+      </p>
+
+      {revealed && (
+        <p className="source-note sting">
+          One number was in the report all along and in none of the columns you were
+          shown: energy delivered into batteries. Every other candidate moved between
+          540 and 1130 kWh of it. The row with the best safety score and the only profit
+          moved <strong>zero</strong>. Its entire throughput was discharge — it sold the
+          drivers&rsquo; own batteries back to the grid and put nothing in.
+        </p>
+      )}
     </div>
   );
 }

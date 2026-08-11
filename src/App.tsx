@@ -21,6 +21,7 @@ import {
   type Controller,
 } from './sim/controllers.js';
 import { STAGES, unlockedBy, type Unlock } from './content/stages.js';
+import { SHORTLIST } from './content/thesis.js';
 import { Village } from './ui/Village.js';
 import { MAX_DEPTH, depthOf } from './ui/layout.js';
 import { VoltageProfile } from './ui/VoltageProfile.js';
@@ -72,7 +73,6 @@ const CONTROLLERS: Record<string, Controller> = {
 };
 
 const COMPARABLE = [uncoordinated, droop, sacLag, safeSac];
-const TRAP_CANDIDATES = [droop, sacLag, safeSac, sacLagShifted];
 
 type Phase = 'brief' | 'running' | 'reveal' | 'debrief' | 'sandbox';
 
@@ -251,43 +251,40 @@ export default function App() {
     [grid, loadScale],
   );
 
-  // Stage 6 needs all four candidates scored on the same day before anything is shown.
+  /**
+   * Stage 6's shortlist is the thesis's own evaluation, not a run of this simulator.
+   *
+   * That is deliberate and it is the more honest of the two options. A procurement
+   * decision is made from a report somebody else produced — you are handed a table and
+   * you have to read it, which is the entire skill the stage is about. Scoring the
+   * candidates here instead would quietly hand the learner a table computed by the same
+   * engine they have been watching all afternoon, which is not the position anybody is
+   * ever in.
+   *
+   * It also means the trap is now a measured result rather than a device. The agent that
+   * posts the best safety score and the only profit put zero kilowatt-hours into a
+   * battery across the whole evaluation, and nobody arranged that.
+   */
   const candidates: Candidate[] = useMemo(() => {
     if (!inArc || stage.mode !== 'choose') return [];
-    return TRAP_CANDIDATES.map((c) => {
-      const r = runEpisode(c, { grid: 'weak', loadScale: 0.5 });
-      return {
-        id: c.id,
-        label: c.label,
-        violationRate: r.violationRate,
-        netCostUsd: r.netCostUsd,
-        socMet: r.socMet,
-        provenance: c.provenance,
-      };
-    });
+    return SHORTLIST.map((r) => ({
+      id: r.id,
+      label: r.label,
+      violationRate: r.violationRate,
+      netCostUsd: r.netCostUsd,
+      socMet: r.socMet,
+      provenance: 'measured',
+    }));
   }, [inArc, stage.mode]);
 
-  const choose = useCallback(
-    (id: string) => {
-      setPick(id);
-      const chosen = candidates.find((c) => c.id === id);
-      if (chosen) {
-        setDots((prior) => [
-          ...prior.filter((d) => d.id !== chosen.id),
-          {
-            id: chosen.id,
-            label: chosen.label,
-            violationRate: chosen.violationRate,
-            socMet: chosen.socMet,
-            provenance: chosen.provenance,
-            mine: false,
-          },
-        ]);
-      }
-      setPhase('reveal');
-    },
-    [candidates],
-  );
+  const choose = useCallback((id: string) => {
+    // The pick deliberately does not become a dot on the map. The map's axes are this
+    // simulator's — bus-steps out of 288 x 33, service over all 287 vehicles — and the
+    // table's are the thesis's — steps out of 288, service over the ~27 that departed.
+    // Putting one on the other would be the exact mistake stage 6 exists to teach.
+    setPick(id);
+    setPhase('reveal');
+  }, []);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
@@ -336,7 +333,16 @@ export default function App() {
   const outOfBand = sim.last?.violations ?? 0;
 
   const manualDriving = phase === 'sandbox' || (inArc && stage.mode === 'manual');
-  const showChoice = inArc && stage.mode === 'choose' && phase === 'running';
+  /**
+   * The table stays up through the reveal.
+   *
+   * It used to unmount the moment a choice was made, which meant the reveal card headed
+   * "The third column" was the only place that column ever existed — Leaderboard's whole
+   * revealed state, the service figure, the collapsed row, the "your pick" marker, was
+   * unreachable code. Being told the number you were not shown is an argument. Watching
+   * it appear in the row you just chose is the lesson.
+   */
+  const showChoice = inArc && stage.mode === 'choose' && (phase === 'running' || phase === 'reveal');
 
   return (
     <div className="app">
@@ -657,8 +663,10 @@ export default function App() {
 
           {dots.some((d) => d.provenance === 'placeholder') && (
             <p className="provenance-note">
-              * SAC-Lag and SafeSAC are labelled stand-ins, not the trained agents — their
-              recorded episodes are still to be exported from the thesis notebook.
+              * The SAC-Lag and SafeSAC dots are labelled stand-ins driven by this simulator,
+              not the trained agents. What the trained agents actually scored is measured and
+              is on the stage 6 table — but only as whole-episode totals, so it cannot be
+              replayed step by step here or plotted on these axes.
             </p>
           )}
         </div>

@@ -18,6 +18,13 @@ import {
   onePagerHtml,
   pickVerdict,
 } from '../src/content/debrief.js';
+import {
+  PROJECTION_CHECK,
+  SENSITIVITIES,
+  SHORTLIST,
+  TRAP_ID,
+  byThesisId,
+} from '../src/content/thesis.js';
 
 let passed = 0;
 let failed = 0;
@@ -256,6 +263,54 @@ check(
 check(
   'the debrief only claims the energy finding when the losses are actually recorded',
   buildFindings(dots.map((d) => ({ ...d, lossKwh: undefined }))).every((f) => f.key !== 'energy'),
+);
+
+/**
+ * Stage 6 is now driven by the thesis's own evaluation rather than by this simulator, so
+ * the trap has to be checked where it actually lives. If the export is ever regenerated
+ * and the shifted agent stops being the bait, the stage's copy becomes a lie and this
+ * build should stop rather than ship it.
+ */
+console.log('\nStage 6 — the trap, as measured');
+const measuredTrap = SHORTLIST.find((r) => r.id === TRAP_ID)!;
+const rivals = SHORTLIST.filter((r) => r.id !== TRAP_ID);
+
+check('the shortlist is the five coordinated candidates', SHORTLIST.length === 5, `${SHORTLIST.length} rows`);
+check(
+  'the trap has the best violation rate in the report',
+  rivals.every((r) => measuredTrap.violationRate < r.violationRate),
+  `${measuredTrap.violationRate.toFixed(4)} vs ${rivals.map((r) => r.violationRate.toFixed(4)).join(', ')}`,
+);
+check(
+  'and the only negative net cost',
+  measuredTrap.netCostUsd < 0 && rivals.every((r) => r.netCostUsd > 0),
+  `$${measuredTrap.netCostUsd.toFixed(0)}`,
+);
+check(
+  'while serving nobody at all',
+  measuredTrap.socMet === 0,
+  `socMet ${measuredTrap.socMet}`,
+);
+check(
+  'and delivering zero energy into batteries, which is the sting the reveal uses',
+  measuredTrap.chargeKwh === 0 && rivals.every((r) => r.chargeKwh > 500),
+  `trap ${measuredTrap.chargeKwh} kWh vs ${rivals.map((r) => Math.round(r.chargeKwh)).join(', ')}`,
+);
+check(
+  'SafeSAC serves materially more than plain SAC-Lag, which is what stage 5 claims',
+  byThesisId('safesac')!.socMet > byThesisId('sac-lag')!.socMet * 1.9,
+  `${byThesisId('safesac')!.socMet.toFixed(3)} vs ${byThesisId('sac-lag')!.socMet.toFixed(3)}`,
+);
+check(
+  'the projection cuts a request on the weak grid and passes it on the stiff one',
+  PROJECTION_CHECK.stations.every(
+    (s) => s.weakKw > PROJECTION_CHECK.requestKw && Math.abs(s.strongKw - PROJECTION_CHECK.requestKw) < 0.001,
+  ),
+  `weak ${PROJECTION_CHECK.stations.map((s) => s.weakKw.toFixed(0)).join('/')} kW`,
+);
+check(
+  'every station is less sensitive on the stiff grid, which is why the safe set cannot be reused',
+  SENSITIVITIES.every((s) => s.strongP < s.weakP),
 );
 
 console.log(`\n${passed} passed, ${failed} failed`);

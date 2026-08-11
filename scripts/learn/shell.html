@@ -227,13 +227,17 @@
 
 <section class="panel">
   <h2>What the trained agents actually did</h2>
-  <p class="small muted">Measured in the thesis notebook: four charging stations, 25 evaluation
-  episodes per method on the weak feeder, same seeds for all of them.</p>
+  <p class="small muted" id="thesisCaption"></p>
   <div class="scroll"><table id="thesis"></table></div>
-  <p class="note">Violation rate here counts <em>steps in which any street was out of range</em>,
-  out of 288 five-minute steps in a day. The simulator above counts street-steps out of
-  33 × 288, so the two columns answer slightly different questions and are not meant to be
-  read against each other.</p>
+  <p class="note"><strong>Read the last two columns together.</strong> The bottom row posts the best
+  safety score in the whole evaluation and is the only method that turns a profit &mdash; and it put
+  <em>zero</em> kilowatt-hours into a battery all day. It is an agent trained on a stronger grid than
+  the one it was tested on, and its entire throughput was discharge: it sold the drivers&rsquo; own
+  batteries back to the grid. Nobody arranged that. It was measured.</p>
+  <p class="note">Violation rate here counts <em>steps in which any street was out of range</em>, out
+  of 288 five-minute steps in a day, and drivers charged is over the ~27 who departed during an
+  episode. The simulator above counts street-steps out of 33 &times; 288 and scores all 287 cars, so
+  the two are not meant to be read against each other.</p>
 </section>
 
 <section class="panel">
