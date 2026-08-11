@@ -13,6 +13,7 @@
     "test:stages": "tsx tests/stages.test.ts",
     "world": "tsx scripts/world-data.ts > scripts/shared/world.json",
     "city": "node scripts/threejs/build.mjs",
+    "city:verify": "node scripts/threejs/build.mjs && node scripts/threejs/verify.mjs",
     "learn": "node scripts/learn/build.mjs",
     "learn:check": "node scripts/learn/check.mjs",
     "learn:verify": "node scripts/learn/build.mjs && node scripts/learn/verify.mjs"

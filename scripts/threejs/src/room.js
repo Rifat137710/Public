@@ -561,6 +561,112 @@ export function buildRoom(scene) {
     s.done();
   }
 
+  /* ------------------------------------------------ supervisory console */
+
+  /**
+   * Everything that used to live in the page's toolbar, put where an operator would
+   * actually reach it.
+   *
+   * The toolbar version worked, but it taught the wrong thing: it let you rebuild the
+   * feeder and re-time the day from outside the world, as though the town were a
+   * document you were editing rather than a plant you were running. A control room is
+   * the place those decisions get made from, so this is where they are made from. The
+   * face here is a live mimic of the settings — it never asks a question, it only shows
+   * what the plant is set to — and `E` opens the panel that changes them.
+   */
+  // Square to the room, unlike the procurement terminal's angled kiosk. That one is
+  // read once and walked away from; this one is operated, and a face you have to stand
+  // off-normal to reach is a face you misread.
+  const supervisor = new Screen(scene, {
+    w: 3.4, h: 2.2, px: 200,
+    // High enough that the cabinet below does not eat the transport strip along the
+    // bottom edge, which is where the clock and the scoring state live.
+    pos: { x: ROOM.east - 1.5, y: 2.25, z: ROOM.z + 6.0 },
+    rotY: -Math.PI / 2,
+  });
+  {
+    const stand = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.05, 2.6), mat.cabinet);
+    stand.position.set(ROOM.east - 1.3, 0.52, ROOM.z + 6.0);
+    stand.castShadow = true;
+    group.add(stand);
+    solids.push({ x: ROOM.east - 1.3, z: ROOM.z + 6.0, w: 1.2, d: 2.6 });
+
+    // A lamp over it, because the one thing a visitor must find is the one thing the
+    // room was not previously lighting.
+    const l = new THREE.PointLight(0xdce8f4, 26, 9, 2);
+    l.position.set(ROOM.east - 2.4, 3.1, ROOM.z + 6.0);
+    group.add(l);
+  }
+
+  /** A row of pills, one lit. Returns nothing; it is drawn for reading, not for hit-testing. */
+  function pills(s, items, active, x, y, { h = 30, gap = 7, size = 15, locked = false } = {}) {
+    const ctx = s.ctx;
+    let cx = x;
+    items.forEach((label, i) => {
+      ctx.font = `${size}px ${MONO}`;
+      const w = ctx.measureText(label).width + 20;
+      const on = i === active;
+      ctx.fillStyle = on ? (locked ? '#2b2620' : '#1d3a34') : '#151d25';
+      ctx.fillRect(cx, y, w, h);
+      ctx.strokeStyle = on ? (locked ? CSS.faint : CSS.ok) : '#212b35';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(cx, y, w, h);
+      s.label(label, cx + w / 2, y + h / 2 + 5, {
+        size,
+        colour: on ? (locked ? CSS.dim : CSS.ink) : CSS.faint,
+        align: 'center',
+      });
+      cx += w + gap;
+    });
+    return cx;
+  }
+
+  function drawSupervisor(state) {
+    const s = supervisor;
+    const sup = state.sup;
+    const W = s.width, H = s.height;
+    s.clear('#0d1319');
+
+    s.ctx.fillStyle = '#131c25';
+    s.ctx.fillRect(0, 0, W, 52);
+    s.label('SUPERVISORY CONTROL', 18, 34, { size: 22, colour: CSS.ink });
+    s.label(sup.open ? 'IN USE' : 'PRESS  E', W - 18, 34,
+      { size: 19, colour: sup.open ? CSS.ok : CSS.amber, align: 'right' });
+
+    // Notes sit on their own line under the row they qualify, not beside it. Beside it
+    // they ran into the last pill at exactly the loads a learner is most likely to be
+    // reading, which is the worst place for two pieces of text to touch.
+    s.label('WHO IS DRIVING', 18, 84, { size: 15, colour: CSS.dim });
+    pills(s, sup.runLabels, sup.runIndex, 18, 96);
+
+    s.label('THE FEEDER', 18, 166, { size: 15, colour: CSS.dim });
+    pills(s, ['WEAK', 'STIFF'], sup.gridKind === 'strong' ? 1 : 0, 18, 178,
+      { locked: !sup.gridUnlocked });
+    if (!sup.gridUnlocked) s.label('locked until the six stages are done', 18, 226, { size: 13, colour: CSS.faint });
+
+    s.label('HOW BIG THE TOWN IS', 18, 262, { size: 15, colour: CSS.dim });
+    pills(s, ['0.5x', '1x', '1.4x', '1.8x'], sup.loadIndex, 18, 274,
+      { locked: !sup.loadUsable });
+    if (!sup.loadUsable) {
+      s.label(sup.gridUnlocked ? 'take the stations manual to change this' : 'locked until the six stages are done',
+        18, 322, { size: 13, colour: CSS.faint });
+    }
+
+    // The transport strip, given its own ground so the clock reads as an instrument
+    // rather than as another setting.
+    const ty = H - 74;
+    s.ctx.fillStyle = '#131c25';
+    s.ctx.fillRect(0, ty, W, 74);
+    s.label(sup.clock, 18, ty + 44, { size: 38, colour: CSS.amber });
+    s.label(sup.playing ? '▶ RUNNING' : '‖ HELD', 150, ty + 30, { size: 17, colour: sup.playing ? CSS.ok : CSS.dim });
+    s.label(`SPEED  x${sup.speed}`, 150, ty + 56, { size: 17, colour: CSS.dim });
+    s.label(sup.scoring ? 'SCORING THIS RUN' : 'NOT SCORED', W - 18, ty + 30,
+      { size: 17, colour: sup.scoring ? CSS.ok : CSS.faint, align: 'right' });
+    s.label(sup.scoring ? 'a dot will land on the map' : 'reset and play from 00:00 to score',
+      W - 18, ty + 56, { size: 14, colour: CSS.faint, align: 'right' });
+    s.done();
+  }
+
   /* --------------------------------------------------- relay cabinets */
 
   const relayLeds = [];
@@ -615,6 +721,7 @@ export function buildRoom(scene) {
     if (changed('mimic', `${step}|${state.youBus}|${state.inside}`)) drawMimic(state);
     if (changed('trend', `${state.frameIndex}|${state.runLabel}`)) drawTrend(state);
     if (changed('term', String(state.picked))) drawTerminal(state);
+    if (changed('sup', Object.values(state.sup).join('|'))) drawSupervisor(state);
     if (changed('map', state.dotsKey)) drawMap(state.dots);
     consoles.forEach((c) => {
       const own = `${state.stationKw[c.si]}|${state.manual[c.si]}|${state.plugged[c.si]}|${vMag[c.bus].toFixed(4)}`;
@@ -646,7 +753,9 @@ export function buildRoom(scene) {
 
   return {
     redraw, invalidate, logEvent, ackAlarms, updateAlarms, alarmsPending, setFlash, drawSoe, drawMap,
-    inside, spawn, consoles, desk: DESK, terminal,
+    inside, spawn, consoles, desk: DESK, terminal, supervisor,
+    // On the console's normal, far enough back that the whole face is in view at once.
+    supervisorSpot: { x: ROOM.east - 4.2, z: ROOM.z + 6.0 },
     events,
   };
 }

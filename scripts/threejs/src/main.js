@@ -315,6 +315,7 @@ function flushInstruments() {
     inside: insideRoom(),
     dots: allDots(),
     dotsKey: dotsKey(),
+    sup: supState(),
   });
 }
 
@@ -335,6 +336,10 @@ room.consoles.forEach((c) => {
   TARGETS.push({ kind: 'console', bus: c.bus, si: c.si, x: room.desk.x - 1.2, z: c.z, label: `Station ${c.si + 1} console — bus ${c.bus}` });
 });
 TARGETS.push({ kind: 'terminal', x: ROOM.east - 2.6, z: ROOM.z - 6.0, label: 'Read the procurement terminal' });
+TARGETS.push({
+  kind: 'supervisor', x: room.supervisorSpot.x, z: room.supervisorSpot.z,
+  label: 'Supervisory control — run the plant from here',
+});
 
 const fwdTmp = new THREE.Vector3();
 function focused() {
@@ -345,7 +350,7 @@ function focused() {
   for (const it of TARGETS) {
     const dx = it.x - camera.position.x, dz = it.z - camera.position.z;
     const dist = Math.hypot(dx, dz);
-    const reach = it.kind === 'console' || it.kind === 'terminal' ? 3.4 : 11;
+    const reach = it.kind === 'console' || it.kind === 'terminal' || it.kind === 'supervisor' ? 3.4 : 11;
     if (dist > reach) continue;
     const dot = (dx * (fx / fl) + dz * (fz / fl)) / (dist || 1);
     if (dot < 0.55) continue;
@@ -455,6 +460,102 @@ function wireStationPanel(si) {
   };
 }
 
+/**
+ * The supervisory panel: every setting the plant has, reachable from inside the room.
+ *
+ * It is built once and then updated in place. The other panels can afford to rebuild
+ * their markup on every HUD tick because their only live control is a slider, which
+ * `refreshPanel` exempts — but this one is a wall of buttons, and rebuilding it under a
+ * running clock would replace the element between mousedown and mouseup and swallow the
+ * click. So: `renderPanel` builds it, `syncSupervisorPanel` keeps it honest.
+ */
+function supervisorPanelHtml() {
+  const seg = (id, items) =>
+    `<div class="seg supseg" id="${id}">` + items.map(
+      ([label, value, title]) =>
+        `<button data-value="${value}"${title ? ` title="${title}"` : ''}>${label}</button>`,
+    ).join('') + '</div>';
+
+  return `<button class="close" id="panelClose" aria-label="Close">×</button>
+    <div class="kicker">Supervisory control · everything the plant has</div>
+    <h3>Run it from in here</h3>
+
+    <label class="slider">Who is driving</label>
+    ${seg('supRun', WORLD.runs.map((r, i) => [r.label.replace(/ \(.*\)/, '').replace('IEEE 1547', '1547'), i, r.label]))}
+
+    <label class="slider">The feeder itself</label>
+    ${seg('supGrid', [['Weak', 'weak'], ['Stiff', 'strong']])}
+    <p class="hint" id="supGridNote"></p>
+
+    <label class="slider">How big the town is</label>
+    ${seg('supLoad', LOAD_MULTS.map((m) => [`${m}×`, m]))}
+    <p class="hint" id="supLoadNote"></p>
+
+    <label class="slider">The day</label>
+    <div class="seg supseg" id="supTransport">
+      <button data-value="play" id="supPlay">Play</button>
+      <button data-value="reset">Reset to 00:00</button>
+    </div>
+    ${seg('supSpeed', [['×1', 1], ['×4', 4], ['×16', 16], ['×64', 64]])}
+    <input id="supScrub" type="range" min="0" max="${WORLD.day.length - 1}" step="1"
+      value="${frameIndex}" aria-label="Time of day" />
+    <div class="readout" id="supClock"></div>
+    <p class="hint" id="supScoreNote"></p>
+
+    <button class="act" id="supCockpit"></button>`;
+}
+
+function wireSupervisorPanel() {
+  const pick = (id, fn) => {
+    el(id).querySelectorAll('button').forEach((b) => {
+      b.onclick = () => fn(b.dataset.value);
+    });
+  };
+  pick('supRun', (v) => setController(Number(v)));
+  pick('supGrid', (v) => setFeeder(v));
+  pick('supLoad', (v) => setTownSize(Number(v)));
+  pick('supSpeed', (v) => setSpeed(Number(v)));
+  pick('supTransport', (v) => (v === 'play' ? togglePlay() : resetDay()));
+  el('supScrub').oninput = () => scrubTo(Number(el('supScrub').value));
+  el('supCockpit').onclick = () => setCockpit(!cockpit);
+  syncSupervisorPanel();
+}
+
+function syncSupervisorPanel() {
+  if (el('panel').hidden || !el('supRun')) return;
+  const s = supState();
+  const mark = (id, match, disabled = false) => {
+    el(id).querySelectorAll('button').forEach((b) => {
+      b.setAttribute('aria-pressed', String(match(b.dataset.value)));
+      b.disabled = disabled;
+    });
+  };
+  mark('supRun', (v) => Number(v) === s.runIndex);
+  mark('supGrid', (v) => v === s.gridKind, !s.gridUnlocked);
+  mark('supLoad', (v) => LOAD_MULTS.indexOf(Number(v)) === s.loadIndex, !s.loadUsable);
+  mark('supSpeed', (v) => Number(v) === s.speed);
+
+  el('supGridNote').textContent = s.gridUnlocked
+    ? 'Same day, same fleet, same controllers — only the substation impedance changes.'
+    : 'Unlocks when you finish the six stages.';
+  el('supLoadNote').textContent = s.loadUsable
+    ? 'Rooftop solar does not grow with the town.'
+    : s.gridUnlocked
+      ? 'Droop and the agents back off as their own voltage falls, so their recorded commands are not what they would have issued at another load. Take the stations manual, or switch to Uncoordinated.'
+      : 'Unlocks when you finish the six stages.';
+
+  el('supPlay').textContent = s.playing ? 'Pause' : 'Play';
+  const scrubEl = el('supScrub');
+  if (document.activeElement !== scrubEl) scrubEl.value = String(frameIndex);
+  el('supClock').textContent = s.clock;
+  el('supScoreNote').textContent = s.scoring
+    ? 'Scoring — this run will leave a dot on the map.'
+    : 'Not scored. Reset and play from 00:00 for a dot on the map.';
+  el('supCockpit').textContent = cockpit
+    ? 'Show the page controls again'
+    : 'Hide the page controls — run it all from in here';
+}
+
 function renderPanel() {
   const panel = el('panel');
   const t = panelTarget;
@@ -493,6 +594,9 @@ function renderPanel() {
     panel.innerHTML = stationPanelHtml(t.si, t.bus, `Desk position ${t.si + 1} · bus ${t.bus}`, 'Dispatch console');
     wireStationPanel(t.si);
     progress.observeConsole(t.si);
+  } else if (t.kind === 'supervisor') {
+    panel.innerHTML = supervisorPanelHtml();
+    wireSupervisorPanel();
   } else if (t.kind === 'terminal') {
     progress.observeTerminal();
     const rows = candidateSet().map((c, i) => `
@@ -525,6 +629,11 @@ function renderPanel() {
 function openPanel(t) {
   panelTarget = t;
   controls.unlock();
+  // Hide the "click to enter" overlay here rather than leaving it to the pointer-lock
+  // event. Someone driving by keyboard — canvas focused, never locked — never fires an
+  // unlock, so the overlay stayed up across the whole panel and swallowed every click
+  // on it. The panel opened, looked right, and could not be used.
+  el('enter').hidden = true;
   renderPanel();
   // Pointer lock has just been released, so focus is nowhere useful. Put it on the
   // first thing in the panel; Escape closes and hands it back to the view.
@@ -536,6 +645,7 @@ function closePanel() {
   const wasOpen = panelTarget !== null;
   panelTarget = null;
   el('panel').hidden = true;
+  el('enter').hidden = controls.isLocked || !el('card').hidden;
   if (wasOpen) canvas.focus();
 }
 
@@ -736,6 +846,8 @@ function updateHud() {
  */
 function refreshPanel() {
   const panel = el('panel');
+  // The supervisory panel updates in place rather than being rebuilt — see above.
+  if (panelTarget?.kind === 'supervisor') { syncSupervisorPanel(); return; }
   const active = document.activeElement;
   if (panel.contains(active) && active.tagName === 'INPUT') return;
   const activeId = panel.contains(active) ? active.id : null;
@@ -801,6 +913,24 @@ addEventListener('keydown', (e) => {
     }
   }
   if (k === 'escape' && panelTarget) closePanel();
+
+  // Plant hotkeys. Every one of these is a control the supervisory console also carries;
+  // they exist so a demonstrator never has to reach back out to the page to change gear
+  // mid-walk. Suppressed while a panel is open, where the same keys belong to its fields.
+  if (panelTarget || !driving()) return;
+  if (k >= '1' && k <= String(WORLD.runs.length)) { setController(Number(k) - 1); e.preventDefault(); }
+  else if (k === ' ') { togglePlay(); e.preventDefault(); }
+  else if (k === 'r') { resetDay(); e.preventDefault(); }
+  else if (k === 'g') { setFeeder(gridKind === 'weak' ? 'strong' : 'weak'); e.preventDefault(); }
+  else if (k === '[' || k === ']') {
+    const speeds = [1, 4, 16, 64];
+    const at = speeds.indexOf(stepsPerTick);
+    setSpeed(speeds[Math.max(0, Math.min(speeds.length - 1, at + (k === ']' ? 1 : -1)))]);
+    e.preventDefault();
+  } else if (k === ',' || k === '.') {
+    scrubTo(frameIndex + (k === '.' ? 6 : -6));
+    e.preventDefault();
+  } else if (k === 't') { setCockpit(!cockpit); e.preventDefault(); }
 });
 addEventListener('keyup', (e) => {
   const k = e.key.toLowerCase();
@@ -855,18 +985,131 @@ function move(dt) {
 /*  Page chrome                                                       */
 /* ================================================================== */
 
+/**
+ * Every setting the plant has, as one function each.
+ *
+ * These exist because the same decision can now be taken from two places — the page
+ * toolbar and the supervisory console inside the room — and a setting that is applied
+ * two different ways is a setting that will eventually be applied two different ways.
+ * The buttons in both places are views onto these; none of them carries logic of its
+ * own beyond deciding whether it is allowed to call.
+ */
+const LOAD_MULTS = [0.5, 1, 1.4, 1.8];
+
+/**
+ * Cockpit mode hides the page's own toolbar, leaving the world as the only interface.
+ * The toolbar is not deleted — an operator who wants both can have both, and a visitor
+ * who has not found the supervisory console yet must not be stranded — but a
+ * demonstration reads very differently when the only way to change the plant is to
+ * walk to the desk that changes it.
+ */
+let cockpit = false;
+function setCockpit(on) {
+  cockpit = on;
+  document.body.classList.toggle('cockpit', cockpit);
+  syncSupervisor();
+}
+
+function setController(i) {
+  if (i === runIndex) return;
+  runIndex = i;
+  syncRunButtons();
+  room.logEvent(frame().clock, `feeder switched to ${WORLD.runs[i].label.replace(/ \(.*\)/, '')}`, 'info');
+  syncLoadHonesty();
+  resolveNow(); updateHud(); checkObjectives(); syncSupervisor();
+}
+
+function setFeeder(kind) {
+  if (!gridUnlocked || kind === gridKind) return;
+  applyGrid(kind);
+  room.logEvent(frame().clock, `feeder rebuilt as the ${kind === 'strong' ? 'stiff' : 'weak'} grid`, 'info');
+  checkObjectives(); syncSupervisor();
+}
+
+function setTownSize(mult) {
+  if (!gridUnlocked || !loadScaleHonest()) return;
+  loadScale = BASE_SCALE * mult;
+  cfCache.key = null;
+  syncLoadButtons();
+  resolveNow();
+  updateHud();
+  syncSupervisor();
+}
+
+function setSpeed(n) {
+  stepsPerTick = n;
+  syncSpeedButtons();
+  syncSupervisor();
+}
+
+function togglePlay() {
+  if (!playing && frameIndex >= WORLD.day.length - 1) {
+    frameIndex = 0;
+    el('scrub').value = '0';
+    resolveNow();
+    updateHud();
+  }
+  playing = !playing;
+  // Playing from the top starts a scoreable run; resuming from the middle does not.
+  if (playing && frameIndex === 0) startRun();
+  el('play').textContent = playing ? 'Pause' : 'Play';
+  renderDotList();
+  syncSupervisor();
+}
+
+function resetDay() {
+  playing = false;
+  frameIndex = 0;
+  el('scrub').value = '0';
+  el('play').textContent = 'Play';
+  runLive = false;
+  resolveNow();
+  updateHud();
+  renderDotList();
+  syncSupervisor();
+}
+
+function scrubTo(i) {
+  frameIndex = Math.max(0, Math.min(WORLD.day.length - 1, i));
+  playing = false;
+  el('scrub').value = String(frameIndex);
+  el('play').textContent = 'Play';
+  // A state of charge is the integral of everything before now. You cannot skip the
+  // middle of a day and still score it, so scrubbing ends the run rather than
+  // producing a dot that quietly leaves a few hours out.
+  if (runLive) { runLive = false; room.logEvent(frame().clock, 'clock moved by hand — run not scored', 'info'); }
+  resolveNow(); updateHud(); renderDotList(); syncSupervisor();
+}
+
+/** What the supervisory console's face is showing. Flat, so the redraw gate can key off it. */
+function supState() {
+  return {
+    runLabels: WORLD.runs.map((r) => r.label.replace(/ \(.*\)/, '').replace('IEEE 1547', '1547')),
+    runIndex,
+    gridKind,
+    gridUnlocked,
+    loadIndex: LOAD_MULTS.indexOf(Number((loadScale / BASE_SCALE).toFixed(4))),
+    loadUsable: gridUnlocked && loadScaleHonest(),
+    clock: frame().clock,
+    playing,
+    speed: stepsPerTick,
+    scoring: runLive,
+    open: panelTarget?.kind === 'supervisor',
+  };
+}
+
+/** Repaint the console face, and the walk-up panel if somebody is standing at it. */
+function syncSupervisor() {
+  redrawInstruments();
+  if (panelTarget?.kind === 'supervisor') syncSupervisorPanel();
+}
+
 const runSeg = el('runSeg');
 WORLD.runs.forEach((r, i) => {
   const b = document.createElement('button');
   b.textContent = r.label.replace(/ \(.*\)/, '').replace('IEEE 1547', '1547');
   b.title = r.label;
-  b.onclick = () => {
-    runIndex = i;
-    syncRunButtons();
-    room.logEvent(frame().clock, `feeder switched to ${r.label.replace(/ \(.*\)/, '')}`, 'info');
-    syncLoadHonesty();
-    resolveNow(); updateHud(); checkObjectives();
-  };
+  b.onclick = () => setController(i);
   runSeg.appendChild(b);
 });
 function syncRunButtons() {
@@ -884,12 +1127,7 @@ const gridSeg = el('gridSeg');
   const b = document.createElement('button');
   b.textContent = label;
   b.dataset.grid = kind;
-  b.onclick = () => {
-    if (!gridUnlocked) return;
-    applyGrid(kind);
-    room.logEvent(frame().clock, `feeder rebuilt as the ${kind === 'strong' ? 'stiff' : 'weak'} grid`, 'info');
-    checkObjectives();
-  };
+  b.onclick = () => setFeeder(kind);
   gridSeg.appendChild(b);
 });
 
@@ -926,10 +1164,14 @@ function unlockGrid() {
   gridUnlocked = true;
   syncGridButtons();
   syncLoadButtons();
+  syncSupervisor();
 }
 
 const goSeg = el('goSeg');
 [['Control room', room.spawn.x, room.spawn.z, room.spawn.yaw],
+ // Yaw here is an offset from facing east, which is the convention the handler below
+ // applies to every entry except the control room. Zero puts the console dead ahead.
+ ['Supervisory desk', room.supervisorSpot.x - 1.2, room.supervisorSpot.z, 0],
  ['Substation gate', -20, -12, -0.5],
  ['Bus 9, midway', place.get(9).x - 34, 2, 0],
  ['Bus 18, the far end', place.get(18).x - 40, 2, 0],
@@ -946,29 +1188,8 @@ const goSeg = el('goSeg');
 
 const scrub = el('scrub');
 scrub.max = String(WORLD.day.length - 1);
-scrub.oninput = () => {
-  frameIndex = Number(scrub.value);
-  playing = false;
-  el('play').textContent = 'Play';
-  // A state of charge is the integral of everything before now. You cannot skip the
-  // middle of a day and still score it, so scrubbing ends the run rather than
-  // producing a dot that quietly leaves a few hours out.
-  if (runLive) { runLive = false; room.logEvent(frame().clock, 'clock moved by hand — run not scored', 'info'); }
-  resolveNow(); updateHud(); renderDotList();
-};
-el('play').onclick = () => {
-  if (!playing && frameIndex >= WORLD.day.length - 1) {
-    frameIndex = 0;
-    scrub.value = '0';
-    resolveNow();
-    updateHud();
-  }
-  playing = !playing;
-  // Playing from the top starts a scoreable run; resuming from the middle does not.
-  if (playing && frameIndex === 0) startRun();
-  el('play').textContent = playing ? 'Pause' : 'Play';
-  renderDotList();
-};
+scrub.oninput = () => scrubTo(Number(scrub.value));
+el('play').onclick = togglePlay;
 
 const speedSeg = el('speedSeg');
 [['×1', 1], ['×4', 4], ['×16', 16], ['×64', 64]].forEach(([label, n]) => {
@@ -976,7 +1197,7 @@ const speedSeg = el('speedSeg');
   b.textContent = label;
   b.dataset.speed = String(n);
   b.title = `${(WORLD.day.length * 110 / n / 1000).toFixed(0)} seconds a day`;
-  b.onclick = () => { stepsPerTick = n; syncSpeedButtons(); };
+  b.onclick = () => setSpeed(n);
   speedSeg.appendChild(b);
 });
 function syncSpeedButtons() {
@@ -984,18 +1205,11 @@ function syncSpeedButtons() {
 }
 
 const loadSeg = el('loadSeg');
-[['0.5×', 0.5], ['1×', 1], ['1.4×', 1.4], ['1.8×', 1.8]].forEach(([label, mult]) => {
+LOAD_MULTS.forEach((mult) => {
   const b = document.createElement('button');
-  b.textContent = label;
+  b.textContent = `${mult}×`;
   b.dataset.load = String(BASE_SCALE * mult);
-  b.onclick = () => {
-    if (!gridUnlocked || !loadScaleHonest()) return;
-    loadScale = BASE_SCALE * mult;
-    cfCache.key = null;
-    syncLoadButtons();
-    resolveNow();
-    updateHud();
-  };
+  b.onclick = () => setTownSize(mult);
   loadSeg.appendChild(b);
 });
 
@@ -1188,10 +1402,18 @@ window.__city = {
   camera, controls, focused, openPanel, closePanel, check, progress, room, city,
   updateHud, resolveNow,
   solution: () => solution,
-  // These mirror what the real controls do, checkObjectives included — a hook that
-  // skips it lets a test pass a stage the interface would not have advanced.
-  setRun: (i) => { runIndex = i; syncRunButtons(); syncLoadHonesty(); resolveNow(); updateHud(); checkObjectives(); },
+  // These are the real controls, not copies of them — a hook that reimplements what a
+  // button does lets a test pass a state the interface could not have reached.
+  setRun: setController,
   setFrame: (i) => { frameIndex = i; resolveNow(); updateHud(); checkObjectives(); },
+  targets: TARGETS,
+  setTownSize,
+  togglePlay,
+  resetDay,
+  scrubTo,
+  setCockpit,
+  cockpit: () => cockpit,
+  sup: supState,
   ackAlarms: () => {
     const n = room.ackAlarms();
     if (n) { progress.observeAck(n); updateHud(); checkObjectives(); }
@@ -1203,7 +1425,7 @@ window.__city = {
   myDots: () => myDots,
   refDots: referenceDots,
   fleetCheck,
-  setSpeed: (n) => { stepsPerTick = n; syncSpeedButtons(); },
+  setSpeed,
   pause: () => { playing = false; el('play').textContent = 'Play'; },
   dismissCard,
   state: () => ({ runIndex, frameIndex, manual: [...manual], inside: insideRoom(), picked: progress.picked }),
