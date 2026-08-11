@@ -25,6 +25,27 @@
     <meta property="og:type" content="website" />
   </head>
   <body>
+    <!-- The console fills the viewport (`#root { height: 100% }`), so a way back has to
+         float rather than take up a row, or the layout it sits above starts scrolling. -->
+    <a
+      href="../"
+      class="site-back"
+      style="
+        position: fixed;
+        z-index: 40;
+        right: 0.9rem;
+        bottom: 0.9rem;
+        padding: 0.4rem 0.7rem;
+        border-radius: 0.45rem;
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        background: rgba(10, 14, 19, 0.82);
+        color: #9fb0c4;
+        font: 500 12px/1 ui-sans-serif, system-ui, sans-serif;
+        text-decoration: none;
+        backdrop-filter: blur(6px);
+      "
+      >← Bus 18 lesson</a
+    >
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

@@ -7,7 +7,7 @@
     "test": "tsx tests/physics.test.ts && tsx tests/stages.test.ts",
     "calibrate": "tsx scripts/calibrate.ts",
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && npm run learn && npm run city && vite build && node scripts/assemble.mjs",
     "preview": "vite preview",
     "compare": "tsx scripts/compare.ts",
     "test:stages": "tsx tests/stages.test.ts",

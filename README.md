@@ -1,22 +1,29 @@
 # Bus 18
 
-A browser-based trainer for operating a weak distribution feeder under heavy EV charging.
-
-You run a rural feeder for one simulated day. Four charging stations, 287 vehicles, and a
-voltage band you are not allowed to leave. Then you watch five automated controllers
-attempt the same day, and find out which of them is lying about being safe.
+Three ways into one question: what happens to a town's electricity when a few hundred
+electric cars all want charging at once, and what does it take to run it properly?
 
 Built for the **2026 IEEE Metaverse Grand Challenge for Simulation-Based Learning**,
 Sustainable Smart Cities and Urban Innovation.
 
 ---
 
-## Just play it
+## Just open it
 
 **https://rifat137710.github.io/Public/**
 
-No install, no login, no account, no headset. It runs on a phone. About twenty minutes
-end to end.
+No install, no login, no account, no headset. It runs on a phone.
+
+| | | |
+| --- | --- | --- |
+| **The lesson** | [`/`](https://rifat137710.github.io/Public/) | Six short lessons on one live simulation. Four controls and no jargon: pick a controller, pick how many cars, thin wire or thick, and scrub through the day. Ends on what a safety layer around a reinforcement-learning controller actually buys — nearly twice the drivers charged, out of range eight times less often. **Start here.** |
+| **The console** | [`/trainer/`](https://rifat137710.github.io/Public/trainer/) | You are the operator. Six stages, four sliders, one day at a time — and a procurement decision at the end, from a table that is telling the truth and still leading you somewhere. |
+| **The city** | [`/city/`](https://rifat137710.github.io/Public/city/) | The same feeder in three dimensions. Walk out of the control room and stand under a street light while the voltage at that bus falls. |
+
+All three run the same power flow, on the same feeder, over the same day. There is one
+copy of the physics in `scripts/shared/`, and every build re-solves 2304 recorded control
+steps against the offline engine on load and prints the disagreement rather than assuming
+it away.
 
 ---
 

@@ -4,6 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Bus 18 — How a smart grid learns to charge electric cars</title>
+<meta name="description" content="A town of thirty-three streets, a few hundred electric cars, and what a safety layer around a reinforcement-learning controller actually buys.">
+<meta name="theme-color" content="#0f1319">
+<!-- The feeder's own voltage profile, sagging into a violation at the far bus. Inlined
+     so the page makes no second request — and so the site does not 404 on favicon.ico. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230A0E13'/%3E%3Cpath d='M5 10h7c6 0 6 13 12 13' fill='none' stroke='%234FB3A2' stroke-width='3' stroke-linecap='round'/%3E%3Ccircle cx='25' cy='23' r='3.4' fill='%23E4776B'/%3E%3C/svg%3E">
 <style>
   :root {
     --bg: #f7f8fa;
@@ -128,6 +133,22 @@
   }
   footer { border-top: 1px solid var(--line); margin-top: 40px; padding-top: 18px; font-size: 13px; color: var(--dim); }
   a { color: var(--cool); }
+
+  /* ---- where to go next ---- */
+  .next { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .next a {
+    display: block; text-decoration: none; color: inherit;
+    border: 1px solid var(--line); border-radius: var(--radius); padding: 15px 17px;
+    background: var(--panel); transition: border-color .15s, transform .15s;
+  }
+  .next a:hover { border-color: var(--cool); transform: translateY(-2px); }
+  .next a:focus-visible { outline: 2px solid var(--cool); outline-offset: 2px; }
+  .next b { display: block; font-size: 16px; margin-bottom: 3px; }
+  .next span { font-size: 13.5px; color: var(--dim); line-height: 1.5; }
+  .kicker {
+    font-size: 12px; text-transform: uppercase; letter-spacing: .09em;
+    color: var(--cool); font-weight: 700; margin: 0 0 8px;
+  }
   .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 </style>
 </head>
@@ -135,6 +156,7 @@
 <div class="wrap">
 
 <header>
+  <p class="kicker">Bus 18 · part one of three</p>
   <h1>How a smart grid learns to charge electric cars</h1>
   <p class="lede">A town of thirty-three streets on one electricity line, and a few hundred
   electric cars that all want charging at the same time. Six short lessons, one live
@@ -212,6 +234,25 @@
   out of 288 five-minute steps in a day. The simulator above counts street-steps out of
   33 × 288, so the two columns answer slightly different questions and are not meant to be
   read against each other.</p>
+</section>
+
+<section class="panel">
+  <h2>Now go and do it yourself</h2>
+  <p class="small muted">This page shows you the argument. The other two make you make the
+  decisions, which is the part that sticks.</p>
+  <div class="next">
+    <a href="trainer/">
+      <b>Run the feeder yourself →</b>
+      <span>Six stages at the operator's console. You set the charging, you live with the
+      evening, and at the end you pick a controller to buy — from a table that is telling
+      the truth and still leading you somewhere.</span>
+    </a>
+    <a href="city/">
+      <b>Walk the town →</b>
+      <span>The same feeder in three dimensions. Walk out of the control room, stand under
+      a street light and watch it brown out as the voltage at that bus falls.</span>
+    </a>
+  </div>
 </section>
 
 <footer>
