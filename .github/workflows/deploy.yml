@@ -10,8 +10,13 @@ permissions:
   pages: write
   id-token: write
 
+# Scoped per branch. A single shared "pages" group meant that pushing the feature branch
+# straight after main put both runs in the same group, and cancel-in-progress killed the
+# main run — silently, with a green branch run next to it, leaving the live site on the
+# previous commit. Only main can deploy anyway, so nothing is gained by having the two
+# contend.
 concurrency:
-  group: pages
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -32,8 +37,12 @@ jobs:
         with:
           path: dist
 
+  # Pages only accepts a deployment from the default branch, so on any other branch this
+  # job failed after a second and painted the whole run red. The build above is the part
+  # that is useful there; skipping the deploy makes a red branch run mean something.
   deploy:
     needs: build
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
