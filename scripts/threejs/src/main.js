@@ -21,7 +21,7 @@ import {
 import { buildCity } from './city.js';
 import { buildRoom } from './room.js';
 import { STAGES, Progress } from './mission.js';
-import { FleetRun, fleetCheck } from './fleet.js';
+import { FleetRun, fleetCheck } from '../../shared/fleet.js';
 import { OBJECTIVES, findings, coverage } from './debrief.js';
 
 const el = (id) => document.getElementById(id);

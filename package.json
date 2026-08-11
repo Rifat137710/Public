@@ -11,8 +11,11 @@
     "preview": "vite preview",
     "compare": "tsx scripts/compare.ts",
     "test:stages": "tsx tests/stages.test.ts",
-    "world": "tsx scripts/world-data.ts > scripts/threejs/world.json",
-    "city": "node scripts/threejs/build.mjs"
+    "world": "tsx scripts/world-data.ts > scripts/shared/world.json",
+    "city": "node scripts/threejs/build.mjs",
+    "learn": "node scripts/learn/build.mjs",
+    "learn:check": "node scripts/learn/check.mjs",
+    "learn:verify": "node scripts/learn/build.mjs && node scripts/learn/verify.mjs"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",

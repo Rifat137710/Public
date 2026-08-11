@@ -14,14 +14,22 @@ node scripts/threejs/build.mjs
 `src/core.js` imports `world.json`, regenerated from the simulation engine with:
 
 ```sh
-npx tsx scripts/world-data.ts > scripts/threejs/world.json
+npx tsx scripts/world-data.ts > scripts/shared/world.json
 ```
 
 ## Layout
 
+The physics is not in this directory. The network, the solver, the sensitivities and the
+fleet accounting live in `scripts/shared/`, which the lesson page in `scripts/learn/`
+imports too — one copy, so the two builds cannot drift into disagreeing about what the
+town does.
+
 | file | what lives there |
 | --- | --- |
-| `src/core.js` | network, backward/forward sweep, self-check, ground plan, shared materials |
+| `../shared/grid.js` | network, backward/forward sweep, sensitivities, self-check |
+| `../shared/fleet.js` | the fleet and the drivers-served accounting |
+| `../shared/control.js` | the four controllers and the safety projection |
+| `src/core.js` | ground plan and shared materials; re-exports the shared engine |
 | `src/city.js` | roads, buildings, poles, conductors, grid hardware, the EV fleet |
 | `src/room.js` | the control room and its instruments, all drawn to CanvasTextures |
 | `src/mission.js` | the six stages, their objectives and their debriefs |

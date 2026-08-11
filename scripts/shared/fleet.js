@@ -19,13 +19,13 @@
  *     day with all thirty-three down for an hour.
  */
 
-import { WORLD, N_BUS, solveAt, setGrid } from './core.js';
+import { WORLD, N_BUS, solveAt, setGrid } from './grid.js';
 
 const C = WORLD.fleetConstants;
 export const STEPS_PER_DAY = WORLD.day.length;
 
 /** The exported vehicles, unpacked into the shape the accounting reads. */
-const VEHICLES = WORLD.fleet.map((v) => ({
+const ALL_VEHICLES = WORLD.fleet.map((v) => ({
   station: v.s,
   capacityKwh: v.cap,
   arrivalStep: v.a,
@@ -35,13 +35,35 @@ const VEHICLES = WORLD.fleet.map((v) => ({
   v2g: v.v2g === 1,
 }));
 
-export const FLEET_SIZE = VEHICLES.length;
+export const FLEET_SIZE = ALL_VEHICLES.length;
+
+/**
+ * Take `n` of the fleet, spread evenly through the list rather than sliced off the
+ * front. The vehicles are ordered as they were generated, so a slice would bias the
+ * sample towards whichever stations and arrival times happen to sit at the start; a
+ * Bresenham pick keeps the four stations and the arrival spread in proportion, which is
+ * what makes "half as many cars" mean half as many everywhere.
+ */
+function subset(n) {
+  const total = ALL_VEHICLES.length;
+  if (n >= total) return ALL_VEHICLES;
+  if (n <= 0) return [];
+  const out = [];
+  for (let i = 0; i < total; i++) {
+    if (Math.floor((i * n) / total) !== Math.floor(((i + 1) * n) / total)) out.push(ALL_VEHICLES[i]);
+  }
+  return out;
+}
 
 export class FleetRun {
-  constructor() { this.reset(); }
+  /** `size` lets a lesson ask what the same day looks like with fewer cars on it. */
+  constructor(size = ALL_VEHICLES.length) {
+    this.vehicles = subset(size);
+    this.reset();
+  }
 
   reset() {
-    this.state = VEHICLES.map((v) => ({
+    this.state = this.vehicles.map((v) => ({
       soc: v.arrivalSoc,
       throughputKwh: 0,
       connected: false,
@@ -55,8 +77,8 @@ export class FleetRun {
 
   /** Plug in whoever has arrived; record the charge of anyone leaving. */
   updateConnections(step) {
-    for (let i = 0; i < VEHICLES.length; i++) {
-      const v = VEHICLES[i];
+    for (let i = 0; i < this.vehicles.length; i++) {
+      const v = this.vehicles[i];
       const s = this.state[i];
       const isConnected = step >= v.arrivalStep && step < v.departureStep;
       if (s.connected && !isConnected && s.departedSoc === null) s.departedSoc = s.soc;
@@ -67,10 +89,10 @@ export class FleetRun {
   /** What the connected vehicles can physically absorb or supply, per station. */
   capabilities() {
     const caps = Array.from({ length: 4 }, () => ({ maxInjectKw: 0, maxDrawKw: 0, connected: 0, deficitKwh: 0 }));
-    for (let i = 0; i < VEHICLES.length; i++) {
+    for (let i = 0; i < this.vehicles.length; i++) {
       const s = this.state[i];
       if (!s.connected) continue;
-      const v = VEHICLES[i];
+      const v = this.vehicles[i];
       const cap = caps[v.station];
       cap.connected++;
       if (s.soc < 0.995) cap.maxDrawKw -= C.maxChargeKw;
@@ -90,8 +112,8 @@ export class FleetRun {
   /** Move energy for one station over one step, and report what it cost the grid. */
   dispatchStation(station, commandKw) {
     const members = [];
-    for (let i = 0; i < VEHICLES.length; i++) {
-      if (this.state[i].connected && VEHICLES[i].station === station) members.push(i);
+    for (let i = 0; i < this.vehicles.length; i++) {
+      if (this.state[i].connected && this.vehicles[i].station === station) members.push(i);
     }
     const out = { energyBoughtKwh: 0, energySoldKwh: 0, throughputKwh: 0 };
     if (members.length === 0 || commandKw === 0) return out;
@@ -100,7 +122,7 @@ export class FleetRun {
       // Charging, weighted by remaining deficit.
       let totalDeficit = 0;
       const deficits = members.map((i) => {
-        const d = Math.max(0, (VEHICLES[i].targetSoc - this.state[i].soc) * VEHICLES[i].capacityKwh);
+        const d = Math.max(0, (this.vehicles[i].targetSoc - this.state[i].soc) * this.vehicles[i].capacityKwh);
         totalDeficit += d;
         return d;
       });
@@ -109,7 +131,7 @@ export class FleetRun {
       const drawKw = -commandKw;
       for (let m = 0; m < members.length; m++) {
         const i = members[m];
-        const s = this.state[i], v = VEHICLES[i];
+        const s = this.state[i], v = this.vehicles[i];
         const perVehicle = Math.min((deficits[m] / totalDeficit) * drawKw, C.maxChargeKw);
         const fromGridKwh = perVehicle * C.hoursPerStep;
         const intoBatteryKwh = Math.min(
@@ -125,11 +147,11 @@ export class FleetRun {
     }
 
     // Discharging to the grid.
-    const eligible = members.filter((i) => VEHICLES[i].v2g && this.state[i].soc > C.socFloorDischarge);
+    const eligible = members.filter((i) => this.vehicles[i].v2g && this.state[i].soc > C.socFloorDischarge);
     if (eligible.length === 0) return out;
     const perVehicleKw = Math.min(commandKw / eligible.length, C.maxDischargeKw);
     for (const i of eligible) {
-      const s = this.state[i], v = VEHICLES[i];
+      const s = this.state[i], v = this.vehicles[i];
       const toGridKwh = perVehicleKw * C.hoursPerStep;
       const fromBatteryKwh = Math.min(
         toGridKwh / C.chargerEfficiency,
@@ -161,17 +183,17 @@ export class FleetRun {
    */
   totals() {
     let met = 0;
-    for (let i = 0; i < VEHICLES.length; i++) {
+    for (let i = 0; i < this.vehicles.length; i++) {
       const soc = this.state[i].departedSoc ?? this.state[i].soc;
-      if (soc >= VEHICLES[i].targetSoc - 1e-6) met++;
+      if (soc >= this.vehicles[i].targetSoc - 1e-6) met++;
     }
     return {
       violationRate: this.violationPairs / (STEPS_PER_DAY * N_BUS),
-      socMet: met / VEHICLES.length,
+      socMet: met / this.vehicles.length,
       totalLossKwh: this.lossKwh,
       vMinPu: this.worstV === Infinity ? 1 : this.worstV,
       driversMet: met,
-      fleetSize: VEHICLES.length,
+      fleetSize: this.vehicles.length,
     };
   }
 
@@ -190,8 +212,8 @@ export class FleetRun {
   /** Per-station state of charge, for the cars parked under the canopies. */
   socAt(station, limit) {
     const out = [];
-    for (let i = 0; i < VEHICLES.length && out.length < limit; i++) {
-      if (this.state[i].connected && VEHICLES[i].station === station) out.push(this.state[i].soc);
+    for (let i = 0; i < this.vehicles.length && out.length < limit; i++) {
+      if (this.state[i].connected && this.vehicles[i].station === station) out.push(this.state[i].soc);
     }
     return out;
   }

@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bus 18 — How a smart grid learns to charge electric cars</title>
+<style>
+  :root {
+    --bg: #f7f8fa;
+    --panel: #ffffff;
+    --ink: #1a1f26;
+    --dim: #5a6472;
+    --line: #dde2e9;
+    --ok: #1f8a70;
+    --warn: #c0392b;
+    --amber: #b47b12;
+    --cool: #2a6fb0;
+    --accent: #6b3fa0;
+    --shadow: 0 1px 3px rgba(16, 24, 40, .07), 0 1px 2px rgba(16, 24, 40, .04);
+    --radius: 10px;
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1319;
+      --panel: #171d25;
+      --ink: #e6eaf0;
+      --dim: #97a3b3;
+      --line: #2a323d;
+      --ok: #46b596;
+      --warn: #e4776b;
+      --amber: #e0ac4a;
+      --cool: #5aa9d6;
+      --accent: #b18ade;
+      --shadow: 0 1px 3px rgba(0, 0, 0, .4);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 16px/1.65 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px 80px; }
+
+  header { padding: 48px 0 28px; }
+  h1 { font-size: clamp(26px, 4.4vw, 40px); line-height: 1.15; margin: 0 0 12px; letter-spacing: -.02em; }
+  .lede { font-size: clamp(16px, 2vw, 19px); color: var(--dim); max-width: 62ch; margin: 0; }
+  h2 { font-size: 22px; margin: 0 0 6px; letter-spacing: -.01em; }
+  h3 { font-size: 16px; margin: 0 0 6px; }
+  p { margin: 0 0 12px; max-width: 68ch; }
+  .muted { color: var(--dim); }
+  .small { font-size: 14px; }
+
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 18px;
+    margin: 0 0 22px;
+  }
+
+  /* ---- the simulator ---- */
+  #sim { position: sticky; top: 0; z-index: 20; padding-top: 14px; background: var(--bg); }
+  #sim .panel { margin-bottom: 12px; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 18px 26px; align-items: flex-end; }
+  .ctl { display: flex; flex-direction: column; gap: 6px; }
+  .ctl > label, .ctl > .lbl {
+    font-size: 12px; text-transform: uppercase; letter-spacing: .07em;
+    color: var(--dim); font-weight: 600;
+  }
+  .seg { display: flex; gap: 0; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .seg button {
+    font: inherit; font-size: 14px; padding: 7px 13px; border: 0; cursor: pointer;
+    background: var(--panel); color: var(--dim); border-right: 1px solid var(--line);
+  }
+  .seg button:last-child { border-right: 0; }
+  .seg button:hover { color: var(--ink); }
+  .seg button[aria-pressed="true"] { background: var(--ink); color: var(--panel); }
+  .seg button:focus-visible { outline: 2px solid var(--cool); outline-offset: -2px; }
+
+  input[type=range] { width: 190px; accent-color: var(--cool); }
+  .val { font: 600 15px/1 var(--mono); }
+
+  .readouts { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 14px; margin-top: 4px; }
+  .ro { border-left: 3px solid var(--line); padding-left: 11px; }
+  .ro .k { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--dim); font-weight: 600; }
+  .ro .v { font: 600 22px/1.25 var(--mono); font-variant-numeric: tabular-nums; }
+  .ro.bad { border-left-color: var(--warn); } .ro.bad .v { color: var(--warn); }
+  .ro.good { border-left-color: var(--ok); } .ro.good .v { color: var(--ok); }
+
+  .stage { display: grid; grid-template-columns: 1.35fr 1fr; gap: 16px; align-items: start; }
+  @media (max-width: 860px) { .stage { grid-template-columns: 1fr; } #sim { position: static; } }
+  svg { display: block; width: 100%; height: auto; overflow: visible; }
+  .cap { font-size: 12px; color: var(--dim); margin: 6px 0 0; }
+
+  /* ---- lessons ---- */
+  .lesson { display: grid; grid-template-columns: 44px 1fr; gap: 16px; }
+  .num {
+    width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--ink); color: var(--panel); font: 600 15px/1 var(--mono);
+  }
+  .lesson.key .num { background: var(--ok); }
+  .try {
+    font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+    background: var(--cool); color: #fff; border: 0; border-radius: 8px; padding: 8px 15px;
+    margin-top: 4px;
+  }
+  .try:hover { filter: brightness(1.08); }
+  .try:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: right; padding: 7px 9px; border-bottom: 1px solid var(--line); }
+  th:first-child, td:first-child { text-align: left; }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--dim); font-weight: 600; }
+  td.num-cell { font: 500 14px/1.5 var(--mono); font-variant-numeric: tabular-nums; }
+  tr.win td { background: color-mix(in srgb, var(--ok) 11%, transparent); font-weight: 600; }
+  .scroll { overflow-x: auto; }
+
+  .note {
+    border-left: 3px solid var(--amber); padding: 2px 0 2px 13px;
+    font-size: 14px; color: var(--dim); margin: 14px 0 0;
+  }
+  footer { border-top: 1px solid var(--line); margin-top: 40px; padding-top: 18px; font-size: 13px; color: var(--dim); }
+  a { color: var(--cool); }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>How a smart grid learns to charge electric cars</h1>
+  <p class="lede">A town of thirty-three streets on one electricity line, and a few hundred
+  electric cars that all want charging at the same time. Six short lessons, one live
+  simulation, and one question at the end of it: what does a safety layer actually buy?</p>
+</header>
+
+<section id="sim" aria-label="Simulator">
+  <div class="panel">
+    <div class="controls">
+      <div class="ctl">
+        <span class="lbl" id="lblCtrl">Who decides the charging</span>
+        <div class="seg" id="ctrlSeg" role="group" aria-labelledby="lblCtrl"></div>
+      </div>
+      <div class="ctl">
+        <label for="cars">Electric cars in town — <span class="val" id="carsVal">200</span></label>
+        <input type="range" id="cars" min="20" max="287" step="10" value="200">
+      </div>
+      <div class="ctl">
+        <span class="lbl" id="lblGrid">The line into town</span>
+        <div class="seg" id="gridSeg" role="group" aria-labelledby="lblGrid">
+          <button data-grid="weak" aria-pressed="true">Thin (weak)</button>
+          <button data-grid="strong" aria-pressed="false">Thick (strong)</button>
+        </div>
+      </div>
+      <div class="ctl">
+        <span class="lbl" id="lblPlay">Day</span>
+        <div class="seg" id="playSeg" role="group" aria-labelledby="lblPlay">
+          <button id="playBtn">▶ Play</button>
+          <button id="restartBtn">↺ Restart</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="ctl" style="margin-top:14px;width:100%">
+      <label for="clock">Time of day — <span class="val" id="clockVal">00:00</span></label>
+      <input type="range" id="clock" min="0" max="287" step="1" value="0" style="width:100%">
+    </div>
+
+    <div class="readouts" id="readouts"></div>
+  </div>
+
+  <div class="panel">
+    <div class="stage">
+      <div>
+        <svg id="town" viewBox="0 0 620 300" role="img" aria-labelledby="townDesc"></svg>
+        <p class="cap" id="townDesc">The feeder. Each dot is a street; colour is its voltage.
+        Squares are the four charging stations.</p>
+      </div>
+      <div>
+        <svg id="profile" viewBox="0 0 380 220" role="img" aria-labelledby="profDesc"></svg>
+        <p class="cap" id="profDesc">Voltage along the line right now. The shaded band is the
+        legal range every street must stay inside.</p>
+      </div>
+    </div>
+    <p class="sr" id="live" role="status" aria-live="polite"></p>
+  </div>
+</section>
+
+<section class="panel">
+  <h2>The scoreboard, for the town as you have set it</h2>
+  <p class="small muted">All four run the same day, the same cars, the same weather. Recomputed
+  whenever you move a slider.</p>
+  <div class="scroll"><table id="board"></table></div>
+  <p class="note" id="boardNote"></p>
+</section>
+
+<section id="lessons"></section>
+
+<section class="panel">
+  <h2>What the trained agents actually did</h2>
+  <p class="small muted">Measured in the thesis notebook: four charging stations, 25 evaluation
+  episodes per method on the weak feeder, same seeds for all of them.</p>
+  <div class="scroll"><table id="thesis"></table></div>
+  <p class="note">Violation rate here counts <em>steps in which any street was out of range</em>,
+  out of 288 five-minute steps in a day. The simulator above counts street-steps out of
+  33 × 288, so the two columns answer slightly different questions and are not meant to be
+  read against each other.</p>
+</section>
+
+<footer>
+  <p><strong>Bus 18</strong> — IEEE 33-bus feeder, backward/forward sweep power flow, five-minute
+  steps. <span id="selfcheck"></span></p>
+  <p>The power flow, the fleet accounting, the droop curve and the safety projection are the real
+  algorithms. The two learned policies are simple stand-ins for the trained networks: what they
+  ask for is illustrative, what the safety layer does with the request is not.</p>
+</footer>
+
+</div>
+<script>/*BUNDLE*/</script>
+</body>
+</html>
