@@ -1,11 +1,11 @@
 /**
  * The electric vehicle fleet.
  *
- * Parameters follow the thesis: bimodal arrivals, battery capacity drawn around a mean
+ * Parameters follow the reference study: bimodal arrivals, battery capacity drawn around a mean
  * and clipped, arrival and target state of charge sampled per vehicle, dwell times
  * around seven hours, and four fifths of drivers opting in to vehicle-to-grid.
  *
- * One property matters more than any of the others. The thesis's Monte-Carlo check found
+ * One property matters more than any of the others. The reference study's Monte-Carlo check found
  * that **every** vehicle's energy request is physically deliverable within its dwell at
  * the study's operating point. So when a controller leaves vehicles uncharged, that is a
  * control decision and not an impossible demand — which is the whole reason the service

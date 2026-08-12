@@ -6,13 +6,13 @@
  * shown until after the learner has committed to a choice — because that is exactly
  * the position a real engineer is in, and the moment of being caught is the lesson.
  *
- * The rows are the thesis's own evaluation, transcribed in `content/thesis.ts`, not runs
+ * The rows are the source evaluation, transcribed in `content/evaluation.ts`, not runs
  * of this simulator. That is what makes the table a report rather than a demonstration,
  * and it is also why the trap holds up: nobody arranged for the safest, cheapest row to
  * be the one that charges nobody. It was measured.
  */
 
-import { EVALUATION } from '../content/thesis.js';
+import { EVALUATION } from '../content/evaluation.js';
 
 export interface Candidate {
   id: string;
@@ -95,7 +95,7 @@ export function Leaderboard({ candidates, chosen, onChoose }: Props) {
           is what stops the numbers here being read against the map, which counts
           differently on both axes. */}
       <p className="source-note">
-        Measured in the thesis notebook, not by this simulator. Violation rate is the
+        Measured in the source evaluation, not by this simulator. Violation rate is the
         fraction of the day&rsquo;s {EVALUATION.steps} five-minute steps with any bus
         outside the band; vehicles served is over the {Math.round(EVALUATION.departures)}{' '}
         that departed during the episode. The map on the left counts both differently, so

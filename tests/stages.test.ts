@@ -1,7 +1,7 @@
 /**
  * The six-stage arc only works if the numbers cooperate.
  *
- * Each stage's reveal makes a claim — droop is safer than uncoordinated, plain deep RL
+ * Each stage's reveal makes a claim — droop is safer than uncoordinated, unshielded RL
  * is dominated by droop, the trap controller looks best on the two columns a manager
  * sees. Those are not editorial decisions; they either come out of the simulation or
  * they do not, and if they stop coming out, the copy is a lie and the build should fail.
@@ -23,8 +23,8 @@ import {
   SENSITIVITIES,
   SHORTLIST,
   TRAP_ID,
-  byThesisId,
-} from '../src/content/thesis.js';
+  byEvaluationId,
+} from '../src/content/evaluation.js';
 
 let passed = 0;
 let failed = 0;
@@ -41,7 +41,7 @@ function check(name: string, condition: boolean, detail = ''): void {
 
 const sacLag = placeholderController({
   id: 'sac-lag',
-  label: 'SAC-Lag (plain deep RL)',
+  label: 'Plain RL',
   eagerness: 0.85,
   backoffPu: 0.952,
   arbitrage: true,
@@ -50,7 +50,7 @@ const sacLag = placeholderController({
 
 const safeSac = placeholderController({
   id: 'safesac',
-  label: 'SafeSAC',
+  label: 'Shielded RL',
   eagerness: 0.95,
   backoffPu: 0.948,
   arbitrage: false,
@@ -59,7 +59,7 @@ const safeSac = placeholderController({
 
 const shifted = placeholderController({
   id: 'sac-lag-shift',
-  label: 'SAC-Lag (trained on a strong grid)',
+  label: 'Plain RL (trained on a stiff feeder)',
   eagerness: 0,
   backoffPu: 0.9,
   arbitrage: true,
@@ -114,7 +114,7 @@ check(
 
 console.log('\nStage 4 — the credibility beat');
 check(
-  'plain deep RL is dominated by the droop rule on BOTH axes',
+  'unshielded RL is dominated by the droop rule on BOTH axes',
   results.sacLag.violationRate > results.droop.violationRate &&
     results.sacLag.socMet < results.droop.socMet,
   `RL ${results.sacLag.violationRate.toFixed(3)}/${results.sacLag.socMet.toFixed(3)} vs ` +
@@ -123,7 +123,7 @@ check(
 
 console.log('\nStage 5 — physics restored');
 check(
-  'SafeSAC beats the plain agent on service',
+  'Shielded RL beats the plain agent on service',
   results.safeSac.socMet > results.sacLag.socMet + 0.15,
   `${results.safeSac.socMet.toFixed(3)} vs ${results.sacLag.socMet.toFixed(3)}`,
 );
@@ -184,14 +184,14 @@ const dots = [
   dot('manual', 'You', results.uncoordinated, true),
   dot('uncoordinated', 'Uncoordinated', results.uncoordinated),
   dot('droop', 'Droop (IEEE 1547)', results.droop),
-  dot('sac-lag', 'SAC-Lag (plain deep RL)', results.sacLag),
-  dot('safesac', 'SafeSAC', results.safeSac),
+  dot('sac-lag', 'Plain RL', results.sacLag),
+  dot('safesac', 'Shielded RL', results.safeSac),
 ];
 
 const trapCandidates = [
   candidate('droop', 'Droop (IEEE 1547)', results.droop),
-  candidate('safesac', 'SafeSAC', results.safeSac),
-  candidate('sac-lag-shift', 'SAC-Lag (trained on a strong grid)', results.shifted),
+  candidate('safesac', 'Shielded RL', results.safeSac),
+  candidate('sac-lag-shift', 'Plain RL (trained on a stiff feeder)', results.shifted),
 ];
 
 check(
@@ -230,7 +230,7 @@ check(
 );
 const safeVerdict = pickVerdict(trapCandidates, 'safesac');
 check(
-  'picking SafeSAC gets the other verdict, not the same scolding',
+  'picking Shielded RL gets the other verdict, not the same scolding',
   safeVerdict !== null && !safeVerdict.headline.endsWith('served nobody'),
   safeVerdict?.headline,
 );
@@ -244,8 +244,8 @@ check(
     onePager.includes('<!doctype html>'),
 );
 check(
-  'and flags the stand-ins, since it leaves the building',
-  onePager.includes('labelled stand-ins'),
+  'and flags the provisional figures, since it leaves the building',
+  onePager.includes('reference implementations'),
 );
 
 console.log('\nSustainability — the track asks for energy-efficiency analytics');
@@ -253,10 +253,10 @@ const perDriver = (r: EpisodeResult) => r.totalLossKwh / Math.max(1e-9, r.socMet
 check(
   'coordination cuts energy wasted in the lines, per driver served',
   perDriver(results.safeSac) < perDriver(results.uncoordinated) / 2,
-  `SafeSAC ${perDriver(results.safeSac).toFixed(1)} kWh vs uncoordinated ${perDriver(results.uncoordinated).toFixed(1)} kWh`,
+  `Shielded RL ${perDriver(results.safeSac).toFixed(1)} kWh vs uncoordinated ${perDriver(results.uncoordinated).toFixed(1)} kWh`,
 );
 check(
-  'plain deep RL is wasteful as well as dominated',
+  'unshielded RL is wasteful as well as dominated',
   perDriver(results.sacLag) > perDriver(results.droop),
   `RL ${perDriver(results.sacLag).toFixed(1)} vs droop ${perDriver(results.droop).toFixed(1)}`,
 );
@@ -266,7 +266,7 @@ check(
 );
 
 /**
- * Stage 6 is now driven by the thesis's own evaluation rather than by this simulator, so
+ * Stage 6 is now driven by the source evaluation rather than by this simulator, so
  * the trap has to be checked where it actually lives. If the export is ever regenerated
  * and the shifted agent stops being the bait, the stage's copy becomes a lie and this
  * build should stop rather than ship it.
@@ -297,9 +297,9 @@ check(
   `trap ${measuredTrap.chargeKwh} kWh vs ${rivals.map((r) => Math.round(r.chargeKwh)).join(', ')}`,
 );
 check(
-  'SafeSAC serves materially more than plain SAC-Lag, which is what stage 5 claims',
-  byThesisId('safesac')!.socMet > byThesisId('sac-lag')!.socMet * 1.9,
-  `${byThesisId('safesac')!.socMet.toFixed(3)} vs ${byThesisId('sac-lag')!.socMet.toFixed(3)}`,
+  'Shielded RL serves materially more than unshielded, which is what stage 5 claims',
+  byEvaluationId('safesac')!.socMet > byEvaluationId('sac-lag')!.socMet * 1.9,
+  `${byEvaluationId('safesac')!.socMet.toFixed(3)} vs ${byEvaluationId('sac-lag')!.socMet.toFixed(3)}`,
 );
 check(
   'the projection cuts a request on the weak grid and passes it on the stiff one',

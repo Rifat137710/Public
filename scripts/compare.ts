@@ -25,7 +25,7 @@ const BASE: ScenarioOptions = { grid: 'weak', loadScale: 0.5, seed: 137710 };
 
 const sacLagStandIn = placeholderController({
   id: 'sac-lag',
-  label: 'SAC-Lag (plain deep RL)',
+  label: 'Plain RL',
   eagerness: 0.85,
   backoffPu: 0.952,
   arbitrage: true,
@@ -34,7 +34,7 @@ const sacLagStandIn = placeholderController({
 
 const safeSacStandIn = placeholderController({
   id: 'safesac',
-  label: 'SafeSAC',
+  label: 'Shielded RL',
   eagerness: 0.95,
   backoffPu: 0.948,
   arbitrage: false,
@@ -82,7 +82,7 @@ if (deliverability.deliverable < deliverability.total) {
 
 const controllers: Controller[] = [uncoordinated, droop, sacLagStandIn, safeSacStandIn];
 
-header('Weak feeder, load scale 0.50 — each controller as the thesis compares it');
+header('Weak feeder, load scale 0.50 — each controller, compared like for like');
 const asPublished = controllers.map((c) => runEpisode(c, BASE));
 for (const r of asPublished) console.log(row(r));
 
@@ -96,11 +96,11 @@ header('Strong feeder, load scale 0.50 — same controllers, stiffer network');
 const strong = controllers.map((c) => runEpisode(c, { ...BASE, grid: 'strong' }));
 for (const r of strong) console.log(row(r));
 
-console.log('\n  * stand-in behaviour, not the thesis agent — awaiting the episode export');
+console.log('\n  * reference implementation, not the trained agent — figures provisional');
 
 // ---------------------------------------------------------------------------
 
-console.log('\n\nWhat the safety layer bought SafeSAC, weak feeder');
+console.log('\n\nWhat the safety layer bought Shielded RL, weak feeder');
 console.log(
   `  ${'controller'.padEnd(30)}${'viol. off'.padStart(11)}${'viol. on'.padStart(10)}` +
     `${'SoC off'.padStart(9)}${'SoC on'.padStart(8)}`,

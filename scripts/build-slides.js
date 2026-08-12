@@ -122,7 +122,7 @@ const rows = [
   ['Uncoordinated', 'Everyone charges at once.', '0.319 illegal · 0.983 served', LIMIT],
   ['IEEE 1547 droop', 'Each station watches its own bus.', '0.045 illegal · 0.564 served', INK2],
   ['Plain deep RL', 'Full state, millions of steps.', '0.057 illegal · 0.265 served', LIMIT],
-  ['SafeSAC', 'Network physics in the loop.', '0.016 illegal · 0.554 served', TEAL],
+  ['Shielded RL', 'Network physics in the loop.', '0.016 illegal · 0.554 served', TEAL],
 ];
 
 rows.forEach((r, i) => {
@@ -170,7 +170,7 @@ const pts = [
   { v: 0.319, s: 0.983, c: LIMIT, label: 'Uncoordinated', dx: -1.30, dy: 0.10 },
   { v: 0.045, s: 0.564, c: INK2, label: 'Droop', dx: 0.18, dy: 0.12 },
   { v: 0.057, s: 0.265, c: LIMIT, label: 'Plain deep RL', dx: 0.2, dy: 0.02 },
-  { v: 0.016, s: 0.554, c: TEAL, label: 'SafeSAC', dx: 0.02, dy: -0.40 },
+  { v: 0.016, s: 0.554, c: TEAL, label: 'Shielded RL', dx: 0.02, dy: -0.40 },
 ];
 
 pts.forEach((p) => {
@@ -201,7 +201,7 @@ s2.addText('Intelligence was not the missing ingredient. The physics was.', {
   fontFace: H, fontSize: 15, italic: true, color: LAMP,
 });
 s2.addNotes(
-  'The credibility beat. This result comes from the underlying B.Sc. thesis and is ' +
+  'The credibility beat. This result comes from the underlying research and is ' +
   'reproduced live in the browser on the public benchmark network.',
 );
 
@@ -259,7 +259,7 @@ s3.addText(
   'Hands-on means the world itself: grab a charging station where it stands in the village and drag it, and a real power flow re-solves across all 33 buses.',
   { x: 0.9, y: 6.34, w: 11.4, h: 0.5, margin: 0, fontFace: H, fontSize: 14, italic: true, color: LAMP },
 );
-s3.addNotes('Stage 6 is a procurement table, not a simulation run. It is where the entry lands its thesis.');
+s3.addNotes('Stage 6 is a procurement table, not a simulation run. It is where the entry lands its argument.');
 
 /* ------------------------------------------------------------------ 4 */
 

@@ -1,8 +1,8 @@
 /**
- * Calibrate the public Baran-Wu benchmark against the thesis feeder, and report
+ * Calibrate the public Baran-Wu benchmark against the reference study feeder, and report
  * honestly how well it matches.
  *
- * The thesis's strong grid should be the canonical benchmark as published. Its weak
+ * The reference study's strong grid should be the canonical benchmark as published. Its weak
  * grid is the same feeder behind a finite substation impedance. This script checks the
  * first claim, fits the impedance implied by the second, then holds the fitted network
  * up against Table 4.1 — sensitivities that were never used in the fit — so the match
@@ -30,8 +30,8 @@ import {
   stationSelfSensitivities,
 } from '../src/sim/sensitivities.js';
 
-/** The thesis's published base case, read from Figure 4.3 and Table 4.1. */
-const THESIS = {
+/** The reference study's published base case, read from Figure 4.3 and Table 4.1. */
+const REFERENCE = {
   strong: { vMin: 0.913, lossKw: 202.7 },
   weak: { vMin: 0.882, lossKw: 338.6 },
   /** Table 4.1, keyed by pandapower index. |dV/dP| and |dV/dQ| in pu/kW. */
@@ -50,7 +50,7 @@ const THESIS = {
   ],
 } as const;
 
-/** The thesis runs its experiments here; the base case above is at full load. */
+/** The reference study runs its experiments here; the base case above is at full load. */
 const FULL_LOAD = 1.0;
 
 function baseCase(source: SourceImpedance, loadScale = FULL_LOAD) {
@@ -98,9 +98,9 @@ const strong = baseCase(STRONG_SOURCE);
 console.log(`\nStrong feeder (stiff source, canonical benchmark)`);
 console.log(`  converged           ${strong.result.converged} in ${strong.result.iterations} iterations`);
 console.log(`  Vmin                ${fmt(strong.vMin)} pu at bus ${strong.vMinBus}`);
-console.log(`  thesis Vmin         ${fmt(THESIS.strong.vMin)} pu            ${pct(strong.vMin, THESIS.strong.vMin)}`);
+console.log(`  reference Vmin         ${fmt(REFERENCE.strong.vMin)} pu            ${pct(strong.vMin, REFERENCE.strong.vMin)}`);
 console.log(`  loss                ${strong.lossKw.toFixed(1)} kW`);
-console.log(`  thesis loss         ${THESIS.strong.lossKw.toFixed(1)} kW              ${pct(strong.lossKw, THESIS.strong.lossKw)}`);
+console.log(`  reference loss         ${REFERENCE.strong.lossKw.toFixed(1)} kW              ${pct(strong.lossKw, REFERENCE.strong.lossKw)}`);
 
 // ---------------------------------------------------------------------------
 // 2. Fit the substation impedance that turns the benchmark into the weak feeder.
@@ -108,8 +108,8 @@ console.log(`  thesis loss         ${THESIS.strong.lossKw.toFixed(1)} kW        
 
 function weakMisfit(rOhm: number, xOhm: number): number {
   const { vMin, lossKw } = baseCase({ rOhm, xOhm });
-  const dv = (vMin - THESIS.weak.vMin) / 0.0005;
-  const dl = (lossKw - THESIS.weak.lossKw) / 0.05;
+  const dv = (vMin - REFERENCE.weak.vMin) / 0.0005;
+  const dl = (lossKw - REFERENCE.weak.lossKw) / 0.05;
   return dv * dv + dl * dl;
 }
 
@@ -150,9 +150,9 @@ console.log(`\nWeak feeder (finite substation, fitted)`);
 console.log(`  fitted source       R = ${fitted.rOhm.toFixed(4)} ohm, X = ${fitted.xOhm.toFixed(4)} ohm`);
 console.log(`  X/R                 ${(fitted.xOhm / fitted.rOhm).toFixed(3)}`);
 console.log(`  Vmin                ${fmt(weak.vMin)} pu at bus ${weak.vMinBus}`);
-console.log(`  thesis Vmin         ${fmt(THESIS.weak.vMin)} pu            ${pct(weak.vMin, THESIS.weak.vMin)}`);
+console.log(`  reference Vmin         ${fmt(REFERENCE.weak.vMin)} pu            ${pct(weak.vMin, REFERENCE.weak.vMin)}`);
 console.log(`  loss                ${weak.lossKw.toFixed(1)} kW`);
-console.log(`  thesis loss         ${THESIS.weak.lossKw.toFixed(1)} kW              ${pct(weak.lossKw, THESIS.weak.lossKw)}`);
+console.log(`  reference loss         ${REFERENCE.weak.lossKw.toFixed(1)} kW              ${pct(weak.lossKw, REFERENCE.weak.lossKw)}`);
 
 if (Math.abs(fitted.rOhm - WEAK_SOURCE.rOhm) > 5e-4 || Math.abs(fitted.xOhm - WEAK_SOURCE.xOhm) > 5e-4) {
   console.log(`\n  NOTE: WEAK_SOURCE in network.ts is { rOhm: ${WEAK_SOURCE.rOhm}, xOhm: ${WEAK_SOURCE.xOhm} }.`);
@@ -164,7 +164,7 @@ if (Math.abs(fitted.rOhm - WEAK_SOURCE.rOhm) > 5e-4 || Math.abs(fitted.xOhm - WE
 // ---------------------------------------------------------------------------
 
 /**
- * The thesis measures sensitivities at its operating point, load scale 0.50, because
+ * The reference study measures sensitivities at its operating point, load scale 0.50, because
  * the full-load case is already infeasible within [0.95, 1.05] pu.
  */
 const OPERATING_LOAD_SCALE = 0.5;
@@ -176,7 +176,7 @@ function sensitivityReport(label: string, source: SourceImpedance, expected: rea
   const stations = stationSelfSensitivities(s);
 
   console.log(`\n${label} sensitivities at load scale ${OPERATING_LOAD_SCALE} (not fitted)`);
-  console.log('  bus   |dV/dP| model   thesis     err     |dV/dQ| model   thesis     err     ratio   thesis');
+  console.log('  bus   |dV/dP| model   reference  err     |dV/dQ| model   reference  err     ratio   reference');
   for (let k = 0; k < stations.length; k++) {
     const station = stations[k];
     const want = expected[k];
@@ -192,12 +192,12 @@ function sensitivityReport(label: string, source: SourceImpedance, expected: rea
   return { stations, ratio };
 }
 
-const weakSens = sensitivityReport('Weak', fitted, THESIS.weakSensitivity);
-sensitivityReport('Strong', STRONG_SOURCE, THESIS.strongSensitivity);
+const weakSens = sensitivityReport('Weak', fitted, REFERENCE.weakSensitivity);
+sensitivityReport('Strong', STRONG_SOURCE, REFERENCE.strongSensitivity);
 
 console.log(`\nGate 1 — V-P dominance ratio >= 0.90`);
 console.log(`  model  ${weakSens.ratio.toFixed(3)}`);
-console.log(`  thesis ${THESIS.weakMeanRatio.toFixed(3)} (Table 4.1), 1.271 (Gate 1 protocol)`);
+console.log(`  reference ${REFERENCE.weakMeanRatio.toFixed(3)} (Table 4.1), 1.271 (Gate 1 protocol)`);
 console.log(`  ${weakSens.ratio >= 0.9 ? 'PASS' : 'FAIL'} — active power is the dominant voltage lever on the weak feeder`);
 
 console.log(`\nOperating point, load scale ${OPERATING_LOAD_SCALE}`);

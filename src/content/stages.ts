@@ -167,7 +167,7 @@ export const STAGES: Stage[] = [
     eyebrow: 'Deep reinforcement learning',
     title: 'So put a neural network on it',
     brief: [
-      'This is SAC-Lag: a soft actor-critic agent with a Lagrangian safety penalty, trained on this feeder for a full schedule. It sees the whole system state. It has learned from millions of steps of experience.',
+      'This is Plain RL: a deep reinforcement-learning agent carrying a penalty on constraint violation, trained on this feeder for a full schedule. It sees the whole system state. It has learned from millions of steps of experience.',
       'It is the obvious modern answer, and it is what most papers in this area propose.',
       'Watch where its dot lands relative to the droop curve.',
     ],
@@ -183,7 +183,7 @@ export const STAGES: Stage[] = [
         const worseSafety = ctx.violationRate > droopDot.violationRate;
         const worseService = ctx.socMet < droopDot.socMet;
         lines.push(
-          `SAC-Lag: ${ctx.violationRate.toFixed(3)} violations, ${ctx.socMet.toFixed(3)} service. Droop: ${droopDot.violationRate.toFixed(3)} violations, ${droopDot.socMet.toFixed(3)} service.`,
+          `Plain RL: ${ctx.violationRate.toFixed(3)} violations, ${ctx.socMet.toFixed(3)} service. Droop: ${droopDot.violationRate.toFixed(3)} violations, ${droopDot.socMet.toFixed(3)} service.`,
         );
         if (worseSafety && worseService) {
           lines.push(
@@ -208,7 +208,7 @@ export const STAGES: Stage[] = [
     eyebrow: 'Physics restored',
     title: 'The same agent, with the network put back in',
     brief: [
-      'SafeSAC is the same backbone, the same training budget, the same reward. One thing is added: at every control step, a safety layer measures how much each station actually moves the voltage at every bus on the live network, and projects the agent\'s request onto the nearest command that keeps the whole feeder legal.',
+      'Shielded RL is the same backbone, the same training budget, the same reward. One thing is added: at every control step, a safety layer measures how much each station actually moves the voltage at every bus on the live network, and projects the agent\'s request onto the nearest command that keeps the whole feeder legal.',
       'That layer was present while it trained, so this is a different learned policy, not the old one behind a filter.',
       'It is worth knowing what that measurement found. Ask all four stations for 80 kW here and the layer returns 54, 78, 77 and 73 — a real cut, and a different one at each station. Ask for the same 80 kW on a stiff grid and all four pass through untouched. The layer is not a rule. It is a calculation about one particular network, redone every step, and that is the whole reason it has to run on the grid it is deployed to rather than the grid it trained on.',
       'After this run you can switch the layer off and see how hard it was working.',
@@ -222,7 +222,7 @@ export const STAGES: Stage[] = [
     reveal: (ctx) => {
       const sacLag = findDot(ctx.dots, 'sac-lag');
       const lines: string[] = [
-        `SafeSAC: ${ctx.violationRate.toFixed(3)} violations, ${ctx.socMet.toFixed(3)} service, worst voltage ${ctx.vMinPu.toFixed(4)} pu.`,
+        `Shielded RL: ${ctx.violationRate.toFixed(3)} violations, ${ctx.socMet.toFixed(3)} service, worst voltage ${ctx.vMinPu.toFixed(4)} pu.`,
       ];
       if (sacLag) {
         const gained = ctx.socMet - sacLag.socMet;

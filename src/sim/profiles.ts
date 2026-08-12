@@ -1,7 +1,7 @@
 /**
  * The day the feeder lives through: load shape, solar, and price.
  *
- * One simulated day is 288 steps of five minutes, matching the thesis's control
+ * One simulated day is 288 steps of five minutes, matching the reference control
  * horizon. Every profile here is a pure function of the step index, so any moment of
  * the day can be evaluated without running the ones before it — which is what makes
  * scrubbing backwards and branching cheap.
@@ -75,7 +75,7 @@ export function clearSkyFraction(step: number): number {
   return Math.sin(Math.PI * phase) ** 1.3;
 }
 
-/** Three-tier time-of-use retail price, $/kWh, as used in the thesis. */
+/** Three-tier time-of-use retail price, $/kWh, as used in the reference study. */
 export function touPrice(step: number): number {
   const hour = hourOf(step);
   if (hour >= 17 && hour < 22) return 0.30;

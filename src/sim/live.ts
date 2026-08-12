@@ -44,12 +44,12 @@ export const PV_CAPACITY_KW = 250;
 
 export interface ScenarioOptions {
   grid?: GridKind;
-  /** Fraction of nameplate demand at the evening peak. The thesis studies 0.50. */
+  /** Fraction of nameplate demand at the evening peak. The reference study studies 0.50. */
   loadScale?: number;
   seed?: number;
   /**
    * Force the safety layer on or off, overriding the controller's own default.
-   * Leave undefined for the honest comparison: only SafeSAC is projected.
+   * Leave undefined for the honest comparison: only Shielded RL is projected.
    */
   projectionOverride?: boolean;
   marginPu?: number;

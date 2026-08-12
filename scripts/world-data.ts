@@ -66,7 +66,7 @@ const FRAME_STRIDE = 1;
 
 const sacLag = placeholderController({
   id: 'sac-lag',
-  label: 'SAC-Lag (plain deep RL)',
+  label: 'Plain RL',
   eagerness: 0.85,
   backoffPu: 0.952,
   arbitrage: true,
@@ -75,7 +75,7 @@ const sacLag = placeholderController({
 
 const safeSac = placeholderController({
   id: 'safesac',
-  label: 'SafeSAC',
+  label: 'Shielded RL',
   eagerness: 0.95,
   backoffPu: 0.948,
   arbitrage: false,
@@ -93,7 +93,7 @@ const safeSac = placeholderController({
  */
 const sacLagShifted = placeholderController({
   id: 'sac-lag-shift',
-  label: 'SAC-Lag (trained on a strong grid)',
+  label: 'Plain RL (trained on a stiff feeder)',
   eagerness: 0,
   backoffPu: 0.9,
   arbitrage: true,

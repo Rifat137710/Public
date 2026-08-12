@@ -7,10 +7,10 @@
  *   - `uncoordinated` is what a feeder gets today: everybody charges on arrival.
  *   - `droop` is the IEEE 1547-2018 volt-watt curve, applied at each station's own bus.
  *
- * Two stand for the thesis's learned agents. Their *policy* — what the network would
+ * Two stand for the reference study’s learned agents. Their *policy* — what the network would
  * ask for — is a simple stand-in here, because a trained actor needs its observation
- * vector rebuilt to run. Their *difference* is not a stand-in: SafeSAC is the same raw
- * request as SAC-Lag with the safety projection in front of it, and that projection is
+ * vector rebuilt to run. Their *difference* is not a stand-in: Shielded RL is the same raw
+ * request as Plain RL with the safety projection in front of it, and that projection is
  * the real algorithm, solved against sensitivities measured on the live feeder every
  * step. So the thing the lesson claims to show — what the safety layer buys — is the
  * thing that is really computed.
@@ -85,28 +85,28 @@ function learnedRequest(ctx) {
 
 export const plainRl = {
   id: 'sac-lag',
-  label: 'Plain RL (SAC-Lag)',
+  label: 'Plain RL',
   blurb: 'A trained agent that learned to charge when power is cheap. Nothing stops it.',
   learned: true,
   command: (ctx) => learnedRequest(ctx),
 };
 
 /**
- * SafeSAC is trained with the safety layer already in the loop, so its policy is not
- * the same policy as SAC-Lag's. It never had to learn to be careful with voltage —
+ * Shielded RL is trained with the safety layer already in the loop, so its policy is not
+ * the same policy as Plain RL's. It never had to learn to be careful with voltage —
  * something else was guaranteeing that — so what it learned instead was to take every
  * kilowatt it could get and let the projection decide how much that is.
  *
  * That is why it is modelled here as "ask for everything, keep what is safe" rather
- * than as SAC-Lag's request with a filter bolted on. An agent that trains against a
+ * than as Plain RL's request with a filter bolted on. An agent that trains against a
  * constraint stops spending its capacity avoiding the constraint.
  */
 /**
- * SafeSAC with the band tightening left as a parameter.
+ * Shielded RL with the band tightening left as a parameter.
  *
  * A factory rather than a constant because the margin is the one number worth sweeping:
  * it is where a learner discovers that safety has an optimum rather than a direction.
- * `safeSac` below is this, at the value the thesis used, so the controller the lesson
+ * `safeSac` below is this, at the value the reference study used, so the controller the lesson
  * runs and the controller the sweep runs are the same object built twice — there is no
  * second implementation to fall out of step.
  *
@@ -117,7 +117,7 @@ export const plainRl = {
 export function safeSacWithMargin(marginPu) {
   return {
     id: marginPu === undefined ? 'safesac' : `safesac@${marginPu}`,
-    label: 'SafeSAC',
+    label: 'Shielded RL',
     blurb: 'Asks for everything, and a safety layer trims it to the most the grid can take.',
     learned: true,
     projection: true,
@@ -141,7 +141,7 @@ export const byId = (id) => CONTROLLERS.find((c) => c.id === id) ?? uncoordinate
 /*  The safety projection                                             */
 /* ================================================================== */
 
-/** The band is tightened by this much before projecting, as the thesis does. */
+/** The band is tightened by this much before projecting, as the reference study does. */
 export const MARGIN_PU = 0.010;
 
 /**
@@ -178,7 +178,7 @@ export const MARGIN_PU = 0.010;
  * feasible point. That distinction is what makes this "the least curtailment that is
  * safe" instead of "some curtailment that is safe".
  *
- * The thesis solves the same program as a second-order cone problem with CVXPY. That is
+ * The reference study solves the same program as a second-order cone problem with CVXPY. That is
  * the right tool on a GPU over days of training; in a browser, with four stations and
  * about seventy constraints, this is the right one and runs in tens of microseconds.
  */

@@ -1,7 +1,7 @@
 /**
  * The retail tariff the day is charged at.
  *
- * Three tiers, as the thesis uses them. It lives here rather than in either page because
+ * Three tiers, as the reference study uses them. It lives here rather than in either page because
  * both of them now show it — the lesson as a readout, the city on the mimic board — and a
  * price that disagreed between the two would make the same evening peak look like two
  * different events.

@@ -359,7 +359,7 @@ src/sim/types.ts                    units, load/asset specs, SimState, telemetry
 src/sim/scenario.ts                 profiles, seeded PRNG (mulberry32), default scenario
 src/sim/engine.ts                   swing-equation engine, UFLS, scoring
 scripts/headless.ts                 4-strategy validation harness, 9/9 assertions pass
-scripts/export_thesis_artifacts.py  notebook exporter + probe() introspection helper
+scripts/export_evaluation_artifacts.py  notebook exporter + probe() introspection helper
 ```
 
 **Note:** `src/sim/*` is currently the *generic microgrid* model (swing equation, frequency, diesel
@@ -371,7 +371,7 @@ Finding from that engine worth keeping: battery *reserve* did not decide island 
 island needs only ~250 kWh) — **control mode** did. An assertion was rewritten to match the model rather
 than retuning the scenario to protect the assumption.
 
-### Exporter contract (`scripts/export_thesis_artifacts.py`)
+### Exporter contract (`scripts/export_evaluation_artifacts.py`)
 
 Run `probe()` in the notebook **first** — it reports which expected globals exist so naming mismatches
 are fixed in one place. Then `export_all(...)`. Produces:

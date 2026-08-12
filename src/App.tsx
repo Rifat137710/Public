@@ -21,7 +21,7 @@ import {
   type Controller,
 } from './sim/controllers.js';
 import { STAGES, unlockedBy, type Unlock } from './content/stages.js';
-import { SHORTLIST } from './content/thesis.js';
+import { SHORTLIST } from './content/evaluation.js';
 import { Village } from './ui/Village.js';
 import { MAX_DEPTH, depthOf } from './ui/layout.js';
 import { VoltageProfile } from './ui/VoltageProfile.js';
@@ -35,7 +35,7 @@ const SPEEDS = [1, 4, 16, 64] as const;
 
 const sacLag = placeholderController({
   id: 'sac-lag',
-  label: 'SAC-Lag (plain deep RL)',
+  label: 'Plain RL',
   eagerness: 0.85,
   backoffPu: 0.952,
   arbitrage: true,
@@ -44,7 +44,7 @@ const sacLag = placeholderController({
 
 const safeSac = placeholderController({
   id: 'safesac',
-  label: 'SafeSAC',
+  label: 'Shielded RL',
   eagerness: 0.95,
   backoffPu: 0.948,
   arbitrage: false,
@@ -57,7 +57,7 @@ const safeSac = placeholderController({
  */
 const sacLagShifted = placeholderController({
   id: 'sac-lag-shift',
-  label: 'SAC-Lag (trained on a strong grid)',
+  label: 'Plain RL (trained on a stiff feeder)',
   eagerness: 0,
   backoffPu: 0.9,
   arbitrage: true,
@@ -263,7 +263,7 @@ export default function App() {
   );
 
   /**
-   * Stage 6's shortlist is the thesis's own evaluation, not a run of this simulator.
+   * Stage 6's shortlist is the source evaluation, not a run of this simulator.
    *
    * That is deliberate and it is the more honest of the two options. A procurement
    * decision is made from a report somebody else produced — you are handed a table and
@@ -291,7 +291,7 @@ export default function App() {
   const choose = useCallback((id: string) => {
     // The pick deliberately does not become a dot on the map. The map's axes are this
     // simulator's — bus-steps out of 288 x 33, service over all 287 vehicles — and the
-    // table's are the thesis's — steps out of 288, service over the ~27 that departed.
+    // table's are the reference study’s — steps out of 288, service over the ~27 that departed.
     // Putting one on the other would be the exact mistake stage 6 exists to teach.
     setPick(id);
     setPhase('reveal');
@@ -397,7 +397,7 @@ export default function App() {
           </span>
         ) : (
           <span className="stage-flag">
-            <b>Sandbox</b> Everything unlocked. Try to beat SafeSAC.
+            <b>Sandbox</b> Everything unlocked. Try to beat Shielded RL.
           </span>
         )}
       </header>
@@ -627,7 +627,7 @@ export default function App() {
                       />
                       <p className="source-note">
                         How far inside the {V_LOWER.toFixed(2)} floor the safety layer aims. It is not a
-                        dial that runs from reckless to safe: the thesis picked {DEFAULT_MARGIN_PU.toFixed(3)},
+                        dial that runs from reckless to safe: the reference setting is {DEFAULT_MARGIN_PU.toFixed(3)},
                         and winding it further up costs drivers <em>and</em> lets violations back in, because
                         a layer whose own tightened band is already breached stops steering. Take it to
                         0.045 and you have rebuilt the stage-6 trap yourself.
@@ -698,7 +698,7 @@ export default function App() {
 
           {dots.some((d) => d.provenance === 'placeholder') && (
             <p className="provenance-note">
-              * The SAC-Lag and SafeSAC dots are labelled stand-ins driven by this simulator,
+              * The Plain RL and Shielded RL dots are labelled stand-ins driven by this simulator,
               not the trained agents. What the trained agents actually scored is measured and
               is on the stage 6 table — but only as whole-episode totals, so it cannot be
               replayed step by step here or plotted on these axes.

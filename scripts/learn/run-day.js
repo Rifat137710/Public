@@ -1,7 +1,7 @@
 /**
  * Run the day for every controller under node and print the scoreboard.
  *
- * This is the lesson's central claim under test. If SafeSAC does not actually serve more
+ * This is the lesson's central claim under test. If Shielded RL does not actually serve more
  * drivers at fewer violations than the alternatives, the page must not say that it does
  * — so this runs before the page is built, not after.
  *

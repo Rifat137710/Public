@@ -14,7 +14,7 @@ import {
   CONTROLLERS, byId, FLEET_SIZE, STEPS, dayFor, allFor, priceTier, priceAt,
   marginSweep, MARGIN_PU,
 } from './sim.js';
-import { RESULTS, EVALUATION } from '../../../src/content/thesis.ts';
+import { RESULTS, EVALUATION } from '../../../src/content/evaluation.ts';
 
 const $ = (id) => document.getElementById(id);
 const svgns = 'http://www.w3.org/2000/svg';
@@ -107,10 +107,10 @@ const LESSONS = [
     key: true,
   },
   {
-    title: 'SafeSAC: the same agent, with a floor under it',
+    title: 'Shielded RL: the same agent, with a floor under it',
     set: { controller: 'safesac', size: 200, grid: 'weak', step: 264 },
     body: [
-      `A penalty is something an agent can decide to pay. SafeSAC does not use one. At
+      `A penalty is something an agent can decide to pay. Shielded RL does not use one. At
        every step it measures how much each street's voltage moves per kilowatt at each
        station — the real sensitivity of this feeder, right now, at this loading — and
        from that builds the set of commands that keep every street inside the range.`,
@@ -119,7 +119,7 @@ const LESSONS = [
        little as it possibly can. The request goes through untouched when it is already
        fine, and is trimmed exactly as much as necessary when it is not.`,
       `This is why it beats the standard on both counts at once. Droop keeps the town safe
-       by refusing to serve; SafeSAC works out how much it can serve, so it charges hard
+       by refusing to serve; Shielded RL works out how much it can serve, so it charges hard
        whenever there is room and eases off only where the physics says it must.`,
       `It is not perfect, and the scoreboard will not pretend it is. The safe set is built
        from a straight-line approximation of a curved system, so at the very worst moment
@@ -148,7 +148,7 @@ const LESSONS = [
 ];
 
 /* ================================================================== */
-/*  The thesis's own measured results                                 */
+/*  The measured evaluation of the trained agents                     */
 /* ================================================================== */
 
 /**
@@ -156,11 +156,11 @@ const LESSONS = [
  * two builds and in a paper; three transcriptions of the same CSV is two too many, and
  * the one that drifts will be the one nobody re-checks.
  */
-const THESIS_NOTE = {
+const EVAL_NOTE = {
   uncoord: 'charges nearly everyone, and breaks the range most often',
   droop: 'safe by turning away two drivers in three',
   'sac-lag': 'dominated by the standard — worse on both counts',
-  safesac: 'twice SAC-Lag’s drivers at the same violation rate',
+  safesac: 'twice Plain RL’s drivers at the same violation rate',
   'safesac-shift': 'moved to a grid it never trained on: degrades, keeps serving',
   'sac-lag-shift': 'best safety score in the report, and zero kWh into any battery',
 };
@@ -411,7 +411,7 @@ function drawBoard() {
   const vs = (a, b) => (a.driversMet > b.driversMet && a.violationRate < b.violationRate);
   const parts = [];
   if (vs(safe, drp)) {
-    parts.push(`SafeSAC charges ${safe.driversMet} drivers against droop's ${drp.driversMet},
+    parts.push(`Shielded RL charges ${safe.driversMet} drivers against droop's ${drp.driversMet},
       and is out of range ${(drp.violationRate / Math.max(safe.violationRate, 1e-9)).toFixed(1)}× less often.`);
   }
   if (vs(safe, rl)) {
@@ -434,7 +434,7 @@ function drawBoard() {
 }
 
 /* ================================================================== */
-/*  Lessons and the thesis table                                      */
+/*  Lessons and the evaluation table                                  */
 /* ================================================================== */
 
 function buildLessons() {
@@ -469,7 +469,7 @@ function buildLessons() {
  * The one control in the whole model that has an optimum rather than a direction.
  *
  * Everything else on this page trades along a line: more cars is worse, a thicker wire
- * is better. The margin does not. Winding it past the value the thesis chose costs
+ * is better. The margin does not. Winding it past the value the reference study chose costs
  * drivers *and* lets violations back in, because a safety layer whose own tightened band
  * is already breached stops steering and starts merely refusing. At the far end it is
  * the stage-six trap rebuilt from the inside — a spotless-looking violation rate,
@@ -502,7 +502,7 @@ function drawMargin(rows) {
       <th>Safety margin</th><th>Drivers charged</th><th>Streets out of range</th><th>Lowest voltage</th><th></th>
     </tr></thead><tbody>` +
     rows.map((r) => {
-      const note = r.marginPu === MARGIN_PU ? 'what the thesis chose'
+      const note = r.marginPu === MARGIN_PU ? 'the reference setting'
         : r.driversMet === 0 ? 'serves nobody, all day'
         : r.driversMet === bestServed ? 'most drivers'
         : r.violationRate === bestViol ? 'fewest violations' : '';
@@ -532,8 +532,8 @@ function drawMargin(rows) {
   $('marginOut').hidden = false;
 }
 
-function buildThesis() {
-  $('thesis').innerHTML = `<thead><tr>
+function buildEvaluation() {
+  $('evalTable').innerHTML = `<thead><tr>
       <th>Method</th><th>Out of range</th><th>Drivers charged</th><th>Into batteries</th><th>Net cost</th><th></th>
     </tr></thead><tbody>` +
     RESULTS.map((r) => `<tr class="${r.id === 'safesac' ? 'win' : ''}">
@@ -542,10 +542,10 @@ function buildThesis() {
       <td class="num-cell">${(r.socMet * 100).toFixed(1)}%</td>
       <td class="num-cell">${r.chargeKwh === 0 ? '<b>0</b>' : Math.round(r.chargeKwh)} kWh</td>
       <td class="num-cell">${r.netCostUsd < 0 ? '−' : ''}$${Math.abs(r.netCostUsd).toFixed(0)}</td>
-      <td class="small muted" style="text-align:left">${THESIS_NOTE[r.id] ?? ''}</td>
+      <td class="small muted" style="text-align:left">${EVAL_NOTE[r.id] ?? ''}</td>
     </tr>`).join('') + '</tbody>';
 
-  $('thesisCaption').textContent =
+  $('evalCaption').textContent =
     `${EVALUATION.episodes} evaluation episodes per method on the weak feeder, shared seeds, `
     + `load scale ${EVALUATION.loadScale.toFixed(2)}.`;
 }
@@ -574,7 +574,7 @@ function init() {
   buildControllerButtons();
   buildLessons();
   buildMargin();
-  buildThesis();
+  buildEvaluation();
 
   $('cars').addEventListener('input', () => {
     state.size = Number($('cars').value);

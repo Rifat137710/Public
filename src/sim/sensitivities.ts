@@ -8,7 +8,7 @@
  * where S^P[i][k] is the change in |V| at bus i caused by injecting one kilowatt at
  * station bus k. Rather than differentiate the power flow analytically, we perturb the
  * network and re-solve — a central difference. That is both simpler and closer to what
- * the thesis does, which recomputes sensitivities on the live network at every control
+ * the reference study does, which recomputes sensitivities on the live network at every control
  * step so the feasible set reflects the deployment grid rather than a nominal model.
  *
  * Units are pu/kW throughout, matching Table 4.1. Injection is positive: pushing power
@@ -112,9 +112,9 @@ export function stationSelfSensitivities(s: Sensitivities): StationSensitivity[]
 }
 
 /**
- * The active-over-reactive dominance ratio as the thesis reports it: the ratio of the
+ * The active-over-reactive dominance ratio as the reference study reports it: the ratio of the
  * mean magnitudes, not the mean of the per-station ratios. The two differ (1.280 vs
- * 1.296 on the thesis feeder) and the distinction matters when checking Gate 1.
+ * 1.296 on the reference feeder) and the distinction matters when checking Gate 1.
  */
 export function dominanceRatio(stations: StationSensitivity[]): number {
   const meanP = stations.reduce((sum, s) => sum + s.selfP, 0) / stations.length;

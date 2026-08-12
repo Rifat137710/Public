@@ -26,18 +26,18 @@ voltage:
 | Time of day | scrub, or press Play |
 
 Everything else — the load shape, the tariff, the arrival times, the battery sizes — is
-the thesis scenario and is not adjustable, because a reader who can change everything
+the reference study scenario and is not adjustable, because a reader who can change everything
 learns nothing.
 
 ## The four controllers
 
 Two are published rules and are exact: uncoordinated charging, and the IEEE 1547-2018
-volt-watt droop curve. Two stand for the thesis's learned agents.
+volt-watt droop curve. Two stand for the reference study’s learned agents.
 
 What is a stand-in is the **policy** — what the network asks for. Running the trained
-actor needs its 95-number observation vector rebuilt, and that lives in the notebook
+actor needs its 95-number observation vector rebuilt, and that lives in the source evaluation
 rather than in its outputs. What is not a stand-in is the **difference between them**:
-SafeSAC's safety projection is the real algorithm, solved every step against
+Shielded RL's safety projection is the real algorithm, solved every step against
 sensitivities measured on the live feeder. The thing the page claims to demonstrate is
 therefore the thing that is actually computed.
 
@@ -48,7 +48,7 @@ the lesson turns on:
   signal is identical at every station, so what it really learns is to synchronise: it
   starves the evening, then puts the whole fleet on charge the instant the tariff drops
   at 22:00. It builds a second peak of its own making.
-- **SafeSAC** trains with the projection already in the loop, so it never had to spend
+- **Shielded RL** trains with the projection already in the loop, so it never had to spend
   capacity avoiding voltage — something else was guaranteeing that. It asks for
   everything and lets the projection decide how much of it is real.
 
@@ -61,9 +61,9 @@ Weak feeder, 200 cars, one day:
 | No control | 19.38% | 195 / 200 | 0.877 |
 | Droop (IEEE 1547) | 6.49% | 60 / 200 | 0.892 |
 | Plain RL | 5.00% | 91 / 200 | 0.893 |
-| **SafeSAC** | **0.78%** | **115 / 200** | **0.948** |
+| **Shielded RL** | **0.78%** | **115 / 200** | **0.948** |
 
-SafeSAC beats the standard on both counts at once, at every fleet size from 100 cars up,
+Shielded RL beats the standard on both counts at once, at every fleet size from 100 cars up,
 on both feeders. That is checked in `verify.mjs` rather than asserted here — if a change
 ever breaks it, the build fails instead of the page quietly lying.
 
@@ -77,7 +77,7 @@ the other is the specific mistake the whole entry is about.
 **The linearisation offset.** The safe set is built from `v ≈ v0 + S·(u − u0)`, where
 `u0` is the command the sensitivities were measured at. Treating `v0` as the *idle*
 voltage instead of the voltage at `u0` shrinks the safe set by the entire effect of `u0`,
-and SafeSAC curtails roughly twice as hard as it should — it looked timid and served 44
+and Shielded RL curtails roughly twice as hard as it should — it looked timid and served 44
 drivers where it should have served 119. Folding the offset in gives
 `vIdle = v0 − S·u0`, and everything is written against that.
 
@@ -87,7 +87,7 @@ it to "no worse than the current operating point" lets the layer ratchet: each s
 anchors to the low it allowed last step and calls that the new normal. It has to be "no
 worse than idle".
 
-Both were found by reading the scoreboard, not the code. The first made SafeSAC look
+Both were found by reading the scoreboard, not the code. The first made Shielded RL look
 useless; the second made it look reckless, at 14% violations.
 
 ## What was tried and removed
@@ -95,7 +95,7 @@ useless; the second made it look reckless, at 14% violations.
 Re-measuring the sensitivities about the projected command and projecting a second time
 — textbook successive linearisation. It moves the day's result by 0.01 percentage points
 for twice the power flows, so it is not in the code. The residual error is not from the
-linearisation point; it is the curvature itself, and it costs SafeSAC about a thousandth
+linearisation point; it is the curvature itself, and it costs Shielded RL about a thousandth
 of a volt at the single worst moment of the evening.
 
 ## Verifying it

@@ -132,12 +132,12 @@ export function buildFindings(dots: readonly Dot[]): Finding[] {
         ? 'Intelligence was not the missing ingredient'
         : 'The neural network did not clearly beat the fifty-year-old rule',
       body: dominated
-        ? `Plain deep RL landed at ${sacLag.violationRate.toFixed(3)}/${sacLag.socMet.toFixed(
+        ? `Unshielded RL landed at ${sacLag.violationRate.toFixed(3)}/${sacLag.socMet.toFixed(
             3,
           )} against droop's ${droop.violationRate.toFixed(3)}/${droop.socMet.toFixed(
             3,
           )} — worse on safety and worse on service, dominated on both axes by a rule from 1547. The agent could see everything about the system except how its own actions move voltage through the network.`
-        : `Plain deep RL landed at ${sacLag.violationRate.toFixed(3)}/${sacLag.socMet.toFixed(
+        : `Unshielded RL landed at ${sacLag.violationRate.toFixed(3)}/${sacLag.socMet.toFixed(
             3,
           )} against droop's ${droop.violationRate.toFixed(3)}/${droop.socMet.toFixed(
             3,
@@ -150,7 +150,7 @@ export function buildFindings(dots: readonly Dot[]): Finding[] {
     out.push({
       key: 'safesac',
       headline: 'Giving the agent the network physics changed what it could learn',
-      body: `SafeSAC reached ${safeSac.violationRate.toFixed(3)}/${safeSac.socMet.toFixed(
+      body: `Shielded RL reached ${safeSac.violationRate.toFixed(3)}/${safeSac.socMet.toFixed(
         3,
       )} — ${gained >= 0 ? '+' : ''}${gained.toFixed(
         3,
@@ -176,8 +176,8 @@ export function buildFindings(dots: readonly Dot[]): Finding[] {
       `Energy burned as heat in the wires, per driver actually served: uncoordinated ${uncoPer.toFixed(
         1,
       )} kWh${droopPer !== null ? `, droop ${droopPer.toFixed(1)}` : ''}${
-        sacPer !== null ? `, plain deep RL ${sacPer.toFixed(1)}` : ''
-      }, SafeSAC ${safePer.toFixed(1)}.`,
+        sacPer !== null ? `, unshielded RL ${sacPer.toFixed(1)}` : ''
+      }, Shielded RL ${safePer.toFixed(1)}.`,
     ];
     if (sacPer !== null && droopPer !== null && sacPer > droopPer) {
       lines.push(
@@ -318,7 +318,7 @@ its own plugged-in window, so unmet service is attributable to the controller an
 not to a shortage.
 ${
   dots.some((d) => d.provenance === 'placeholder')
-    ? '<br><br>* The SAC-Lag and SafeSAC dots on the map are labelled stand-ins driven by the simulator. The procurement table is the thesis’s own measured evaluation of the trained agents.'
+    ? '<br><br>* The Plain RL and Shielded RL dots on the map are reference implementations driven by this simulator. The procurement table reports the trained agents’ own measured evaluation.'
     : ''
 }
 <br><br>Built on <em>Safe Deep Reinforcement Learning for Vehicle-to-Grid Voltage Support in

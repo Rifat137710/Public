@@ -24,7 +24,7 @@ export const STEPS = WORLD.day.length;
  *
  * Chosen to straddle the turn rather than to sample evenly: nothing interesting happens
  * between 0.030 and 0.045 except the end state, and the two steps either side of the
- * thesis's 0.010 are where the curve stops being monotonic and starts costing on both
+ * reference study's 0.010 are where the curve stops being monotonic and starts costing on both
  * axes at once. The last entry is there because it is the one a reader remembers.
  */
 export const MARGINS = [0, 0.005, 0.010, 0.015, 0.020, 0.030, 0.045];
@@ -32,7 +32,7 @@ export const MARGINS = [0, 0.005, 0.010, 0.015, 0.020, 0.030, 0.045];
 const marginCache = new Map();
 
 /**
- * SafeSAC's whole day at each margin, for a given town.
+ * Shielded RL's whole day at each margin, for a given town.
  *
  * Computed on demand and never as part of `sync`. The scoreboard already runs four full
  * days on every slider move; adding seven more to the same path turned dragging the

@@ -2,7 +2,7 @@
  * Verification gates for the feeder physics.
  *
  * The simulator's whole claim is that it teaches from real numbers, so the physics
- * module ships only when it independently reproduces figures published in the thesis
+ * module ships only when it independently reproduces figures published in the reference study
  * and in the Baran-Wu benchmark. If any of these drift, the build should fail loudly
  * rather than quietly teach something false.
  *
@@ -72,16 +72,16 @@ const strongFull = solvePowerFlow(strongNet, fullLoad.p, fullLoad.q);
 const strongMin = minimumVoltage(strongFull);
 check('power flow converged', strongFull.converged, `${strongFull.iterations} iterations`);
 check('weakest bus is 18', strongMin.bus === 18);
-near('Vmin, thesis Figure 4.3', strongMin.vMin, 0.913, 0.001);
-near('active loss, thesis Figure 4.3', strongFull.lossKw, 202.7, 0.5);
+near('Vmin, reference study Figure 4.3', strongMin.vMin, 0.913, 0.001);
+near('active loss, reference study Figure 4.3', strongFull.lossKw, 202.7, 0.5);
 
 console.log('\nGate 2 — base case, weak feeder (finite substation)');
 const weakNet = buildNetwork(WEAK_SOURCE);
 const weakFull = solvePowerFlow(weakNet, fullLoad.p, fullLoad.q);
 const weakMin = minimumVoltage(weakFull);
 check('power flow converged', weakFull.converged, `${weakFull.iterations} iterations`);
-near('Vmin, thesis Figure 4.3', weakMin.vMin, 0.882, 0.001);
-near('active loss, thesis Figure 4.3', weakFull.lossKw, 338.6, 0.5);
+near('Vmin, reference study Figure 4.3', weakMin.vMin, 0.882, 0.001);
+near('active loss, reference study Figure 4.3', weakFull.lossKw, 338.6, 0.5);
 check(
   'the weak feeder really is weaker',
   weakMin.vMin < strongMin.vMin && weakFull.lossKw > strongFull.lossKw,
@@ -96,7 +96,7 @@ const strongSens = measureSensitivities(strongNet, operating.p, operating.q, STA
 const weakStations = stationSelfSensitivities(weakSens);
 const strongStations = stationSelfSensitivities(strongSens);
 
-console.log('\nGate 3 — voltage sensitivities, thesis Table 4.1 (not fitted)');
+console.log('\nGate 3 — voltage sensitivities, reference study Table 4.1 (not fitted)');
 const expectedWeakRatios = [1.278, 1.106, 1.519, 1.281];
 for (let k = 0; k < weakStations.length; k++) {
   near(
@@ -116,7 +116,7 @@ check(
   weakStations[0].selfP === Math.max(...weakStations.map((s) => s.selfP)),
 );
 
-console.log('\nGate 4 — Gate 1 of the thesis protocol: V-P dominance >= 0.90');
+console.log('\nGate 4 — Gate 1 of the reference study protocol: V-P dominance >= 0.90');
 const weakRatio = dominanceRatio(weakStations);
 near('weak dominance ratio', weakRatio, 1.271, 0.05);
 check('gate passes', weakRatio >= 0.9, `ratio ${weakRatio.toFixed(3)}`);
@@ -173,7 +173,7 @@ console.log('\nGate 6 — the safety projection');
 
   // Per-station limits matter. Without them the projection is free to invent V2G
   // capability the fleet does not have, and the nearest feasible point can flip a
-  // charging station into discharge. The thesis bounds this with EV_MAX_DISCHARGE_KW
+  // charging station into discharge. The reference study bounds this with EV_MAX_DISCHARGE_KW
   // and an SoC floor; here it is a box on the command.
   const limits = { uMinKw: [-300, -300, -300, -300], uMaxKw: [80, 80, 80, 80] };
 
@@ -290,7 +290,7 @@ console.log('\nGate 7 — behaviour at the evening peak');
   let belowBand = 0;
   for (let bus = 1; bus <= 33; bus++) if (weakSens.v0[bus] < V_LOWER) belowBand++;
   check(
-    'the peak-instant violation rate brackets the thesis 9-12% daily floor',
+    'the peak-instant violation rate brackets the reference study 9-12% daily floor',
     belowBand > 0,
     `${belowBand} of 33 buses below 0.95 pu at the peak instant`,
   );

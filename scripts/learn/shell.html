@@ -226,7 +226,7 @@
 
 <section class="panel">
   <h2>How hard should the safety layer try?</h2>
-  <p class="small muted">SafeSAC aims a little inside the legal floor rather than exactly at it,
+  <p class="small muted">Shielded RL aims a little inside the legal floor rather than exactly at it,
   so that a step it did not see coming does not put a street over the line. That gap is a number
   somebody has to choose. Here is what choosing it costs, on the town you have built above.</p>
   <button class="try" id="marginRun">Run seven versions of the day</button>
@@ -240,8 +240,8 @@
 
 <section class="panel">
   <h2>What the trained agents actually did</h2>
-  <p class="small muted" id="thesisCaption"></p>
-  <div class="scroll"><table id="thesis"></table></div>
+  <p class="small muted" id="evalCaption"></p>
+  <div class="scroll"><table id="evalTable"></table></div>
   <p class="note"><strong>Read the last two columns together.</strong> The bottom row posts the best
   safety score in the whole evaluation and is the only method that turns a profit &mdash; and it put
   <em>zero</em> kilowatt-hours into a battery all day. It is an agent trained on a stronger grid than
@@ -276,8 +276,8 @@
   <p><strong>Bus 18</strong> — IEEE 33-bus feeder, backward/forward sweep power flow, five-minute
   steps. <span id="selfcheck"></span></p>
   <p>The power flow, the fleet accounting, the droop curve and the safety projection are the real
-  algorithms. The two learned policies are simple stand-ins for the trained networks: what they
-  ask for is illustrative, what the safety layer does with the request is not.</p>
+  algorithms. The two learned policies are reference implementations: what they ask for is
+  illustrative, what the safety layer does with the request is not.</p>
 </footer>
 
 </div>

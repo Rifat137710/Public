@@ -2,7 +2,7 @@
  * The safety-service plane.
  *
  * Every completed run leaves a permanent dot. By the end of the six stages the learner
- * has rebuilt the thesis's Pareto figure out of their own attempts — and, crucially,
+ * has rebuilt the reference Pareto figure out of their own attempts — and, crucially,
  * their own dot went down first, before they had seen any controller solve the problem.
  *
  * Up and to the left is better: fewer violations, more vehicles served.

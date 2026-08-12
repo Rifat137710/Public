@@ -152,7 +152,7 @@ Across the day that is worth a great deal:
 | controller | violations weak → stiff | drivers served | line loss |
 | --- | --- | --- | --- |
 | Droop (IEEE 1547) | 0.0445 → 0.0083 | 162 → 186 | 1116 → 923 kWh |
-| SafeSAC | 0.0160 → 0.0000 | 159 → 204 | 947 → 725 kWh |
+| Shielded RL | 0.0160 → 0.0000 | 159 → 204 | 947 → 725 kWh |
 
 You can buy safety with control or with copper, and choosing between them is the actual
 engineering decision. It is also not a free pass: even on the stiff feeder, uncoordinated
@@ -170,7 +170,7 @@ Two things about how this is built:
   it charges nobody on either feeder, because it is a labelled stand-in whose refusal is
   written into it rather than learned. The switch shows what the network is worth. It
   will not show shift arising on its own until the trained episodes are exported from
-  the notebook, and the stage-6 debrief says so in as many words.
+  the source evaluation, and the stage-6 debrief says so in as many words.
 
 The switch stays locked until the arc is finished, and every stage resets the town to
 the weak feeder — a learner who stiffens the source during stage 2 has not solved the
@@ -186,9 +186,14 @@ unwalked, the sandbox is simply no longer behind it.
 
 Pointer lock is the nicer way to look around, and it is still the default — but it is
 also a hard dependency on a device not everyone has. So the canvas is focusable, and
-while it holds focus `←` `→` turn, `↑` `↓` look up and down, `WASD` walks, and `Enter`
-and `F` work as they do under lock. Every objective in all six stages is reachable this
-way; the keyboard test drives the whole thing with pointer lock never engaged.
+while it holds focus the arrow keys walk — `↑` `↓` forward and back, `←` `→` sideways —
+`A` `D` turn, `W` `S` look up and down, and `Enter` and `F` work as they do under lock.
+Every objective in all six stages is reachable this way; the keyboard test drives the
+whole thing with pointer lock never engaged.
+
+Walking is on the arrows rather than WASD because this is a building to be walked through
+rather than a game to be played, and a visitor who has never held WASD reaches for the
+arrows. The turn and look axes went to WASD, which keeps both hands doing one job each.
 
 `Enter` is what every prompt and every screen names. `E` still opens things too — it is
 in every instruction written before this and in the hands of anyone who has already

@@ -2,7 +2,7 @@
  * The safety projection: the smallest change to a requested command that keeps the
  * feeder inside its voltage band.
  *
- * The thesis solves this as an eight-variable second-order cone program with CVXPY and
+ * The reference study solves this as an eight-variable second-order cone program with CVXPY and
  * CLARABEL. That is the right tool when you are training an agent for days on a GPU.
  * In a browser it is the wrong tool, and unnecessary — because the voltage model is
  * *linear* in the command, the feasible set
@@ -15,7 +15,7 @@
  * true Euclidean projection onto the intersection, not merely to some feasible point.
  *
  * With four stations and roughly seventy constraints this runs in tens of microseconds,
- * against the same band and the same margin the thesis uses.
+ * against the same band and the same margin the reference study uses.
  */
 
 import type { Sensitivities } from './sensitivities.js';
@@ -23,7 +23,7 @@ import type { Sensitivities } from './sensitivities.js';
 /** Statutory voltage band, per unit. Not a difficulty setting. */
 export const V_LOWER = 0.95;
 export const V_UPPER = 1.05;
-/** The thesis tightens the band by this much before projecting. */
+/** The reference study tightens the band by this much before projecting. */
 export const DEFAULT_MARGIN_PU = 0.010;
 
 export interface ProjectionOptions {
@@ -51,7 +51,7 @@ export interface ProjectionResult {
   /**
    * True when the operating point was already outside the band before any command.
    * The band is then relaxed to "do not make it worse" rather than "restore it",
-   * matching the thesis's graceful degradation on an infeasible program.
+   * matching graceful degradation on an infeasible program.
    */
   relaxed: boolean;
   iterations: number;

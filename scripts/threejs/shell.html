@@ -45,7 +45,33 @@
     letter-spacing: -.02em;
     margin: 0 0 .6rem;
   }
-  header.top p { color: var(--dim); max-width: 68ch; margin: 0; }
+  header.top p { color: var(--dim); max-width: 68ch; margin: 0 0 .7rem; }
+  header.top p:last-child { margin-bottom: 0; }
+
+  /* The key list was three paragraphs of prose. A table is read at a glance and does not
+     have to be parsed, which is what a reference wants to be. */
+  .keys {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+    gap: .1rem 1.6rem;
+    margin: 1rem 0 1.2rem;
+    max-width: 62rem;
+  }
+  .keys > div {
+    display: flex;
+    align-items: baseline;
+    gap: .7rem;
+    padding: .22rem 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .keys dt {
+    font-family: var(--mono);
+    font-size: .78rem;
+    color: var(--amber);
+    min-width: 5.2rem;
+    flex: 0 0 auto;
+  }
+  .keys dd { margin: 0; font-size: .82rem; color: var(--dim); }
 
   /* ------------------------------------------------------- stage */
 
@@ -498,35 +524,41 @@
   <header class="top">
     <p class="eyebrow">Bus 18 · IEEE 33-bus weak feeder · walkable</p>
     <h1>The city</h1>
-    <p>A working evening on a real distribution feeder. You start at the desk in the control room
-      with four charging stations and 287 vehicles, and every lamp, meter and instrument in the city
-      is lit by the same power-flow solution.</p>
-    <p><b>W A S D</b> walks and <b>Shift</b> runs. <b>←</b> <b>→</b> turn and <b>↑</b> <b>↓</b> look
-      up and down, so the whole city is walkable with no mouse at all — or click the view to look
-      with the mouse instead. <b>Enter</b> uses whatever you are facing and <b>F</b> acknowledges
-      alarms. Every bus is also listed as live text below the controls.</p>
-    <p>The <b>supervisory console</b> on the north wall of the control room carries every setting
-      this page has and two it does not — how many electric cars are in town, and how hard the
-      safety layer tries. Walk to it and press <b>Enter</b>, or take the
-      <em>Go to → Supervisory desk</em> shortcut. Keys work anywhere: <b>1</b>–<b>4</b> pick a
-      controller, <b>space</b> or <b>/</b> holds and releases the day, <b>R</b> resets it,
-      <b>[</b> <b>]</b> change speed, <b>,</b> <b>.</b> nudge the clock, <b>G</b> rebuilds the feeder
-      once it is unlocked, and <b>T</b> hides these page controls so the room is the only interface.</p>
-    <p>It is night here at every hour of the day, on purpose. A streetlight's brightness <em>is</em>
-      the voltage at its bus — that is the instrument you walk out to read — and under a daylit sky
-      the difference between a healthy street and a browned-out one falls under the ambient and
-      stops being visible. The sky keeps a moonlit floor so a dark street is still a street; the
-      lamps themselves stay exactly as dark as the physics says.</p>
-    <p><b>Recording this?</b> Set <em>Picture</em> to <b>Full quality</b> first. Left on
-      <em>Auto</em> the page drops resolution to protect the frame rate, which is the right
-      trade while you are exploring and the wrong one on a capture — soft type on a board you
-      are pointing at costs more than a few dropped frames. And if you need the sandbox
-      without walking the six stages, the escape is under <em>Electric cars in town</em>.</p>
+    <p>One evening on a distribution feeder, at walking pace. Four charging stations,
+      287 vehicles, and every lamp, meter and instrument lit by the same power-flow
+      solution.</p>
+
+    <dl class="keys">
+      <div><dt>↑ ↓</dt><dd>Walk forward and back</dd></div>
+      <div><dt>← →</dt><dd>Step sideways</dd></div>
+      <div><dt>A D</dt><dd>Turn</dd></div>
+      <div><dt>W S</dt><dd>Look up and down</dd></div>
+      <div><dt>Shift</dt><dd>Run</dd></div>
+      <div><dt>Enter</dt><dd>Use what you face</dd></div>
+      <div><dt>F</dt><dd>Acknowledge alarms</dd></div>
+      <div><dt>Space · /</dt><dd>Hold the day</dd></div>
+      <div><dt>1 – 4</dt><dd>Select controller</dd></div>
+      <div><dt>[ ]</dt><dd>Speed</dd></div>
+      <div><dt>, .</dt><dd>Nudge the clock</dd></div>
+      <div><dt>R</dt><dd>Reset the day</dd></div>
+      <div><dt>G</dt><dd>Switch feeder</dd></div>
+      <div><dt>T</dt><dd>Hide page controls</dd></div>
+    </dl>
+
+    <p>A mouse is optional: click the view to look with it, or leave it alone and use the
+      keys. The supervisory console on the north wall of the control room carries every
+      setting this page has, and two it does not — the number of vehicles in town, and how
+      hard the safety layer tries.</p>
+    <p>The town is held at night at every hour. A streetlight's brightness is the voltage
+      at its bus, and daylight would swallow the difference between a healthy street and a
+      browned-out one.</p>
+    <p>Set <b>Picture</b> to <b>Full quality</b> before recording. Sandbox controls unlock
+      after the six stages, or immediately from the button under the fleet slider.</p>
   </header>
 
   <div class="stage">
     <canvas id="view" tabindex="0" role="application"
-      aria-label="The city. W A S D walk, arrow keys turn and look, Enter uses what you are facing, F acknowledges alarms. A live text readout of every bus is below the controls."></canvas>
+      aria-label="The city. Arrow keys walk and step sideways, A and D turn, W and S look up and down, Enter uses what you face, F acknowledges alarms. A live text readout of every bus is below the controls."></canvas>
     <p id="announce" class="sr" aria-live="polite"></p>
     <div class="overlay">
       <div class="hud">
@@ -565,7 +597,7 @@
         </div>
       </div>
 
-      <button id="enter">Click to enter the city<span>WASD to walk · Enter to use · F to acknowledge</span></button>
+      <button id="enter">Click to enter the city<span>Arrow keys walk · A D turn · Enter uses · F acknowledges</span></button>
       <div id="cockpitTag">COCKPIT MODE · walk to the supervisory desk · T for page controls</div>
     </div>
   </div>
@@ -616,10 +648,10 @@
   </div>
 
   <section>
-    <h2>What this claims to teach</h2>
-    <p>The entry's eight stated objectives, each tied to the stage that teaches it.
-      “Reached” means the material was put in front of you — never that you understood
-      it. Only a pre/post can say that, and this does not pretend otherwise.</p>
+    <h2>Stated objectives</h2>
+    <p>Eight objectives, each tied to the stage that teaches it. “Reached” means the
+      material was presented, not that it was understood. Only a pre/post assessment
+      establishes that.</p>
     <div class="scroll">
       <table id="objectives">
         <thead><tr><th>#</th><th>Objective</th><th>Taught in</th><th>Status</th></tr></thead>
@@ -630,11 +662,11 @@
   </section>
 
   <section>
-    <h2>The map — every run you finish leaves a dot</h2>
-    <p>Safety on one axis, service on the other. A controller comparison with only the
-      first column cannot tell a good controller from one that does nothing. Your own
-      runs are scored by walking the same 287-vehicle fleet the engine walks, counting
-      the drivers who reached the charge they came for. <span id="runState"></span></p>
+    <h2>Run comparison</h2>
+    <p>Safety on one axis, service on the other. Every run you finish leaves a dot. A
+      comparison carrying only the first column cannot separate a good controller from
+      one that does nothing. Your own runs are scored against the same 287-vehicle fleet
+      the engine uses. <span id="runState"></span></p>
     <div class="scroll">
       <table>
         <thead>
@@ -647,10 +679,8 @@
 
   <section>
     <h2>The feeder, in text</h2>
-    <p>The same thing the mimic board shows, for anyone who would rather read it than
-      walk it — every bus, live, updating with the day. The <b>Go to</b> buttons above
-      move you around the city without a mouse, and the city itself can be driven
-      entirely from the keyboard once the view has focus.</p>
+    <p>Every bus, live, updating with the day — the same data the mimic board carries.
+      The <b>Go to</b> buttons move you around the city without a mouse.</p>
     <div class="scroll">
       <table id="feeder">
         <caption class="sr">Voltage at every bus on the feeder, updating live</caption>
@@ -664,8 +694,8 @@
 
   <section>
     <h2>The procurement shortlist</h2>
-    <p>The table stage six puts in front of you, with the column that decides it restored. Nobody
-      procures “no controller”, so uncoordinated is not on the list. These figures are for
+    <p>The table from stage six, with the deciding column restored. Uncoordinated charging
+      is not on the list because nobody procures it. Figures are for
       <b id="totalsGrid">the weak feeder</b> and follow the feeder switch above.</p>
     <div class="scroll">
       <table>
@@ -678,14 +708,13 @@
   </section>
 
   <section>
-    <h2>Whether to believe any of this</h2>
+    <h2>Verification</h2>
     <p id="verdict"></p>
     <p id="fleetVerdict"></p>
     <p class="foot">The city runs the same backward/forward sweep as the offline engine. On load it
       re-solves every recorded control step and compares the two, so the numbers on the meters are
-      checked rather than trusted. Two of the four candidates are labelled stand-ins whose recorded
-      episodes are still to be exported from the thesis notebook; they are marked as such everywhere
-      they appear.</p>
+      checked rather than trusted. Two of the four candidates are reference implementations; their
+      figures are provisional and marked as such everywhere they appear.</p>
   </section>
 
   <section>

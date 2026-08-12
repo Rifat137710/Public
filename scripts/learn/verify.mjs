@@ -68,7 +68,7 @@ const claim = await page.evaluate(() => {
 });
 for (const [size, r] of Object.entries(claim)) {
   const beatsDroop = r.safe[0] > r.droop[0] && r.safe[1] < r.droop[1];
-  ok(`at ${size} cars SafeSAC beats droop on both counts`, beatsDroop,
+  ok(`at ${size} cars Shielded RL beats droop on both counts`, beatsDroop,
     `safe ${r.safe[0]}@${r.safe[1]}%  droop ${r.droop[0]}@${r.droop[1]}%  rl ${r.rl[0]}@${r.rl[1]}%`);
 }
 
@@ -92,7 +92,7 @@ const safe = await page.evaluate(() => {
   const d = window.__learn.dayFor('safesac', 200, 'weak');
   return { viol: d.steps[228].viol, day: d.steps.filter((s) => s.viol > 0).length };
 });
-ok('SafeSAC spends far less of the day out of range', safe.day * 4 < unco.day,
+ok('Shielded RL spends far less of the day out of range', safe.day * 4 < unco.day,
   `${safe.day} steps against ${unco.day} uncontrolled`);
 
 await page.click('#playBtn');
@@ -123,7 +123,7 @@ ok('over-tightening costs drivers',
 ok('and does NOT buy safety — the curve turns, which is the whole lesson',
   at(0.045).violationRate > at(0.010).violationRate,
   `${(at(0.045).violationRate * 100).toFixed(2)}% at 0.045 against ${(at(0.010).violationRate * 100).toFixed(2)}% at 0.010`);
-ok('the thesis’s own value is the best of the swept set on violations',
+ok('the reference study’s own value is the best of the swept set on violations',
   sweep.every((r) => r.violationRate >= at(0.010).violationRate - 1e-12),
   `best ${(Math.min(...sweep.map((r) => r.violationRate)) * 100).toFixed(2)}%`);
 await page.screenshot({ path: `${SHOTS}/margin.png` });

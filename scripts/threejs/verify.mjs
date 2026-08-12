@@ -157,8 +157,58 @@ t('hotkey t toggles cockpit mode', (await page.evaluate(() => window.__city.cock
 await page.keyboard.press('t');
 await page.waitForTimeout(150);
 
+/* ------------------------------------------------------------- the keys */
+
+// Walking moved onto the arrows and turning onto WASD. Nothing tested either before, so
+// a swap like this could silently leave the city unwalkable for anyone without a mouse.
+// Each axis is asserted by pressing the key and reading the camera.
+const pose = () => page.evaluate(() => {
+  const c = window.__city.camera;
+  return { x: c.position.x, z: c.position.z, yaw: c.rotation.y, pitch: c.rotation.x };
+});
+
+await page.evaluate(() => {
+  const spot = window.__city.room.spawn;
+  window.__city.camera.position.set(spot.x, 1.7, spot.z);
+  window.__city.camera.rotation.set(0, spot.yaw, 0, 'YXZ');
+  document.getElementById('view').focus();
+});
+await page.waitForTimeout(150);
+
+// Headless renders at a few frames a second and the loop clamps dt to 50 ms, so one
+// held key buys about one clamped frame: 0.7 m of walk, 0.11 rad of turn. The thresholds
+// are set to catch an axis that does nothing, not to measure a rate.
+const holdKey = async (key, ms = 320) => {
+  const before = await pose();
+  await page.keyboard.down(key);
+  await page.waitForTimeout(ms);
+  await page.keyboard.up(key);
+  await page.waitForTimeout(80);
+  const after = await pose();
+  return {
+    moved: Math.hypot(after.x - before.x, after.z - before.z),
+    dYaw: after.yaw - before.yaw,
+    dPitch: after.pitch - before.pitch,
+  };
+};
+
+const fwd = await holdKey('ArrowUp');
+t('up arrow walks forward', fwd.moved > 0.5, `moved ${fwd.moved.toFixed(2)} m`);
+const strafe = await holdKey('ArrowRight');
+t('right arrow steps sideways', strafe.moved > 0.5, `moved ${strafe.moved.toFixed(2)} m`);
+t('and neither arrow turns the camera',
+  Math.abs(fwd.dYaw) < 1e-9 && Math.abs(strafe.dYaw) < 1e-9);
+
+const turnD = await holdKey('d');
+t('D turns the view without walking', Math.abs(turnD.dYaw) > 0.05 && turnD.moved < 1e-9,
+  `yaw moved ${turnD.dYaw.toFixed(2)} rad, position moved ${turnD.moved.toFixed(3)} m`);
+const lookW = await holdKey('w');
+t('W looks up without walking', lookW.dPitch > 0.05 && lookW.moved < 1e-9,
+  `pitch moved ${lookW.dPitch.toFixed(2)} rad`);
+await page.keyboard.press('s');
+
 // The presenter's key. Space already did this, but space is not where a hand is when it
-// has been walking with WASD and looking with the arrows.
+// has been walking on the arrows.
 await page.evaluate(() => window.__city.resetDay());
 const beforeSlash = (await sup()).playing;
 await page.keyboard.press('/');
@@ -323,6 +373,88 @@ t('and it withdraws once the sandbox is open',
 t('the sliders it governs are actually movable now',
   !(await page.$eval('#cars', (i) => i.disabled))
   && !(await page.$eval('#margin', (i) => i.disabled)));
+
+/* ------------------------------------------------- the procurement board */
+
+// Reported as unreadable, and it was: a 418×285 canvas carrying type sized for twice
+// that. The headings overlapped by 40 px, every row name ran through its own violation
+// figure, and the footnote was drawn above the last row's baseline. Every extent below
+// is measured from the canvas context that drew it, so this cannot regress quietly.
+const term = await page.evaluate(() => window.__city.terminalLayout());
+
+t('the procurement headings clear each other',
+  term.headEnd < term.violStart && term.violX < term.costStart,
+  `CONTROLLER ends ${term.headEnd.toFixed(0)}, VIOLATIONS starts ${term.violStart.toFixed(0)}`);
+
+const worstGap = Math.min(...term.rows.map((r) => r.violStart - r.nameEnd));
+t('and every row name clears its own violation figure', worstGap > 0,
+  `tightest gap ${worstGap.toFixed(0)} px on "${term.rows.find((r) => r.violStart - r.nameEnd === worstGap).name}"`);
+t('every violation figure clears the cost column',
+  term.rows.every((r) => term.violX < r.costStart));
+t('nothing is drawn past the bottom of the panel',
+  term.lastRowBottom < term.footTop && term.footTop < term.height,
+  `last row ${term.lastRowBottom}, footer ${term.footTop}, panel ${term.height}`);
+
+// The board drew WORLD.runs while the panel and the debrief drew the shortlist, so the
+// trap candidate was missing from the board and `picked` highlighted the wrong row.
+const onBoard = await page.evaluate(() => window.__city.candidatesOnBoard());
+t('the board shows the same four candidates the panel and the debrief use',
+  term.rows.length === onBoard.length, `${term.rows.length} rows, ${onBoard.length} candidates`);
+t('including the one trained on a stiff feeder, which is the whole of stage 6',
+  onBoard.some((l) => /stiff feeder/.test(l)), onBoard.join(' | '));
+
+/* ------------------------------------------------------ service on the board */
+
+// A controller can hold the top row of the mimic board perfectly by charging nobody.
+// LEFT SHORT is the number that makes that visible, so it has to be real: it counts
+// vehicles that have already departed below the charge they came for.
+const shortAt = async (frame) => {
+  await page.evaluate((f) => window.__city.setFrame(f), frame);
+  await page.waitForTimeout(160);
+  return page.evaluate(() => window.__city.served());
+};
+
+// Back to the published settings first: the sandbox checks above leave the town at 120
+// cars and a 0.045 pu margin, and a readout compared across two different plants says
+// nothing about either.
+await page.evaluate(() => { window.__city.setFleetSize(287); window.__city.setMargin(0.010); });
+await page.waitForTimeout(400);
+
+const dawn = await shortAt(0);
+t('nobody has left short before anybody has arrived', dawn.short === 0, `short ${dawn.short}`);
+
+const endOf = async (runIndex) => {
+  await page.evaluate((i) => window.__city.setRun(i), runIndex);
+  return shortAt(287);
+};
+const uncoordEnd = await endOf(0);
+const droopEnd = await endOf(1);
+
+t('by the end of the day every vehicle is counted once, either charged or short',
+  uncoordEnd.met + uncoordEnd.short === uncoordEnd.of,
+  `${uncoordEnd.met} charged + ${uncoordEnd.short} short = ${uncoordEnd.of}`);
+
+// The stage-3 claim, now readable on the mimic board rather than only in a debrief:
+// droop buys its safety by turning drivers away, and this is the column that shows it.
+t('droop sends more drivers away short than uncoordinated charging does',
+  droopEnd.short > uncoordEnd.short, `droop ${droopEnd.short}, uncoordinated ${uncoordEnd.short}`);
+
+// Departures are final, so the count can only ever climb.
+await page.evaluate(() => window.__city.setRun(1));
+const walk = [];
+for (const f of [0, 72, 144, 216, 287]) walk.push((await shortAt(f)).short);
+t('and the count never falls, because a car that has gone cannot come back',
+  walk.every((n, i) => i === 0 || n >= walk[i - 1]), walk.join(' → '));
+
+/* --------------------------------------------------------------- naming */
+
+const labels = await page.evaluate(() => window.__city.candidatesOnBoard());
+t('no controller on screen names the underlying method',
+  !/SafeSAC|SAC-Lag|soft actor|Lagrangian/i.test(labels.join(' ')), labels.join(' | '));
+const pageText = await page.evaluate(() => document.body.innerText);
+t('and neither does anything else on the page',
+  !/SafeSAC|SAC-Lag|thesis/i.test(pageText),
+  (pageText.match(/SafeSAC|SAC-Lag|thesis/gi) ?? []).slice(0, 3).join(', '));
 
 t('no console errors throughout', errors.length === 0, errors.slice(0, 3).join(' | '));
 

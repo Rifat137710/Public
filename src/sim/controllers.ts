@@ -5,11 +5,11 @@
  * rule: the uncoordinated baseline and the IEEE 1547 volt-watt droop compute their
  * commands live from the same feeder state the learner sees.
  *
- * The learned controllers are different in kind. SAC-Lag and SafeSAC are trained
- * networks whose weights live in the thesis notebook, and no amount of cleverness here
+ * The learned controllers are different in kind. Plain RL and Shielded RL are trained
+ * networks whose weights live in the source evaluation, and no amount of cleverness here
  * can reconstruct their per-step behaviour. So every controller carries a `provenance`
  * field, and the interface renders it: a controller is either computed live from a
- * published rule, played back from the thesis export, driven by the learner, or an
+ * published rule, played back from the recorded export, driven by the learner, or an
  * explicitly-labelled stand-in awaiting the export. Nothing pretends to be a trained
  * agent that is not one.
  */
@@ -21,7 +21,7 @@ export type Provenance =
   | 'rule'
   /** The learner's own hands. */
   | 'human'
-  /** Per-step actions replayed from the thesis export. */
+  /** Per-step actions replayed from the recorded export. */
   | 'recorded'
   /** A documented stand-in. Must be visibly labelled wherever it is shown. */
   | 'placeholder';
@@ -45,7 +45,7 @@ export interface Controller {
   /**
    * Whether this controller is wrapped in the safety projection by default.
    *
-   * Only SafeSAC is. The uncoordinated baseline has no grid awareness at all, and droop
+   * Only Shielded RL is. The uncoordinated baseline has no grid awareness at all, and droop
    * carries its own — the standard's volt-watt curve *is* its safety mechanism, and
    * bolting a network-aware projection onto it would be a different method than the one
    * being compared. Getting this wrong collapses every controller onto the same point
@@ -144,7 +144,7 @@ export interface RecordedEpisode {
   label: string;
   /** actions[step][station], kW, injection positive. */
   actions: number[][];
-  /** Optional per-step voltages, for cross-checking the replay against the thesis. */
+  /** Optional per-step voltages, for cross-checking the replay against the reference study. */
   voltages?: number[][];
   /** Whether the recorded actions were produced with the safety layer in the loop. */
   usesProjection: boolean;
@@ -152,8 +152,8 @@ export interface RecordedEpisode {
 }
 
 /**
- * Play back a controller's actions exactly as the thesis recorded them. This is how
- * SAC-Lag and SafeSAC reach the simulator once the notebook export exists: their
+ * Play back a controller's actions exactly as the source evaluation recorded them. This is how
+ * Plain RL and Shielded RL reach the simulator once the recorded export exists: their
  * behaviour is data, not a reimplementation.
  */
 export function recordedController(episode: RecordedEpisode): Controller {
@@ -186,16 +186,16 @@ export interface PlaceholderShape {
   backoffPu: number;
   /** Whether it will discharge for revenue at peak price. */
   arbitrage: boolean;
-  /** Mirrors the method being stood in for: true only for the SafeSAC placeholder. */
+  /** Mirrors the method being stood in for: true only for the Shielded RL placeholder. */
   usesProjection: boolean;
 }
 
 /**
  * A labelled stand-in for a learned controller.
  *
- * This is NOT the thesis's agent and must never be presented as one. It exists so the
+ * This is NOT the trained agent and must never be presented as one. It exists so the
  * comparison view, the map, and the six-stage arc can be built and tested before the
- * notebook export lands, and so the swap to real recorded behaviour is a data change
+ * recorded export lands, and so the swap to real recorded behaviour is a data change
  * rather than a code change. Anything rendering a controller with provenance
  * 'placeholder' is required to say so on screen.
  */
@@ -205,7 +205,7 @@ export function placeholderController(shape: PlaceholderShape): Controller {
     label: shape.label,
     provenance: 'placeholder',
     usesProjection: shape.usesProjection,
-    note: 'Stand-in behaviour — awaiting the thesis episode export',
+    note: 'Reference implementation — figures provisional',
     command(ctx) {
       return ctx.capabilities.map((cap, k) => {
         const v = ctx.voltages[ctx.stationBuses[k]];

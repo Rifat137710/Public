@@ -9,8 +9,8 @@
  * Bus numbering follows the publication: buses 1..33, bus 1 being the substation.
  * Internally node 0 is an ideal source and node k is published bus k, so a "weak"
  * grid is modelled by putting a finite impedance on the branch from node 0 to bus 1.
- * The thesis reports its own weak/strong pair; `calibrate.ts` fits that impedance so
- * this file's public data reproduces the thesis feeder rather than merely resembling it.
+ * The reference study reports its own weak/strong pair; `calibrate.ts` fits that impedance so
+ * this file's public data reproduces the reference feeder rather than merely resembling it.
  *
  * Beware of two numbering conventions in play:
  *   - published bus number  b       (Figure 4.2: "EV @ 18")
@@ -106,9 +106,9 @@ export const PV_BUSES: readonly number[] = [6, 13, 30];
 /**
  * Substation source impedance. The strong feeder is the canonical benchmark with a
  * stiff source; the weak feeder adds a finite substation impedance, which is the
- * single structural difference between the two grids in the thesis.
+ * single structural difference between the two grids in the reference study.
  *
- * The weak values here are fitted by `scripts/calibrate.ts` against the thesis's
+ * The weak values here are fitted by `scripts/calibrate.ts` against the reference study’s
  * published base case. Do not hand-edit them — rerun the calibration.
  */
 export interface SourceImpedance {
@@ -117,7 +117,7 @@ export interface SourceImpedance {
 }
 
 export const STRONG_SOURCE: SourceImpedance = { rOhm: 0, xOhm: 0 };
-/** Fitted to the thesis base case: Vmin 0.882 pu, loss 338.6 kW at full load. */
+/** Fitted to the reference base case: Vmin 0.882 pu, loss 338.6 kW at full load. */
 export const WEAK_SOURCE: SourceImpedance = { rOhm: 0.8604, xOhm: 0.4235 };
 
 export type GridKind = 'weak' | 'strong';

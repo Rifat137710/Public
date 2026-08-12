@@ -9,8 +9,8 @@
 import { runEpisode } from '../src/sim/live.js';
 import { droop, placeholderController, uncoordinated } from '../src/sim/controllers.js';
 
-const safeSac = placeholderController({ id: 'safesac', label: 'SafeSAC', eagerness: 0.95, backoffPu: 0.948, arbitrage: false, usesProjection: true });
-const sacLag = placeholderController({ id: 'sac-lag', label: 'SAC-Lag', eagerness: 0.85, backoffPu: 0.952, arbitrage: true, usesProjection: false });
+const safeSac = placeholderController({ id: 'safesac', label: 'Shielded RL', eagerness: 0.95, backoffPu: 0.948, arbitrage: false, usesProjection: true });
+const sacLag = placeholderController({ id: 'sac-lag', label: 'Plain RL', eagerness: 0.85, backoffPu: 0.952, arbitrage: true, usesProjection: false });
 const idle = placeholderController({ id: 'idle', label: 'Nobody charges', eagerness: 0, backoffPu: 0.9, arbitrage: false, usesProjection: false });
 
 const scenario = { grid: 'weak' as const, loadScale: 0.5, seed: 137710 };

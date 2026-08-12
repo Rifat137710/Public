@@ -131,12 +131,12 @@ export const STAGES = [
     eyebrow: 'So put a neural network on it',
     title: 'The agent that wins on the average',
     brief: [
-      'A soft actor-critic agent with a Lagrangian penalty on constraint violation. It sees the whole feeder, not just one bus, and it optimises the trade-off droop had to hard-code.',
+      'A deep reinforcement-learning agent carrying a penalty on constraint violation. It sees the whole feeder, not just one bus, and it optimises the trade-off droop had to hard-code.',
       'It scores well. Go and find the moment it does not — stay on the feeder until a bus drops below the floor, and read the meter where it hurts most.',
     ],
     setup: (api) => { api.setRun(RUN.sacLag); },
     objectives: [
-      { id: 'sel', text: 'Put the feeder on SAC-Lag', done: (s) => s.runIndex === RUN.sacLag },
+      { id: 'sel', text: 'Put the feeder on Plain RL', done: (s) => s.runIndex === RUN.sacLag },
       { id: 'catch', text: 'Be outside when a bus falls below 0.95 pu', done: (s) => s.caughtViolation },
       { id: 'worst', text: 'Read the meter at the worst bus while it is sagging', done: (s) => s.readWorstDuringViolation },
     ],
@@ -161,14 +161,14 @@ export const STAGES = [
     ],
     setup: (api) => { api.setRun(RUN.safeSac); },
     objectives: [
-      { id: 'sel', text: 'Put the feeder on SafeSAC', done: (s) => s.runIndex === RUN.safeSac },
+      { id: 'sel', text: 'Put the feeder on Shielded RL', done: (s) => s.runIndex === RUN.safeSac },
       { id: 'svc', text: 'Open a station console and check cars are still charging', done: (s) => s.consolesOpened.size > 0 },
       { id: 'hold', text: 'Read bus 18 and confirm it holds the band', done: (s) => s.readUnder(RUN.safeSac, 18) },
     ],
     debrief: () => {
       const s5 = WORLD.runs[RUN.safeSac], d = WORLD.runs[RUN.droop], a = WORLD.runs[RUN.sacLag];
       return [
-        `Violations ${pct(s5.violationRate)} — lower than droop's ${pct(d.violationRate)} and a third of SAC-Lag's ${pct(a.violationRate)}. Worst bus ${s5.vMinPu.toFixed(4)} pu.`,
+        `Violations ${pct(s5.violationRate)} — lower than droop's ${pct(d.violationRate)} and a third of Plain RL's ${pct(a.violationRate)}. Worst bus ${s5.vMinPu.toFixed(4)} pu.`,
         `Drivers served ${drivers(s5.socMet)} of 287, against droop's ${drivers(d.socMet)}. Roughly the same service, materially better safety, and ${kwh(d.totalLossKwh - s5.totalLossKwh)} less burnt in the lines across the day.`,
         'Both objectives at once, which is what the projection buys. It is also the only one of these four whose safety claim survives a step you have never seen before.',
       ];
@@ -209,8 +209,8 @@ export const STAGES = [
         );
       }
       lines.push(
-        'The feeder switch is now unlocked. Rebuild the town on a stiff source and walk it again: the same controllers, the same fleet, the same evening, with the substation impedance taken out. Droop goes from breaking the band 4.5% of the day to 0.8%, and SafeSAC to never — and both serve more drivers while doing it. You can buy safety with control or you can buy it with copper, and that choice is the actual engineering decision.',
-        'One caveat, stated plainly: the shifted agent charges nobody on either grid, because it is a labelled stand-in whose refusal is written into it rather than learned. Switching grids shows you what the network is worth. It cannot show you distribution shift arising on its own, and will not until the trained episodes are exported from the notebook.',
+        'The feeder switch is now unlocked. Rebuild the town on a stiff source and walk it again: the same controllers, the same fleet, the same evening, with the substation impedance taken out. Droop goes from breaking the band 4.5% of the day to 0.8%, and Shielded RL to never — and both serve more drivers while doing it. You can buy safety with control or you can buy it with copper, and that choice is the actual engineering decision.',
+        'One caveat, stated plainly: the shifted agent charges nobody on either feeder, because it is a reference implementation whose refusal is written into it rather than learned. Switching feeders shows what the network is worth. It cannot show distribution shift arising on its own.',
       );
       return lines;
     },

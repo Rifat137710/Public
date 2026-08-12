@@ -1,7 +1,7 @@
 """
-Export the SafeSAC thesis artefacts into JSON the browser simulator can read.
+Export the SafeSAC reference study artefacts into JSON the browser simulator can read.
 
-Run this in the notebook (thesis11.ipynb) AFTER the definition cells have
+Run this in the evaluation environment AFTER the definition cells have
 executed and the four checkpoints are loaded. It writes into ./web_export/.
 
 The script is deliberately defensive: it introspects for the objects it needs
@@ -260,7 +260,7 @@ def export_projection_probe(weak_ctx, strong_ctx, request_kw=-80.0):
 
 def export_results():
     """
-    The headline table. Transcribed from the thesis so the simulator's Act 3
+    The headline table. Transcribed from the reference study so the simulator's Act 3
     leaderboard shows exactly the published numbers.
     """
     write("results.json", {
@@ -354,4 +354,4 @@ def export_all(weak_ctx, strong_ctx, env_weak, env_strong, agents):
 
 if __name__ == "__main__":
     print(__doc__)
-    print("Run probe() in the notebook first, then export_all(...).")
+    print("Run probe() in the source evaluation first, then export_all(...).")

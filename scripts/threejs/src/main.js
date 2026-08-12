@@ -21,7 +21,7 @@ import {
 import { buildCity } from './city.js';
 import { buildRoom } from './room.js';
 import { buildNight } from './sky.js';
-import { buildLiveDay, metSeries, CONTROLLER_IDS } from './live.js';
+import { buildLiveDay, metSeries, tally, CONTROLLER_IDS } from './live.js';
 import { STAGES, Progress } from './mission.js';
 import { FleetRun, FLEET_SIZE, fleetCheck } from '../../shared/fleet.js';
 import { MARGIN_PU } from '../../shared/control.js';
@@ -163,7 +163,7 @@ let marginPu = MARGIN_PU;
 const live = () => fleetSize !== FLEET_SIZE || marginPu !== MARGIN_PU;
 
 /**
- * A computed day costs about 40 ms for a rule and 190 ms for SafeSAC, which is ten power
+ * A computed day costs about 40 ms for a rule and 190 ms for Shielded RL, which is ten power
  * flows a step. Cheap enough to ask for on a slider release, far too expensive to ask for
  * on a redraw — so every one is kept, and only the controller actually driving is built.
  * The map's reference dots stay recorded for the same reason: they are read every frame.
@@ -200,12 +200,20 @@ const metCache = new Map();
 function servedNow() {
   // A run being scored is its own truth: the learner may have a station in manual, in
   // which case neither the recording nor the computed day is what is actually happening.
-  if (runLive) return { met: fleetRun.totals().driversMet, of: fleetRun.vehicles.length, note: 'this run, as you are running it' };
-  if (live()) return { met: frame().met, of: fleetSize, note: 'computed here' };
+  if (runLive) {
+    const t = tally(fleetRun);
+    return { ...t, of: fleetRun.vehicles.length, note: 'this run, as you are running it' };
+  }
+  if (live()) return { met: frame().met, short: frame().short, of: fleetSize, note: 'computed here' };
   const key = `${gridKind}|${runIndex}`;
   let series = metCache.get(key);
   if (!series) { series = metSeries(run().frames, FLEET_SIZE); metCache.set(key, series); }
-  return { met: series[frameIndex], of: FLEET_SIZE, note: 'from the recorded episode' };
+  return {
+    met: series.met[frameIndex],
+    short: series.short[frameIndex],
+    of: FLEET_SIZE,
+    note: 'from the recorded episode',
+  };
 }
 const frame = () => run().frames[frameIndex];
 const commands = () => frame().kw.map((k, i) => (manual[i] === null ? k : manual[i]));
@@ -414,12 +422,17 @@ function flushInstruments() {
     pluggedTotal: f.plugged.reduce((a, b) => a + b, 0),
     plugged: f.plugged,
     served: served.met,
+    short: served.short,
     fleetSize: served.of,
     servedNote: served.note,
     drawKw: kw.reduce((a, b) => a + Math.max(0, -b), 0),
     stationKw: kw,
     manual,
     picked: progress.picked,
+    // The board used to draw WORLD.runs while the panel and the stage-6 debrief drew the
+    // candidate shortlist. Two different tables under one heading, and `picked` indexes
+    // the shortlist — so choosing the shifted agent highlighted the wrong row.
+    candidates: candidateSet(),
     youBus: nearestBus(),
     inside: insideRoom(),
     dots: allDots(),
@@ -644,7 +657,7 @@ function wireSupervisorPanel() {
   };
 
   // These two commit on release, not on drag. Each new value is a whole day re-computed —
-  // up to 190 ms for SafeSAC — and running that on every pixel of a drag would turn the
+  // up to 190 ms for Shielded RL — and running that on every pixel of a drag would turn the
   // slider into a slideshow. The readout still tracks the thumb, so the control feels live
   // even though the plant only moves once.
   const cars = el('supCars');
@@ -677,14 +690,14 @@ function syncSupervisorPanel() {
   margin.disabled = !s.sandbox;
   if (document.activeElement !== cars) cars.value = String(fleetSize);
   if (document.activeElement !== margin) margin.value = String(marginPu);
-  el('supCarsRead').textContent = `${fleetSize} cars` + (fleetSize === FLEET_SIZE ? ' — as exported' : '');
+  el('supCarsRead').textContent = `${fleetSize} cars` + (fleetSize === FLEET_SIZE ? ' — the full fleet' : '');
   el('supMarginRead').textContent = `${marginPu.toFixed(3)} pu`
-    + (marginPu === MARGIN_PU ? ' — the thesis’s own value' : '');
+    + (marginPu === MARGIN_PU ? ' — the reference value' : '');
   el('supLiveNote').textContent = !s.sandbox
     ? 'Both unlock when you finish the six stages.'
     : s.live
-      ? 'The day is being computed here, at these settings — the four controllers re-decide every five minutes. Move both back to 287 cars and 0.010 pu to return to the recorded episodes.'
-      : 'On the recorded episodes. Move either slider and the day is computed here instead, which is the only honest way to show a controller a town it was never recorded on.';
+      ? 'Computed here at these settings. Return to 287 cars and 0.010 pu for the recorded episodes.'
+      : 'On the recorded episodes. Move either slider and the day is computed here instead.';
 
   el('supGridNote').textContent = s.gridUnlocked
     ? 'Same day, same fleet, same controllers — only the substation impedance changes.'
@@ -764,8 +777,7 @@ function renderPanel() {
       <div class="kicker">Procurement · four candidates</div><h3>Same feeder, same day, same fleet</h3>
       <div class="candhead"><span>Controller</span><span>Violations</span><span>Net cost</span></div>
       ${rows}
-      <p class="hint">* labelled stand-in, not the trained agent — its recorded episodes are still
-      to be exported from the thesis notebook.</p>`;
+      <p class="hint">* reference implementation — figures provisional.</p>`;
     panel.querySelectorAll('[data-pick]').forEach((b) => {
       b.onclick = () => {
         progress.picked = Number(b.dataset.pick);
@@ -980,7 +992,7 @@ function updateHud() {
   const f = frame();
   setMetric(el('mClock'), 'time', f.clock);
   setMetric(el('mRun'), 'driving', run().label.replace(/ \(.*\)/, ''));
-  // Where the numbers on screen came from, in three words. A computed SafeSAC is still a
+  // Where the numbers on screen came from, in three words. A computed Shielded RL is still a
   // stand-in for the trained agent — the projection in front of it is the real algorithm,
   // the policy behind it is not — so becoming live must not launder it into a "real
   // controller", which is what falling through on provenance alone would have done.
@@ -990,7 +1002,7 @@ function updateHud() {
   const standIn = run().provenance === 'placeholder' || (live() && learned);
   const state = anyManual ? 'mine' : standIn ? 'stand-in' : 'real';
   chip.textContent = anyManual ? 'you have taken over'
-    : standIn ? (live() ? 'stand-in · computed here' : 'labelled stand-in')
+    : standIn ? (live() ? 'reference · computed here' : 'reference implementation')
     : (live() ? 'real rule · computed here' : 'real controller');
   chip.className = 'chip ' + state;
   setMetric(el('mViol'), 'out of band', solution.violations + (solution.violations === 1 ? ' bus' : ' buses'), solution.violations > 0 ? 'bad' : 'good');
@@ -1048,14 +1060,18 @@ controls.addEventListener('unlock', () => {
  *
  * Pointer lock is the nicer way to look around and it stays the default, but it is
  * also a hard requirement for a device nobody has. So the canvas is focusable, and
- * while it holds focus the arrow keys turn, WASD walks, and E and F do what they do
- * under lock. Anyone who cannot use pointer lock can still reach every objective.
+ * while it holds focus the keyboard drives everything.
+ *
+ * The arrow keys walk: up and down go forward and back, left and right step sideways.
+ * WASD turns and looks — A and D swing the view, W and S raise and lower it. Anyone who
+ * cannot use pointer lock can still reach every objective in all six stages.
  */
 const driving = () => controls.isLocked || document.activeElement === canvas;
 const TURN = 2.2;    // radians per second
 const PITCH_LIMIT = 1.2;
 const turn = new Set();
-const TURN_KEYS = { arrowleft: 'l', arrowright: 'r', arrowup: 'u', arrowdown: 'd' };
+const LOOK_KEYS = { a: 'l', d: 'r', w: 'u', s: 'd' };
+const WALK_KEYS = { arrowup: 'fwd', arrowdown: 'back', arrowleft: 'left', arrowright: 'right' };
 
 function applyTurn(dt) {
   if (!turn.size) return;
@@ -1068,8 +1084,9 @@ function applyTurn(dt) {
 
 addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase();
-  if (TURN_KEYS[k] && driving()) { turn.add(TURN_KEYS[k]); e.preventDefault(); }
-  if (['w', 'a', 's', 'd', 'shift'].includes(k)) { held.add(k); if (driving()) e.preventDefault(); }
+  if (LOOK_KEYS[k] && driving()) { turn.add(LOOK_KEYS[k]); e.preventDefault(); }
+  if (WALK_KEYS[k] && driving()) { held.add(WALK_KEYS[k]); e.preventDefault(); }
+  if (k === 'shift') held.add('shift');
   // Enter is the use key. E still works — it is in every screenshot, every instruction
   // written before this, and in the hands of anyone who has already walked the city once —
   // but Enter is what the prompts name, because it is the key a first-time visitor reaches
@@ -1113,8 +1130,9 @@ addEventListener('keydown', (e) => {
 });
 addEventListener('keyup', (e) => {
   const k = e.key.toLowerCase();
-  held.delete(k);
-  if (TURN_KEYS[k]) turn.delete(TURN_KEYS[k]);
+  if (k === 'shift') held.delete('shift');
+  if (WALK_KEYS[k]) held.delete(WALK_KEYS[k]);
+  if (LOOK_KEYS[k]) turn.delete(LOOK_KEYS[k]);
 });
 
 function collide(nx, nz) {
@@ -1140,10 +1158,10 @@ const UP = new THREE.Vector3(0, 1, 0);
 function move(dt) {
   if (!driving()) return;
   let f = 0, s = 0;
-  if (held.has('w')) f += 1;
-  if (held.has('s')) f -= 1;
-  if (held.has('d')) s += 1;
-  if (held.has('a')) s -= 1;
+  if (held.has('fwd')) f += 1;
+  if (held.has('back')) f -= 1;
+  if (held.has('right')) s += 1;
+  if (held.has('left')) s -= 1;
   if (!f && !s) return;
   const len = Math.hypot(f, s);
   f /= len; s /= len;
@@ -1527,7 +1545,7 @@ function renderTotals() {
     `<td class="num">${Math.round(r.socMet * 287)} of 287</td>` +
     `<td class="num">${r.totalLossKwh.toFixed(0)} kWh</td>` +
     `<td class="num">$${r.netCostUsd}</td>` +
-    `<td>${r.provenance === 'placeholder' ? 'labelled stand-in' : 'production controller'}</td></tr>`).join('');
+    `<td>${r.provenance === 'placeholder' ? 'reference implementation' : 'production controller'}</td></tr>`).join('');
   el('totalsGrid').textContent = gridKind === 'strong' ? 'the stiff feeder' : 'the weak feeder';
 }
 
@@ -1782,4 +1800,6 @@ window.__city = {
     bottom: s.mesh.position.y - s.mesh.geometry.parameters.height / 2,
   }])),
   room3d: { h: ROOM.h, north: ROOM.north, south: ROOM.south, west: ROOM.west, east: ROOM.east },
+  terminalLayout: room.terminalLayout,
+  candidatesOnBoard: () => candidateSet().map((c) => c.label),
 };

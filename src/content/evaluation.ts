@@ -1,7 +1,7 @@
 /**
- * What the trained agents actually did, measured in the thesis notebook.
+ * What the trained agents actually did, measured in the source evaluation.
  *
- * Everything in this file is transcribed from `thesis_outputs/` — `patch7_main_results.csv`,
+ * Everything in this file is transcribed from `evaluation_outputs/` — `patch7_main_results.csv`,
  * `validation/patch7_summary.json`, `tables/sensitivity_comparison.csv` and
  * `tables/projection_validation.csv`. Nothing here is computed by this simulator and
  * nothing here is invented. Values are carried at full precision and rounded only for
@@ -42,7 +42,7 @@ export const EVALUATION = {
   departures: 26.72,
 } as const;
 
-export interface ThesisRow {
+export interface EvaluationRow {
   id: string;
   label: string;
   /** Fraction of the 288 steps with at least one bus outside [0.95, 1.05]. */
@@ -60,7 +60,7 @@ export interface ThesisRow {
 }
 
 /** Every method in the evaluation, in the order the table reports them. */
-export const RESULTS: readonly ThesisRow[] = [
+export const RESULTS: readonly EvaluationRow[] = [
   {
     id: 'uncoord',
     label: 'No control',
@@ -87,7 +87,7 @@ export const RESULTS: readonly ThesisRow[] = [
   },
   {
     id: 'sac-lag',
-    label: 'SAC-Lag (plain deep RL)',
+    label: 'Plain RL',
     violationRate: 0.09041666666666666,
     socMet: 0.2767055759244176,
     netCostUsd: 104.28994266292173,
@@ -99,7 +99,7 @@ export const RESULTS: readonly ThesisRow[] = [
   },
   {
     id: 'safesac',
-    label: 'SafeSAC',
+    label: 'Shielded RL',
     violationRate: 0.09125,
     socMet: 0.5688287387695697,
     netCostUsd: 125.93776515528798,
@@ -107,11 +107,11 @@ export const RESULTS: readonly ThesisRow[] = [
     lineLossKwh: 623.7796679295756,
     chargeKwh: 914.1289889531304,
     throughputKwh: 1224.730463106958,
-    note: 'Twice SAC-Lag’s drivers served at the same violation rate, and the most service of any coordinated method.',
+    note: 'Twice Plain RL’s drivers served at the same violation rate, and the most service of any coordinated method.',
   },
   {
     id: 'safesac-shift',
-    label: 'SafeSAC (trained on a strong grid)',
+    label: 'Shielded RL (trained on a stiff feeder)',
     violationRate: 0.10583333333333333,
     socMet: 0.44691158308257206,
     netCostUsd: 69.65949409913563,
@@ -123,7 +123,7 @@ export const RESULTS: readonly ThesisRow[] = [
   },
   {
     id: 'sac-lag-shift',
-    label: 'SAC-Lag (trained on a strong grid)',
+    label: 'Plain RL (trained on a stiff feeder)',
     violationRate: 0.015138888888888891,
     socMet: 0.0,
     netCostUsd: -38.17086747795728,
@@ -135,7 +135,7 @@ export const RESULTS: readonly ThesisRow[] = [
   },
 ];
 
-export const byThesisId = (id: string): ThesisRow | undefined =>
+export const byEvaluationId = (id: string): EvaluationRow | undefined =>
   RESULTS.find((r) => r.id === id);
 
 /**
@@ -146,7 +146,7 @@ export const byThesisId = (id: string): ThesisRow | undefined =>
  * absence obvious. What remains is four coordinated controllers and one that is only
  * coordinated in the sense that a closed shop is orderly.
  */
-export const SHORTLIST: readonly ThesisRow[] = RESULTS.filter((r) => r.id !== 'uncoord');
+export const SHORTLIST: readonly EvaluationRow[] = RESULTS.filter((r) => r.id !== 'uncoord');
 
 /** The row the trap is built on. Nothing keys off its position in the list. */
 export const TRAP_ID = 'sac-lag-shift';
@@ -181,7 +181,7 @@ export const PROJECTION_CHECK = {
 } as const;
 
 /**
- * The notebook's own acceptance gates, three of six passing. Reported as they stand.
+ * The evaluation's own acceptance gates, three of six passing. Reported as they stand.
  * The two failures are the honest part of the result: cross-deployment safety is not
  * achieved, and that is the finding rather than an embarrassment to be tidied away.
  */
@@ -190,5 +190,5 @@ export const GATES = [
   { id: 'projection_gap', pass: false, text: 'The projection changes the command by a measurable margin' },
   { id: 'in_dist_safety', pass: true, text: 'On the grid it trained on, the safe agent stays within tolerance' },
   { id: 'xdeploy_safety', pass: false, text: 'Moved to another grid, safety holds' },
-  { id: 'service_quality', pass: true, text: 'The safe agent serves materially more drivers than plain deep RL' },
+  { id: 'service_quality', pass: true, text: 'The safe agent serves materially more drivers than unshielded RL' },
 ] as const;

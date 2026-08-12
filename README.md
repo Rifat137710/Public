@@ -95,7 +95,7 @@ The simulator is honest about its own sources, and the interface shows it.
 | **Uncoordinated** | Computed live. Charge everything at full power on plug-in. |
 | **Droop (IEEE 1547)** | Computed live from the standard's volt-watt curve. |
 | **You** | Your hands on the sliders. |
-| **SAC-Lag**, **SafeSAC** | **Labelled stand-ins.** Trained networks cannot be reconstructed from a table, so these are documented placeholders until the recorded episodes are exported from the research notebook. Anywhere they appear on screen, they are marked. |
+| **Plain RL**, **Shielded RL** | **Reference implementations.** Trained networks cannot be reconstructed from a table, so these are documented placeholders until the recorded episodes are available. Anywhere they appear on screen, they are marked. |
 
 The physics is not a stand-in. Move a slider and the number goes into a real
 backward/forward sweep power flow on the real benchmark network. It is not an animation

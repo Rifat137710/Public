@@ -74,6 +74,12 @@ class Screen {
     ctx.fillText(text, x, y);
   }
 
+  /** Drawn width of a string, for laying columns out against the type rather than guessing. */
+  measure(text, size, weight = '') {
+    this.ctx.font = `${weight} ${size}px ${MONO}`.trim();
+    return this.ctx.measureText(text).width;
+  }
+
   done() { this.texture.needsUpdate = true; }
 }
 
@@ -248,6 +254,7 @@ export function buildRoom(scene) {
     const r1 = H - FOOT_H + 36;
     const r2 = H - 22;
     const cols = [22, W * 0.28, W * 0.56];
+    const svc = [22, W * 0.27, W * 0.53, W * 0.77];
 
     s.label(`WORST  ${state.vMin.toFixed(4)} pu @ BUS ${state.vMinBus}`, cols[0], r1,
       { size: 22, colour: state.vMin < BAND_LO ? CSS.warn : CSS.ok });
@@ -257,11 +264,15 @@ export function buildRoom(scene) {
     s.label(`POWER  $${state.price.toFixed(2)} · ${state.tier.toUpperCase()}`, W - 22, r1,
       { size: 22, colour: state.tier === 'peak' ? CSS.warn : CSS.dim, align: 'right' });
 
-    s.label(`PLUGGED IN  ${state.pluggedTotal} cars`, cols[0], r2, { size: 20, colour: CSS.cool });
-    s.label(`CHARGED  ${state.served} / ${state.fleetSize} drivers`, cols[1], r2,
-      { size: 20, colour: CSS.cool });
-    s.label(`DRAWING  ${state.drawKw.toFixed(0)} kW`, cols[2], r2, { size: 20, colour: CSS.cool });
-    s.label(state.servedNote, W - 22, r2, { size: 16, colour: CSS.faint, align: 'right' });
+    // LEFT SHORT is the counterweight to CHARGED: vehicles that have already unplugged and
+    // driven away below the charge they came for. A controller can hold the top row of this
+    // board perfectly by refusing everybody, and this is the number that shows it doing so.
+    // It counts departures only — a car still on the cable has not failed yet.
+    s.label(`PLUGGED IN  ${state.pluggedTotal}`, svc[0], r2, { size: 20, colour: CSS.cool });
+    s.label(`CHARGED  ${state.served} / ${state.fleetSize}`, svc[1], r2, { size: 20, colour: CSS.cool });
+    s.label(`LEFT SHORT  ${state.short}`, svc[2], r2,
+      { size: 20, colour: state.short ? CSS.amber : CSS.cool });
+    s.label(`DRAWING  ${state.drawKw.toFixed(0)} kW`, svc[3], r2, { size: 20, colour: CSS.cool });
     s.done();
   }
 
@@ -582,8 +593,12 @@ export function buildRoom(scene) {
 
   /* ------------------------------------------------ procurement terminal */
 
+  // 190 px/m gave a 418×285 canvas carrying type sized for something twice that. Every
+  // column ran into the next: the two headings overlapped by 40 px, each row's name ran
+  // through its own violation figure, and the footnote was drawn seven pixels above the
+  // last row's baseline. The panel is small on purpose, so the fix is resolution.
   const terminal = new Screen(scene, {
-    w: 2.2, h: 1.5, px: 190,
+    w: 2.2, h: 1.5, px: 420,
     pos: { x: ROOM.east - 1.5, y: 1.75, z: ROOM.z - 6.0 },
     rotY: -Math.PI / 2 + 0.5,
   });
@@ -595,35 +610,94 @@ export function buildRoom(scene) {
     solids.push({ x: ROOM.east - 1.35, z: ROOM.z - 6.0, w: 1.1, d: 1.6 });
   }
 
+  /**
+   * The board carries the two columns a procurement table carries, and no others. That
+   * omission is the stage: drivers served is exactly the column that would expose the
+   * candidate trained on a stiff feeder, and it is not here, because it is not there.
+   * Nothing else belongs on this panel.
+   */
+  const TERM = { pad: 40, rowTop: 214, rowStep: 96, name: 28, qual: 16, head: 17 };
+
+  /** Split 'Droop (IEEE 1547)' into its name and its qualifier, for a two-line row. */
+  const splitLabel = (label) => {
+    const m = /^(.*?) \((.*)\)$/.exec(label);
+    return m ? { name: m[1], qual: m[2] } : { name: label, qual: '' };
+  };
+
+  function terminalRows(state) {
+    const list = state.candidates ?? WORLD.candidates;
+    return list.map((r, i) => {
+      const { name, qual } = splitLabel(r.label);
+      return {
+        i,
+        name,
+        qual: r.provenance === 'placeholder' ? [qual, 'reference implementation'].filter(Boolean).join(' · ') : qual,
+        viol: r.violationRate.toFixed(3),
+        cost: '$' + Math.round(r.netCostUsd ?? 0),
+        picked: state.picked === i,
+      };
+    });
+  }
+
   function drawTerminal(state) {
     const s = terminal;
     const W = s.width, H = s.height;
+    const { pad, rowTop, rowStep } = TERM;
+    const rows = terminalRows(state);
+
     s.clear('#0d1319');
-    s.label('PROCUREMENT · FOUR CANDIDATES', 16, 32, { size: 20, colour: CSS.ink });
-    s.label('SAME FEEDER, SAME DAY, SAME FLEET', 16, 58, { size: 15, colour: CSS.faint });
+    s.label('PROCUREMENT', pad, 66, { size: 34, colour: CSS.ink });
+    s.label('SAME FEEDER · SAME DAY · SAME FLEET', pad, 98, { size: 17, colour: CSS.faint });
 
-    const cols = [16, W - 250, W - 130, W - 20];
-    s.label('CONTROLLER', cols[0], 96, { size: 16, colour: CSS.dim });
-    s.label('VIOLATIONS', cols[1], 96, { size: 16, colour: CSS.dim, align: 'right' });
-    s.label('NET COST', cols[2], 96, { size: 16, colour: CSS.dim, align: 'right' });
+    const rule = (y) => { s.ctx.fillStyle = '#1e2830'; s.ctx.fillRect(pad, y, W - pad * 2, 2); };
+    rule(120);
 
-    WORLD.runs.forEach((r, i) => {
-      const y = 132 + i * 38;
-      const picked = state.picked === i;
-      if (picked) {
-        s.ctx.fillStyle = '#1b2a25';
-        s.ctx.fillRect(8, y - 24, W - 16, 32);
+    // Columns are placed against the widest figure actually drawn, not against a guess.
+    const costW = Math.max(...rows.map((r) => s.measure(r.cost, TERM.name)));
+    const violW = Math.max(...rows.map((r) => s.measure(r.viol, TERM.name)));
+    const costX = W - pad;
+    const violX = costX - costW - 64;
+    s.label('CONTROLLER', pad, 168, { size: TERM.head, colour: CSS.dim });
+    s.label('VIOLATIONS', violX, 168, { size: TERM.head, colour: CSS.dim, align: 'right' });
+    s.label('NET COST', costX, 168, { size: TERM.head, colour: CSS.dim, align: 'right' });
+    rule(184);
+
+    rows.forEach((r) => {
+      const y = rowTop + r.i * rowStep;
+      if (r.picked) {
+        s.ctx.fillStyle = '#16261f';
+        s.ctx.fillRect(pad - 14, y - 36, W - pad * 2 + 28, rowStep - 18);
       }
-      const star = r.provenance === 'placeholder' ? ' *' : '';
-      s.label(r.label.replace(/ \(.*\)/, '') + star, cols[0], y, { size: 18, colour: CSS.ink });
-      s.label(r.violationRate.toFixed(3), cols[1], y, { size: 18, colour: CSS.ink, align: 'right' });
-      s.label('$' + Math.round(r.netCostUsd ?? 0), cols[2], y, { size: 18, colour: CSS.ink, align: 'right' });
+      const ink = r.picked ? CSS.ok : CSS.ink;
+      s.label(r.name, pad, y, { size: TERM.name, colour: ink });
+      if (r.qual) s.label(r.qual, pad, y + 26, { size: TERM.qual, colour: CSS.faint });
+      s.label(r.viol, violX, y, { size: TERM.name, colour: ink, align: 'right' });
+      s.label(r.cost, costX, y, { size: TERM.name, colour: ink, align: 'right' });
     });
 
-    s.label('* labelled stand-in, not the trained agent', 16, H - 46, { size: 14, colour: CSS.faint });
-    s.label(state.picked === null ? 'PRESS  ENTER  TO CHOOSE' : 'DEPLOYED — WALK THE FEEDER',
-      16, H - 18, { size: 17, colour: state.picked === null ? CSS.amber : CSS.ok });
+    s.label(state.picked === null ? 'PRESS  ENTER  TO CHOOSE' : 'DEPLOYED',
+      pad, H - 34, { size: 22, colour: state.picked === null ? CSS.amber : CSS.ok });
     s.done();
+
+    // Exposed so the layout can be asserted rather than re-eyeballed. Every extent here
+    // is measured from the same context that drew it.
+    terminal.layout = {
+      width: W,
+      height: H,
+      violX,
+      costX,
+      headEnd: pad + s.measure('CONTROLLER', TERM.head),
+      violStart: violX - s.measure('VIOLATIONS', TERM.head),
+      costStart: costX - s.measure('NET COST', TERM.head),
+      lastRowBottom: rowTop + (rows.length - 1) * rowStep + 26,
+      footTop: H - 34 - 22,
+      rows: rows.map((r) => ({
+        name: r.name,
+        nameEnd: pad + s.measure(r.name, TERM.name),
+        violStart: violX - s.measure(r.viol, TERM.name),
+        costStart: costX - s.measure(r.cost, TERM.name),
+      })),
+    };
   }
 
   /* ------------------------------------------------ supervisory console */
@@ -749,7 +823,7 @@ export function buildRoom(scene) {
       value: sup.marginPu.toFixed(3), unit: 'pu of band',
       frac: sup.marginPu / sup.marginMax,
       locked: !sup.sandbox || !sup.marginApplies,
-      note: sup.marginApplies ? null : 'only SafeSAC has a safety layer to tighten',
+      note: sup.marginApplies ? null : 'only Shielded RL has a safety layer to tighten',
     });
 
     // What the numbers on the board are, said plainly. A viewer who cannot tell a
@@ -757,7 +831,7 @@ export function buildRoom(scene) {
     s.label(sup.live ? 'COMPUTED LIVE, HERE, AT THESE SETTINGS' : 'REPLAYING THE RECORDED EPISODES',
       R, 322, { size: 16, colour: sup.live ? CSS.amber : CSS.dim });
     s.label(sup.live ? 'the four controllers, re-decided every five minutes'
-      : 'exported from the notebook at 287 vehicles',
+      : 'recorded episodes at 287 vehicles',
       R, 346, { size: 13, colour: CSS.faint });
 
     // The transport strip, given its own ground so the clock reads as an instrument
@@ -828,9 +902,10 @@ export function buildRoom(scene) {
     // Voltages move every step, so the board and consoles key off the step itself
     // plus anything a learner can change between steps.
     const step = `${state.frameIndex}|${state.runLabel}|${state.stationKw.join(',')}`;
-    if (changed('mimic', `${step}|${state.source}|${state.served}|${state.youBus}|${state.inside}`)) drawMimic(state);
+    if (changed('mimic', `${step}|${state.source}|${state.served}|${state.short}|${state.youBus}|${state.inside}`)) drawMimic(state);
     if (changed('trend', `${state.frameIndex}|${state.runLabel}`)) drawTrend(state);
-    if (changed('term', String(state.picked))) drawTerminal(state);
+    // Keyed on the shortlist too: the stiff feeder swaps in a different set of candidates.
+    if (changed('term', `${state.picked}|${(state.candidates ?? []).map((c) => c.label).join(',')}`)) drawTerminal(state);
     if (changed('sup', Object.values(state.sup).join('|'))) drawSupervisor(state);
     if (changed('map', state.dotsKey)) drawMap(state.dots);
     consoles.forEach((c) => {
@@ -864,6 +939,7 @@ export function buildRoom(scene) {
   return {
     redraw, invalidate, logEvent, ackAlarms, updateAlarms, alarmsPending, setFlash, drawSoe, drawMap,
     inside, spawn, consoles, desk: DESK, terminal, supervisor,
+    terminalLayout: () => terminal.layout,
     // Every board, so the checks can assert where they hang. Two of the complaints this
     // room has attracted were sight-line complaints — the mimic's footer behind the
     // console lids, the annunciator's bottom row behind the relay cabinets — and a

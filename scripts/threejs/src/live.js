@@ -2,7 +2,7 @@
  * The day, computed here instead of replayed.
  *
  * The city ships with four recorded episodes — one per controller, exported from the
- * thesis notebook at 287 vehicles. Replaying them is the right thing for the six stages,
+ * source evaluation at 287 vehicles. Replaying them is the right thing for the six stages,
  * because a stage that asks you to compare controllers has to compare the published ones.
  *
  * But a recording cannot answer a question it was not asked. "What happens with a hundred
@@ -17,7 +17,7 @@
  * controllers in here are the four controllers there, and the safety projection is the
  * real one solved against sensitivities measured on the live feeder every step.
  *
- * A whole day costs about 40 ms for a rule and about 190 ms for SafeSAC, which pays for
+ * A whole day costs about 40 ms for a rule and about 190 ms for Shielded RL, which pays for
  * ten power flows a step — one to see, eight to measure the sensitivities, one to
  * dispatch. That is why the caller caches, and why only the controller actually driving
  * is built until something asks for the others.
@@ -29,6 +29,29 @@ import { byId, safeSacWithMargin, MARGIN_PU } from '../../shared/control.js';
 import { priceAt } from '../../shared/price.js';
 
 export const CONTROLLER_IDS = ['uncoordinated', 'droop', 'sac-lag', 'safesac'];
+
+/**
+ * Service, counted two ways.
+ *
+ * `met` is every vehicle at or above the charge it came for, whether it has left or is
+ * still on the cable. `short` is the harder number: vehicles that have already unplugged
+ * and driven off below target. It counts departures only, because a car still charging
+ * has not failed yet — and once it has gone, the outcome is final and cannot improve.
+ *
+ * The two do not sum to the fleet until the last vehicle leaves at 23:55. In between,
+ * the remainder is the cars still plugged in with work left to do.
+ */
+export function tally(fleet) {
+  let met = 0;
+  let short = 0;
+  for (let i = 0; i < fleet.vehicles.length; i++) {
+    const s = fleet.state[i];
+    const target = fleet.vehicles[i].targetSoc - 1e-6;
+    if ((s.departedSoc ?? s.soc) >= target) met++;
+    else if (s.departedSoc !== null) short++;
+  }
+  return { met, short };
+}
 
 /**
  * One controller's whole day, in the frame shape the city's instruments already read.
@@ -67,11 +90,7 @@ export function buildLiveDay(controllerId, { size, dayAt, marginPu = MARGIN_PU }
     for (let k = 0; k < 4; k++) fleet.dispatchStation(k, kw[k]);
     last = kw;
 
-    let met = 0;
-    for (let i = 0; i < fleet.vehicles.length; i++) {
-      const s = fleet.state[i];
-      if ((s.departedSoc ?? s.soc) >= fleet.vehicles[i].targetSoc - 1e-6) met++;
-    }
+    const { met, short } = tally(fleet);
 
     frames.push({
       t: step,
@@ -83,6 +102,7 @@ export function buildLiveDay(controllerId, { size, dayAt, marginPu = MARGIN_PU }
       vmin: solution.vMin,
       vminBus: solution.vMinBus,
       met,
+      short,
       drawKw: kw.reduce((a, b) => a + Math.max(0, -b), 0),
     });
   }
@@ -116,17 +136,15 @@ export function buildLiveDay(controllerId, { size, dayAt, marginPu = MARGIN_PU }
  */
 export function metSeries(frames, size) {
   const fleet = new FleetRun(size);
-  const out = new Int16Array(frames.length);
+  const met = new Int16Array(frames.length);
+  const short = new Int16Array(frames.length);
   for (let step = 0; step < frames.length; step++) {
     fleet.updateConnections(step);
     const kw = frames[step].kw;
     for (let k = 0; k < 4; k++) fleet.dispatchStation(k, kw[k]);
-    let met = 0;
-    for (let i = 0; i < fleet.vehicles.length; i++) {
-      const s = fleet.state[i];
-      if ((s.departedSoc ?? s.soc) >= fleet.vehicles[i].targetSoc - 1e-6) met++;
-    }
-    out[step] = met;
+    const t = tally(fleet);
+    met[step] = t.met;
+    short[step] = t.short;
   }
-  return out;
+  return { met, short };
 }

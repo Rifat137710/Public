@@ -1,5 +1,5 @@
 /**
- * Voltage against bus index — the thesis's Figure 5.2, live.
+ * Voltage against bus index — the reference study's voltage figure, live.
  *
  * The statutory limits are drawn as walls rather than gridlines, because the single
  * most important thing on this chart is that the line must stay between them. The

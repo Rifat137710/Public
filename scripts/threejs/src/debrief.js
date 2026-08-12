@@ -45,7 +45,7 @@ export function findings({ myDots, picked, gridSeen }) {
   if (best) {
     out.push({
       headline: `Your best run held ${(best.violationRate * 100).toFixed(2)}% of bus-steps outside the band and served ${best.driversMet} of 287.`,
-      body: `Droop managed ${(d.violationRate * 100).toFixed(2)}% and ${drivers(d.socMet)} served; SafeSAC ${(s.violationRate * 100).toFixed(2)}% and ${drivers(s.socMet)}. `
+      body: `Droop managed ${(d.violationRate * 100).toFixed(2)}% and ${drivers(d.socMet)} served; Shielded RL ${(s.violationRate * 100).toFixed(2)}% and ${drivers(s.socMet)}. `
         + (best.violationRate <= d.violationRate
           ? 'You beat the standard on safety. Check the second column before you celebrate.'
           : 'Both of them beat you on safety, and one of them beat you on service too.'),
@@ -59,7 +59,7 @@ export function findings({ myDots, picked, gridSeen }) {
 
   out.push({
     headline: `Coordination is worth ${(u.totalLossKwh - s.totalLossKwh).toFixed(0)} kWh a day in heat alone.`,
-    body: `Uncoordinated charging burns ${u.totalLossKwh.toFixed(0)} kWh in the lines across this day; SafeSAC burns ${s.totalLossKwh.toFixed(0)} kWh and still serves ${drivers(s.socMet)} of 287. Losses are resistive, so they scale with the square of current — which is why the same energy delivered less peakily costs the town less to deliver.`,
+    body: `Uncoordinated charging burns ${u.totalLossKwh.toFixed(0)} kWh in the lines across this day; Shielded RL burns ${s.totalLossKwh.toFixed(0)} kWh and still serves ${drivers(s.socMet)} of 287. Losses are resistive, so they scale with the square of current — which is why the same energy delivered less peakily costs the town less to deliver.`,
   });
 
   if (picked !== null) {
