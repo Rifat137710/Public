@@ -141,6 +141,54 @@ await page.waitForTimeout(200);
 t('hotkey t toggles cockpit mode', (await page.evaluate(() => window.__city.cockpit())) === true);
 await page.keyboard.press('t');
 
+/* --------------------------------------------------------------- the sky */
+
+// The city was lit by a single fixed hemisphere light, which made noon and midnight
+// identical and left the feeder end at 19:00 rendering as a wholly black frame — the
+// one moment the whole build is about, arriving as something indistinguishable from a
+// page that failed to load. These check that the sun exists, that it is the solar
+// series and not a second opinion, and that the night never bottoms out again.
+const skyAt = async (frame) => {
+  await page.evaluate((f) => window.__city.setFrame(f), frame);
+  await page.waitForTimeout(120);
+  return page.evaluate(() => window.__city.sky());
+};
+
+const midnight = await skyAt(0);
+const dawn = await skyAt(84);      // 07:00
+const noon = await skyAt(144);     // 12:00
+const dusk = await skyAt(216);     // 18:00
+const evening = await skyAt(228);  // 19:00
+
+t('the sun is up at noon and down at midnight',
+  noon.daylight > 0.95 && midnight.daylight === 0,
+  `noon ${noon.daylight.toFixed(2)}, midnight ${midnight.daylight.toFixed(2)}`);
+
+t('sunrise and sunset are read off the solar series, not invented',
+  Math.abs(dawn.solarHours.rise - 6.083) < 0.1 && Math.abs(dawn.solarHours.set - 18.417) < 0.1,
+  `${dawn.solarHours.rise.toFixed(2)}h to ${dawn.solarHours.set.toFixed(2)}h`);
+
+t('noon and midnight are not the same sky', noon.background !== midnight.background,
+  `${noon.background} vs ${midnight.background}`);
+
+t('dusk is its own sky too, between the other two',
+  dusk.background !== noon.background && dusk.background !== midnight.background,
+  dusk.background);
+
+t('the sun is switched off below the horizon, never dimmed onto the town from beneath',
+  midnight.sunIntensity === 0 && evening.sunIntensity === 0 && noon.sunIntensity > 1,
+  `midnight ${midnight.sunIntensity}, 19:00 ${evening.sunIntensity}, noon ${noon.sunIntensity.toFixed(1)}`);
+
+// The floor is the fix for the black frame. If someone ever tunes it to zero the
+// feeder end goes back to being invisible, so it is asserted rather than trusted.
+t('night keeps a moonlight floor, so a browned-out street is still a street',
+  evening.hemiIntensity >= 3.0,
+  `hemisphere ${evening.hemiIntensity.toFixed(2)} at 19:00`);
+
+t('fog thins in daylight so the feeder is visible down its length',
+  noon.fogDensity < midnight.fogDensity,
+  `${noon.fogDensity.toFixed(5)} vs ${midnight.fogDensity.toFixed(5)}`);
+
 t('no console errors throughout', errors.length === 0, errors.slice(0, 3).join(' | '));
 
 await browser.close();

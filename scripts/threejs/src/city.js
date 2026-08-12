@@ -527,14 +527,28 @@ export function buildCity(scene) {
 
   /* -------------------------------------------------- voltage -> light */
 
-  function applyVoltages(stationKw, manual) {
+  /**
+   * `daylight` runs 0 at night to 1 at noon and only ever attenuates what is drawn — it
+   * never touches `lamp.flux`, which is the physics. Streetlights and lit windows are
+   * not visible against a midday sky, and leaving them at full emissive put a field of
+   * glowing dots over a sunlit town and pushed the bloom pass into a white haze.
+   */
+  function applyVoltages(stationKw, manual, daylight = 0) {
+    const lampSeen = 1 - 0.55 * daylight;
+    const winSeen = 1 - 0.85 * daylight;
+
     for (const lamp of lamps) {
       const v = vMag[lamp.bus];
       const b = lampBrightness(v);
       const health = clamp01((v - 0.84) / 0.11);
       lamp.flux = 0.1 + 0.9 * b;
       lamp.colour.copy(v >= BAND_LO ? WARM : scratch.copy(SICK).lerp(WARM, health));
-      bulbs.setColorAt(lamp.index, scratch.copy(lamp.colour).multiplyScalar(0.35 + 2.6 * lamp.flux));
+      // The bulb keeps a floor of its own colour even when it is putting out nothing.
+      // A dead sodium lamp is still a visible object on a pole, and a learner standing
+      // under one at 0.86 pu needs to see that it is a lamp that has failed rather than
+      // an empty frame. The light it casts is unaffected: that stays at flux.
+      bulbs.setColorAt(lamp.index,
+        scratch.copy(lamp.colour).multiplyScalar((0.35 + 2.6 * lamp.flux) * lampSeen));
     }
     bulbs.instanceColor.needsUpdate = true;
 
@@ -543,7 +557,8 @@ export function buildCity(scene) {
       const b = lampBrightness(v);
       const health = clamp01((v - 0.84) / 0.11);
       // Mixed up from a dark base, so a sagging bus reads as dim rather than lurid.
-      scratch.copy(v >= BAND_LO ? WARM : SICK.clone().lerp(WARM, health)).multiplyScalar(0.16 + 1.5 * b);
+      scratch.copy(v >= BAND_LO ? WARM : SICK.clone().lerp(WARM, health))
+        .multiplyScalar((0.16 + 1.5 * b) * winSeen);
       winMesh.setColorAt(i, scratch);
     });
     winMesh.instanceColor.needsUpdate = true;

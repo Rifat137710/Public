@@ -20,6 +20,7 @@ import {
 } from './core.js';
 import { buildCity } from './city.js';
 import { buildRoom } from './room.js';
+import { buildSky } from './sky.js';
 import { STAGES, Progress } from './mission.js';
 import { FleetRun, fleetCheck } from '../../shared/fleet.js';
 import { OBJECTIVES, findings, coverage } from './debrief.js';
@@ -72,7 +73,7 @@ function resize() {
 const city = buildCity(scene);
 const room = buildRoom(scene);
 
-scene.add(new THREE.HemisphereLight(0x33455c, 0x0b1016, 1.7));
+const sky = buildSky(scene);
 
 // A small pool of real lights follows the camera. Thirty-three shadow-casting point
 // lights is not something a browser will do; seven that move is indistinguishable.
@@ -91,17 +92,24 @@ const pool = Array.from({ length: POOL }, (_, i) => {
   return l;
 });
 
+/** How far up the sun is, 0 to 1. Kept here so the lamp pool can fade against it. */
+let daylight = 0;
+
 function assignPool() {
   const near = city.lamps
     .map((l) => ({ l, d: l.pos.distanceToSquared(camera.position) }))
     .sort((a, b) => a.d - b.d)
     .slice(0, POOL);
+  // Street lighting stops mattering once the sun is up — a 1550-candela point light at
+  // noon only washes out the face it lands on. It is dimmed rather than switched, so
+  // dusk brings the lamps up gradually instead of snapping them on.
+  const throw_ = 1 - 0.8 * daylight;
   pool.forEach((light, i) => {
     const hit = i < poolLimit ? near[i] : null;
     if (!hit) { light.intensity = 0; return; }
     light.position.copy(hit.l.pos);
     light.color.copy(hit.l.colour);
-    light.intensity = 1550 * hit.l.flux;
+    light.intensity = 1550 * hit.l.flux * throw_;
   });
 }
 
@@ -268,7 +276,11 @@ function endRunIfComplete() {
 function resolveNow() {
   const kw = commands();
   solution = solveAt(dayFrame(), kw);
-  city.applyVoltages(kw, manual);
+  // The sky is a function of the clock, so it moves on exactly the same beat as the
+  // solve. Cheap — a handful of colour lerps — and it keeps the light and the numbers
+  // from ever disagreeing about what time it is.
+  daylight = sky.apply(frameIndex).daylight;
+  city.applyVoltages(kw, manual, daylight);
   redrawInstruments();
   feederTableDue = true;
 }
@@ -1414,6 +1426,15 @@ window.__city = {
   setCockpit,
   cockpit: () => cockpit,
   sup: supState,
+  sky: () => ({
+    daylight,
+    elev: sky.apply(frameIndex).elev,
+    sunIntensity: sky.sun.intensity,
+    hemiIntensity: sky.hemi.intensity,
+    background: scene.background.getHexString(),
+    fogDensity: scene.fog.density,
+    solarHours: sky.solarHours,
+  }),
   ackAlarms: () => {
     const n = room.ackAlarms();
     if (n) { progress.observeAck(n); updateHud(); checkObjectives(); }
