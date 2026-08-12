@@ -277,6 +277,46 @@ select.ctl {
   cursor: pointer;
 }
 
+/* The safety-margin control. It stacks rather than joining the button row above it,
+   because it is the one scenario control that needs a sentence beside it: the number has
+   an optimum rather than a direction, and a bare slider reads as "further right is
+   safer", which is exactly the belief it exists to break. */
+.margin-row {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.35rem;
+  margin-top: 0.75rem;
+}
+
+.margin-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.margin-label b {
+  color: var(--accent);
+  font-variant-numeric: tabular-nums;
+}
+
+.margin-row input[type='range'] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+/* Same reasoning as the leaderboard's note: prose inside a mono, upper-case instrument
+   panel has to set its own family and casing rather than inherit the meter-label one. */
+.margin-row .source-note {
+  margin: 0.1rem 0 0;
+  font-family: var(--sans, ui-sans-serif, system-ui, sans-serif);
+  font-size: 0.74rem;
+  line-height: 1.55;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--ink-3);
+}
+
 .provenance {
   font-family: var(--mono);
   font-size: 0.66rem;

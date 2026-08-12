@@ -118,6 +118,7 @@
   }
   .try:hover { filter: brightness(1.08); }
   .try:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .try:disabled { filter: none; opacity: .55; cursor: progress; }
 
   table { border-collapse: collapse; width: 100%; font-size: 14px; }
   th, td { text-align: right; padding: 7px 9px; border-bottom: 1px solid var(--line); }
@@ -221,6 +222,18 @@
   whenever you move a slider.</p>
   <div class="scroll"><table id="board"></table></div>
   <p class="note" id="boardNote"></p>
+</section>
+
+<section class="panel">
+  <h2>How hard should the safety layer try?</h2>
+  <p class="small muted">SafeSAC aims a little inside the legal floor rather than exactly at it,
+  so that a step it did not see coming does not put a street over the line. That gap is a number
+  somebody has to choose. Here is what choosing it costs, on the town you have built above.</p>
+  <button class="try" id="marginRun">Run seven versions of the day</button>
+  <div id="marginOut" style="margin-top:16px" hidden>
+    <div class="scroll"><table id="marginTable"></table></div>
+    <p class="note" id="marginNote"></p>
+  </div>
 </section>
 
 <section id="lessons"></section>

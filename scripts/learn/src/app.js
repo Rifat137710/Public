@@ -10,7 +10,10 @@
 
 import { WORLD, N_BUS } from '../../shared/grid.js';
 import { check } from '../../shared/grid.js';
-import { CONTROLLERS, byId, FLEET_SIZE, STEPS, dayFor, allFor, priceTier, priceAt } from './sim.js';
+import {
+  CONTROLLERS, byId, FLEET_SIZE, STEPS, dayFor, allFor, priceTier, priceAt,
+  marginSweep, MARGIN_PU,
+} from './sim.js';
 import { RESULTS, EVALUATION } from '../../../src/content/thesis.ts';
 
 const $ = (id) => document.getElementById(id);
@@ -458,6 +461,77 @@ function buildLessons() {
   });
 }
 
+/* ================================================================== */
+/*  What the safety margin buys                                       */
+/* ================================================================== */
+
+/**
+ * The one control in the whole model that has an optimum rather than a direction.
+ *
+ * Everything else on this page trades along a line: more cars is worse, a thicker wire
+ * is better. The margin does not. Winding it past the value the thesis chose costs
+ * drivers *and* lets violations back in, because a safety layer whose own tightened band
+ * is already breached stops steering and starts merely refusing. At the far end it is
+ * the stage-six trap rebuilt from the inside — a spotless-looking violation rate,
+ * achieved by serving nobody.
+ *
+ * It is a button rather than a slider because seven full days is a second of arithmetic,
+ * and because a reader who has pressed for this is a reader who wanted it.
+ */
+function buildMargin() {
+  const btn = $('marginRun');
+  btn.addEventListener('click', () => {
+    btn.disabled = true;
+    btn.textContent = 'Running seven days…';
+    // Yielded to the browser so the button's own disabled state paints before the
+    // arithmetic locks the thread. Without it the label never changes and a reader on a
+    // slow machine believes the click was dropped.
+    setTimeout(() => {
+      drawMargin(marginSweep(state.size, state.grid));
+      btn.disabled = false;
+      btn.textContent = 'Run it again on this town';
+    }, 16);
+  });
+}
+
+function drawMargin(rows) {
+  const bestServed = Math.max(...rows.map((r) => r.driversMet));
+  const bestViol = Math.min(...rows.map((r) => r.violationRate));
+
+  $('marginTable').innerHTML = `<thead><tr>
+      <th>Safety margin</th><th>Drivers charged</th><th>Streets out of range</th><th>Lowest voltage</th><th></th>
+    </tr></thead><tbody>` +
+    rows.map((r) => {
+      const note = r.marginPu === MARGIN_PU ? 'what the thesis chose'
+        : r.driversMet === 0 ? 'serves nobody, all day'
+        : r.driversMet === bestServed ? 'most drivers'
+        : r.violationRate === bestViol ? 'fewest violations' : '';
+      return `<tr class="${r.marginPu === MARGIN_PU ? 'win' : ''}">
+        <td class="num-cell">${r.marginPu.toFixed(3)} pu</td>
+        <td class="num-cell">${r.driversMet === 0 ? '<b>0</b>' : r.driversMet} / ${r.fleetSize}</td>
+        <td class="num-cell">${(r.violationRate * 100).toFixed(2)}%</td>
+        <td class="num-cell">${r.vMinPu.toFixed(3)}</td>
+        <td class="small muted" style="text-align:left">${note}</td>
+      </tr>`;
+    }).join('') + '</tbody>';
+
+  const turn = rows.find((r) => r.marginPu === MARGIN_PU);
+  const worst = rows[rows.length - 1];
+  $('marginNote').innerHTML =
+    `Read the second and third columns together, down the table. Up to
+     ${MARGIN_PU.toFixed(3)} pu, buying safety works: violations fall and the cost is a few
+     drivers. Past it both columns get worse at once — tightening the band the layer aims
+     for does not make the grid safer, it makes the layer give up sooner. At
+     ${worst.marginPu.toFixed(3)} pu it charges
+     ${worst.driversMet === 0 ? '<b>nobody at all</b>' : `only ${worst.driversMet}`} and is
+     <em>still</em> outside the range ${(worst.violationRate * 100).toFixed(2)}% of the time,
+     against ${(turn.violationRate * 100).toFixed(2)}% at the setting that serves
+     ${turn.driversMet}. A controller can look flawless on a safety report purely by
+     refusing to operate, which is the whole of the last lesson on this page.`;
+
+  $('marginOut').hidden = false;
+}
+
 function buildThesis() {
   $('thesis').innerHTML = `<thead><tr>
       <th>Method</th><th>Out of range</th><th>Drivers charged</th><th>Into batteries</th><th>Net cost</th><th></th>
@@ -499,6 +573,7 @@ function play() {
 function init() {
   buildControllerButtons();
   buildLessons();
+  buildMargin();
   buildThesis();
 
   $('cars').addEventListener('input', () => {
@@ -527,4 +602,4 @@ function init() {
 init();
 
 // A small surface for the headless check that drives this page.
-window.__learn = { state, sync, stop, dayFor, allFor, check, LESSONS };
+window.__learn = { state, sync, stop, dayFor, allFor, check, LESSONS, marginSweep };

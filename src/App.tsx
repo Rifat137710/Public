@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LiveSim, runEpisode } from './sim/live.js';
 import { NOMINAL_LOAD_KW, STATION_BUSES, type GridKind } from './sim/network.js';
-import { V_LOWER } from './sim/projection.js';
+import { DEFAULT_MARGIN_PU, V_LOWER } from './sim/projection.js';
 import { STEPS_PER_DAY, clockOf, priceTier } from './sim/profiles.js';
 import {
   droop,
@@ -83,6 +83,17 @@ export default function App() {
 
   const [grid, setGrid] = useState<GridKind>('weak');
   const [loadScale, setLoadScale] = useState(0.5);
+  /**
+   * How far inside the statutory band the safety layer aims, in per unit.
+   *
+   * This is the one number in the whole system that lets a learner buy safety and watch
+   * the price arrive. It has an optimum rather than a direction — past it you pay in
+   * service *and* get worse safety, because once the tightened band is already breached
+   * the projection falls into its relaxed branch and stops steering. Wound far enough up
+   * it reproduces the stage-6 trap from the inside: a controller with an excellent
+   * violation rate that serves nobody.
+   */
+  const [marginPu, setMarginPu] = useState(DEFAULT_MARGIN_PU);
   const [projection, setProjection] = useState(false);
   const [commands, setCommands] = useState<number[]>([0, 0, 0, 0]);
   const [speed, setSpeed] = useState<number>(16);
@@ -100,18 +111,18 @@ export default function App() {
   );
 
   const simRef = useRef<LiveSim | null>(null);
-  if (simRef.current === null) simRef.current = new LiveSim({ grid, loadScale });
+  if (simRef.current === null) simRef.current = new LiveSim({ grid, loadScale, marginPu });
   const sim = simRef.current;
 
   const commandsRef = useRef(commands);
   commandsRef.current = commands;
 
   const rebuild = useCallback(() => {
-    simRef.current = new LiveSim({ grid, loadScale });
+    simRef.current = new LiveSim({ grid, loadScale, marginPu });
     setCommands([0, 0, 0, 0]);
     setPlaying(false);
     forceRender((n) => n + 1);
-  }, [grid, loadScale]);
+  }, [grid, loadScale, marginPu]);
 
   useEffect(() => {
     rebuild();
@@ -234,7 +245,7 @@ export default function App() {
 
   const runReference = useCallback(
     (controller: Controller) => {
-      const result = runEpisode(controller, { grid, loadScale });
+      const result = runEpisode(controller, { grid, loadScale, marginPu });
       setDots((prior) => [
         ...prior.filter((d) => d.id !== controller.id),
         {
@@ -248,7 +259,7 @@ export default function App() {
         },
       ]);
     },
-    [grid, loadScale],
+    [grid, loadScale, marginPu],
   );
 
   /**
@@ -599,6 +610,30 @@ export default function App() {
                       </select>
                     )}
                   </div>
+                  {unlocked.has('margin') && (
+                    <div className="row margin-row">
+                      <label className="margin-label" htmlFor="marginPu">
+                        Safety margin
+                        <b>{marginPu.toFixed(3)} pu</b>
+                      </label>
+                      <input
+                        id="marginPu"
+                        type="range"
+                        min={0}
+                        max={0.045}
+                        step={0.005}
+                        value={marginPu}
+                        onChange={(e) => setMarginPu(Number(e.target.value))}
+                      />
+                      <p className="source-note">
+                        How far inside the {V_LOWER.toFixed(2)} floor the safety layer aims. It is not a
+                        dial that runs from reckless to safe: the thesis picked {DEFAULT_MARGIN_PU.toFixed(3)},
+                        and winding it further up costs drivers <em>and</em> lets violations back in, because
+                        a layer whose own tightened band is already breached stops steering. Take it to
+                        0.045 and you have rebuilt the stage-6 trap yourself.
+                      </p>
+                    </div>
+                  )}
                 </section>
               )}
             </>

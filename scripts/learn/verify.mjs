@@ -101,6 +101,33 @@ const moved = await page.evaluate(() => window.__learn.state.step);
 ok('play advances the day', moved > 228, `step ${moved}`);
 await page.click('#playBtn');
 
+/* ------------------------------------------------------- the safety margin */
+
+// The claim the margin panel makes is that safety has an optimum rather than a
+// direction. It is the one counter-intuitive result on the page, so it is asserted
+// rather than trusted: if a change to the projection ever made the curve monotonic, the
+// panel would be quietly telling readers something untrue.
+ok('the margin panel starts hidden', await page.isHidden('#marginOut'));
+await page.click('#marginRun');
+await page.waitForFunction(() => !document.getElementById('marginOut').hidden, { timeout: 20000 });
+const sweep = await page.evaluate(() => window.__learn.marginSweep(200, 'weak'));
+
+const at = (m) => sweep.find((r) => Math.abs(r.marginPu - m) < 1e-9);
+ok('the sweep covers zero through 0.045', at(0) && at(0.045), `${sweep.length} rows`);
+ok('no tightening at all is the least safe setting',
+  at(0).violationRate > at(0.010).violationRate,
+  `${(at(0).violationRate * 100).toFixed(2)}% vs ${(at(0.010).violationRate * 100).toFixed(2)}%`);
+ok('over-tightening costs drivers',
+  at(0.045).driversMet < at(0.010).driversMet,
+  `${at(0.045).driversMet} vs ${at(0.010).driversMet} served`);
+ok('and does NOT buy safety — the curve turns, which is the whole lesson',
+  at(0.045).violationRate > at(0.010).violationRate,
+  `${(at(0.045).violationRate * 100).toFixed(2)}% at 0.045 against ${(at(0.010).violationRate * 100).toFixed(2)}% at 0.010`);
+ok('the thesis’s own value is the best of the swept set on violations',
+  sweep.every((r) => r.violationRate >= at(0.010).violationRate - 1e-12),
+  `best ${(Math.min(...sweep.map((r) => r.violationRate)) * 100).toFixed(2)}%`);
+await page.screenshot({ path: `${SHOTS}/margin.png` });
+
 await page.screenshot({ path: `${SHOTS}/full.png`, fullPage: true });
 await page.setViewportSize({ width: 420, height: 900 });
 await page.waitForTimeout(250);

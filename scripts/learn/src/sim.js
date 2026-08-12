@@ -12,9 +12,9 @@
 
 import { WORLD, setGrid, solveAt, sensitivitiesAt, vMag, N_NODE } from '../../shared/grid.js';
 import { FleetRun, FLEET_SIZE } from '../../shared/fleet.js';
-import { CONTROLLERS, byId } from '../../shared/control.js';
+import { CONTROLLERS, byId, safeSacWithMargin, MARGIN_PU } from '../../shared/control.js';
 
-export { CONTROLLERS, byId, FLEET_SIZE, WORLD };
+export { CONTROLLERS, byId, FLEET_SIZE, WORLD, MARGIN_PU };
 
 export const STEPS = WORLD.day.length;
 
@@ -29,6 +29,45 @@ export function priceAt(step) {
 export function priceTier(step) {
   const p = priceAt(step);
   return p >= 0.30 ? 'peak' : p >= 0.15 ? 'day' : 'cheap';
+}
+
+/**
+ * The margins the sweep reports, in per unit.
+ *
+ * Chosen to straddle the turn rather than to sample evenly: nothing interesting happens
+ * between 0.030 and 0.045 except the end state, and the two steps either side of the
+ * thesis's 0.010 are where the curve stops being monotonic and starts costing on both
+ * axes at once. The last entry is there because it is the one a reader remembers.
+ */
+export const MARGINS = [0, 0.005, 0.010, 0.015, 0.020, 0.030, 0.045];
+
+const marginCache = new Map();
+
+/**
+ * SafeSAC's whole day at each margin, for a given town.
+ *
+ * Computed on demand and never as part of `sync`. The scoreboard already runs four full
+ * days on every slider move; adding seven more to the same path turned dragging the
+ * fleet size into a slideshow, and this is a thing a reader chooses to look at rather
+ * than something that has to be true before the page can be drawn.
+ */
+export function marginSweep(size = FLEET_SIZE, grid = 'weak') {
+  const key = `${size}|${grid}`;
+  const hit = marginCache.get(key);
+  if (hit) return hit;
+
+  const rows = MARGINS.map((marginPu) => {
+    const t = runDay(safeSacWithMargin(marginPu), { size, grid }).totals;
+    return {
+      marginPu,
+      driversMet: t.driversMet,
+      fleetSize: t.fleetSize,
+      violationRate: t.violationRate,
+      vMinPu: t.vMinPu,
+    };
+  });
+  marginCache.set(key, rows);
+  return rows;
 }
 
 export function runDay(controller, { size = FLEET_SIZE, grid = 'weak' } = {}) {

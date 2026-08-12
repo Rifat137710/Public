@@ -101,18 +101,36 @@ export const plainRl = {
  * than as SAC-Lag's request with a filter bolted on. An agent that trains against a
  * constraint stops spending its capacity avoiding the constraint.
  */
-export const safeSac = {
-  id: 'safesac',
-  label: 'SafeSAC',
-  blurb: 'Asks for everything, and a safety layer trims it to the most the grid can take.',
-  learned: true,
-  projection: true,
-  command: (ctx) => {
-    const request = ctx.caps.map((cap) => cap.maxDrawKw);
-    const limits = ctx.caps.map((cap) => ({ lo: cap.maxDrawKw, hi: cap.maxInjectKw }));
-    return projectCommand(ctx.sens, request, limits).safeKw;
-  },
-};
+/**
+ * SafeSAC with the band tightening left as a parameter.
+ *
+ * A factory rather than a constant because the margin is the one number worth sweeping:
+ * it is where a learner discovers that safety has an optimum rather than a direction.
+ * `safeSac` below is this, at the value the thesis used, so the controller the lesson
+ * runs and the controller the sweep runs are the same object built twice — there is no
+ * second implementation to fall out of step.
+ *
+ * `marginPu` defaults rather than being required because `MARGIN_PU` is declared further
+ * down the module, and a default is read at call time where an argument would be read at
+ * definition time and find it still in its temporal dead zone.
+ */
+export function safeSacWithMargin(marginPu) {
+  return {
+    id: marginPu === undefined ? 'safesac' : `safesac@${marginPu}`,
+    label: 'SafeSAC',
+    blurb: 'Asks for everything, and a safety layer trims it to the most the grid can take.',
+    learned: true,
+    projection: true,
+    marginPu,
+    command: (ctx) => {
+      const request = ctx.caps.map((cap) => cap.maxDrawKw);
+      const limits = ctx.caps.map((cap) => ({ lo: cap.maxDrawKw, hi: cap.maxInjectKw }));
+      return projectCommand(ctx.sens, request, limits, marginPu ?? MARGIN_PU).safeKw;
+    },
+  };
+}
+
+export const safeSac = safeSacWithMargin();
 
 /** Everything above, in the order the lesson introduces it. */
 
