@@ -16,7 +16,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 import {
   WORLD, N_BUS, BAND_LO, BAND_HI, EYE, ROOM, SUB, ROAD_W, place, solids, maxX, check,
-  solveAt, setGrid, vMag, branchLossKw, STATION_SET, PALETTE,
+  solveAt, setGrid, vMag, branchLossKw, STATION_SET, PALETTE, useAnisotropy, maxAnisotropy,
 } from './core.js';
 import { buildCity } from './city.js';
 import { buildRoom } from './room.js';
@@ -41,6 +41,7 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+useAnisotropy(renderer.capabilities.getMaxAnisotropy());
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x070a0e);
@@ -57,11 +58,19 @@ composer.addPass(bloom);
 composer.addPass(new OutputPass());
 
 let renderScale = 1;
+// Capped rather than free, because the cost of a device pixel is paid every frame and a
+// 3× phone would spend it all on fragments. Pinning full quality raises the cap to 2:
+// that setting exists for capturing video, where a soft frame is the whole loss.
+let pixelCap = 1.5;
+// Declared up here, not with the rest of the quality ladder, because the first thing
+// that flags it is the live-day cache far above that block.
+let busyTick = false;
+function markBusy() { busyTick = true; }
 function resize() {
   const css = canvas.clientWidth || 1280;
   const w = Math.round(css * renderScale);
   const h = Math.round((w * 9) / 16);
-  renderer.setPixelRatio(Math.min(devicePixelRatio, renderScale < 1 ? 1 : 1.5));
+  renderer.setPixelRatio(Math.min(devicePixelRatio, renderScale < 1 ? 1 : pixelCap));
   renderer.setSize(w, h, false);
   canvas.style.width = '100%';
   camera.aspect = 16 / 9;
@@ -164,6 +173,9 @@ function liveRun(id) {
   const key = `${id}|${fleetSize}|${gridKind}|${loadScale}|${marginPu}`;
   let hit = liveCache.get(key);
   if (!hit) {
+    // A cache miss is a whole day of power flow on the main thread. Tell the quality
+    // ladder to discount this second, or using the sandbox costs you resolution.
+    markBusy();
     hit = buildLiveDay(id, { size: fleetSize, dayAt: dayFrameAt, marginPu });
     if (liveCache.size > 24) liveCache.clear();
     liveCache.set(key, hit);
@@ -1446,9 +1458,24 @@ carsInput.onchange = () => setFleetSize(Number(carsInput.value));
 marginInput.oninput = () => { el('marginRead').textContent = `${Number(marginInput.value).toFixed(3)} pu`; };
 marginInput.onchange = () => setMargin(Number(marginInput.value));
 
+/**
+ * The escape hatch, offered on the page as well as at the supervisory desk.
+ *
+ * The gate is right for a learner: stiffening the feeder during stage 2 removes the
+ * problem the other five stages are about. It is wrong for the person presenting the
+ * thing, who needs to reach a setting in one click and cannot walk the arc first every
+ * time. It does not mark any stage as taught — the arc is still there and still unwalked,
+ * the sandbox is just no longer behind it.
+ */
+el('unlock').onclick = () => {
+  unlockGrid();
+  room.logEvent(frame().clock, 'sandbox opened without the six stages', 'info');
+};
+
 function syncFleetControls() {
   carsInput.disabled = !gridUnlocked;
   marginInput.disabled = !gridUnlocked;
+  el('unlock').hidden = gridUnlocked;
   if (document.activeElement !== carsInput) carsInput.value = String(fleetSize);
   if (document.activeElement !== marginInput) marginInput.value = String(marginPu);
   el('carsRead').textContent = `${fleetSize} cars`;
@@ -1508,9 +1535,56 @@ function renderTotals() {
 /*  Quality ladder                                                    */
 /* ================================================================== */
 
+/**
+ * The ladder drops quality when frames get expensive. Two things were wrong with it.
+ *
+ * It had no way back and no way out. The comment justifying that — an oscillating
+ * display is worse than a steady lower one — is right about *automatic* climbing and
+ * wrong about the learner: someone whose machine hitched once during load was left on
+ * reduced resolution for the rest of the session with no control to say otherwise, and
+ * nothing on screen explaining what had happened. Hence PICTURE: `full` pins tier 3 and
+ * takes the pixel cap to 2, `auto` hands it back to the ladder.
+ *
+ * And it counted stalls it caused itself. Re-computing a day at new sandbox settings
+ * blocks the main thread for up to 190 ms, so the second in which you move the fleet
+ * slider reads as low frame rate and costs you a tier — the ladder punishing you for
+ * using the controls. A second containing a known blocking recompute is not evidence
+ * about the renderer, so it is not counted.
+ */
 const TIER_NAMES = ['reduced resolution', 'no bloom', 'no shadows', 'full quality'];
 let tier = 3;
 let autoQuality = true;
+let slowSeconds = 0;
+let fastSeconds = 0;
+// Bounded so the worst case is two round trips rather than a display that breathes.
+let climbsLeft = 2;
+
+const qualitySeg = el('qualitySeg');
+[['Auto', 'auto'], ['Full quality', 'full']].forEach(([label, mode]) => {
+  const b = document.createElement('button');
+  b.textContent = label;
+  b.dataset.quality = mode;
+  b.onclick = () => setQuality(mode);
+  qualitySeg.appendChild(b);
+});
+
+function setQuality(mode) {
+  autoQuality = mode === 'auto';
+  pixelCap = autoQuality ? 1.5 : 2;
+  slowSeconds = 0; fastSeconds = 0;
+  if (autoQuality) climbsLeft = 2;
+  else setTier(3);
+  resize();
+  syncQualityButtons();
+}
+
+function syncQualityButtons() {
+  [...qualitySeg.children].forEach((c) =>
+    c.setAttribute('aria-pressed', String((c.dataset.quality === 'auto') === autoQuality)));
+  el('qualityNote').textContent = autoQuality
+    ? 'Drops detail if frames get expensive. Pin it before you record.'
+    : 'Held at full resolution whatever the frame rate costs.';
+}
 
 function setTier(next) {
   next = Math.max(0, Math.min(3, next));
@@ -1530,7 +1604,7 @@ function setTier(next) {
 /*  Loop                                                              */
 /* ================================================================== */
 
-let lastT = 0, lastTick = 0, frames = 0, fpsT = 0, slowSeconds = 0, flashT = 0;
+let lastT = 0, lastTick = 0, frames = 0, fpsT = 0, flashT = 0;
 
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -1610,12 +1684,24 @@ function loop(t) {
   frames++;
   if (t - fpsT > 1000) {
     const fps = frames;
-    el('fps').textContent = fps + ' fps · ' + TIER_NAMES[tier];
+    el('fps').textContent = `${fps} fps · ${TIER_NAMES[tier]}${autoQuality ? '' : ' · pinned'}`;
     frames = 0; fpsT = t;
-    // Two slow seconds in a row drops a tier. It never climbs back on its own: a
-    // display that oscillates between quality levels is worse than a lower one.
-    if (autoQuality && t > 4000 && fps < 24) { if (++slowSeconds >= 2) { setTier(tier - 1); slowSeconds = 0; } }
-    else slowSeconds = 0;
+    // A second that contained a blocking recompute says nothing about the renderer, so
+    // it is thrown away rather than held against it. Dropping takes two slow seconds;
+    // climbing back takes four fast ones and is allowed only twice, so the display
+    // recovers from a hitch without ever settling into a breathing cycle.
+    if (autoQuality && t > 4000 && !busyTick) {
+      if (fps < 24) {
+        fastSeconds = 0;
+        if (++slowSeconds >= 2) { setTier(tier - 1); slowSeconds = 0; }
+      } else {
+        slowSeconds = 0;
+        if (fps > 52 && tier < 3 && climbsLeft > 0 && ++fastSeconds >= 4) {
+          climbsLeft--; setTier(tier + 1); fastSeconds = 0;
+        }
+      }
+    }
+    busyTick = false;
   }
 }
 
@@ -1633,6 +1719,7 @@ syncGridButtons();
 syncSpeedButtons();
 syncLoadButtons();
 syncFleetControls();
+syncQualityButtons();
 renderTotals();
 renderDotList();
 renderDebrief();
@@ -1681,7 +1768,11 @@ window.__city = {
   dismissCard,
   state: () => ({ runIndex, frameIndex, manual: [...manual], inside: insideRoom(), picked: progress.picked }),
   objectives: () => progress.status(liveState()),
-  lockQuality() { autoQuality = false; setTier(3); },
+  lockQuality: () => setQuality('full'),
+  setQuality,
+  setTier,
+  quality: () => ({ tier, name: TIER_NAMES[tier], auto: autoQuality, renderScale, pixelCap,
+    anisotropy: maxAnisotropy, drawing: [renderer.domElement.width, renderer.domElement.height] }),
   setPoolSize(n) { poolLimit = n; },
   /** Where every board hangs and how tall it is, so sight lines can be asserted. */
   boards: () => Object.fromEntries(Object.entries(room.screens).map(([k, s]) => [k, {

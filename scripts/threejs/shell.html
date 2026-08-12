@@ -396,6 +396,22 @@
   #fleetNote { font-size: .7rem; color: var(--faint); margin: .25rem 0 0; max-width: 20rem; }
   #cars, #margin { width: 13rem; accent-color: var(--amber); }
   #cars:disabled, #margin:disabled { opacity: .38; }
+  #qualityNote { font-size: .7rem; color: var(--faint); margin: .25rem 0 0; max-width: 17rem; }
+  /* Same cascade trap as .act: an explicit display beats the UA [hidden] rule. */
+  #unlock[hidden] { display: none; }
+  #unlock {
+    align-self: flex-start;
+    margin-top: .45rem;
+    background: none;
+    border: 1px dashed var(--line);
+    border-radius: 5px;
+    color: var(--faint);
+    font: inherit;
+    font-size: .7rem;
+    padding: .3rem .6rem;
+    cursor: pointer;
+  }
+  #unlock:hover { border-color: var(--amber); color: var(--amber); }
   .bar .readout {
     font-family: var(--mono);
     font-size: .72rem;
@@ -501,6 +517,11 @@
       the difference between a healthy street and a browned-out one falls under the ambient and
       stops being visible. The sky keeps a moonlit floor so a dark street is still a street; the
       lamps themselves stay exactly as dark as the physics says.</p>
+    <p><b>Recording this?</b> Set <em>Picture</em> to <b>Full quality</b> first. Left on
+      <em>Auto</em> the page drops resolution to protect the frame rate, which is the right
+      trade while you are exploring and the wrong one on a capture — soft type on a board you
+      are pointing at costs more than a few dropped frames. And if you need the sandbox
+      without walking the six stages, the escape is under <em>Electric cars in town</em>.</p>
   </header>
 
   <div class="stage">
@@ -577,6 +598,12 @@
       <input id="margin" type="range" min="0" max="0.045" step="0.005" value="0.01" />
       <span class="readout" id="marginRead">0.010 pu</span>
       <p id="fleetNote"></p>
+      <button id="unlock" hidden>Demonstrating? Open the sandbox now</button>
+    </div>
+    <div class="group">
+      <label id="lblQuality">Picture</label>
+      <div class="seg" role="group" aria-labelledby="lblQuality" id="qualitySeg"></div>
+      <p id="qualityNote"></p>
     </div>
     <div class="group grow">
       <label for="scrub">Time of day</label>

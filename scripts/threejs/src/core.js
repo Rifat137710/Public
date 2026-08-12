@@ -126,8 +126,21 @@ export const mat = {
 export function screenMaterial(canvas) {
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
+  tex.anisotropy = maxAnisotropy;
   return new THREE.MeshBasicMaterial({ map: tex, toneMapped: false });
+}
+
+/**
+ * Board text is read from across the room, at an angle — precisely the case trilinear
+ * filtering handles worst, because the mip it picks is sized for the steep axis and the
+ * shallow one goes with it. A guessed anisotropy of 4 left the mimic's small type soft
+ * from the doorway on hardware that would happily have done 16. The renderer knows what
+ * the GPU will actually honour, so ask it instead of guessing. Called once, before any
+ * screen is built; the binding is live, so every texture made after picks it up.
+ */
+export let maxAnisotropy = 4;
+export function useAnisotropy(n) {
+  maxAnisotropy = Math.max(1, Math.floor(n) || 1);
 }
 
 /** The incandescent law, mapped onto the range this feeder actually reaches. */

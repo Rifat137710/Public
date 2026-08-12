@@ -71,6 +71,19 @@ Things that cost real time to find:
 - **Station power is shared across every vehicle plugged in,** not across the six bays
   drawn under the canopy. Dividing by the bays gave each car 139 kW, a full battery in a
   quarter of a second, and a state-of-charge bar that told you nothing.
+- **An adaptive quality ladder counts its own stalls.** Re-computing a day at new
+  sandbox settings blocks the main thread for up to 190 ms, so the second in which you
+  move the fleet slider measures as low frame rate and costs a tier — the ladder
+  punishing you for touching the controls. A second containing a known blocking
+  recompute is discounted rather than held against the renderer.
+- **Anything automatic needs a way to say no.** The ladder dropped on a hitch and had
+  no way back and no control, so one slow moment during load left the whole session on
+  reduced resolution. That is a poor default for a learner and a fatal one for someone
+  recording; hence the PICTURE control, and the pin that takes the pixel cap to 2.
+- **Anisotropy is a capability, not a constant.** Board text is read at an angle from
+  across the room — the worst case for trilinear filtering. A hardcoded 4 left small
+  type soft on hardware that would have done 16 for nothing. Ask
+  `renderer.capabilities.getMaxAnisotropy()`.
 - **A stage must not tick its own objectives.** Stage 2 asks you to hand the stations
   back to the controller; its `setup` used to call `clearManual()` first, which
   completed the objective before the learner arrived.
@@ -162,6 +175,12 @@ Two things about how this is built:
 The switch stays locked until the arc is finished, and every stage resets the town to
 the weak feeder — a learner who stiffens the source during stage 2 has not solved the
 problem the other five stages are about, they have removed it.
+
+That gate is right for a learner and wrong for whoever is presenting the thing, who has
+to reach a setting in one click and cannot walk six stages first every time. So the same
+escape is offered twice — on the supervisory console in the room, and under the fleet
+slider on the page. Neither marks a stage as taught: the arc is still there and still
+unwalked, the sandbox is simply no longer behind it.
 
 ## Getting around without a mouse
 

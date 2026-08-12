@@ -281,6 +281,49 @@ t('noon and midnight are the same night, so nothing but voltage moves the lamps'
 t('the moonlight floor holds, so a browned-out street is still a street',
   evening.hemiIntensity >= 3.0, `hemisphere ${evening.hemiIntensity.toFixed(2)} at 19:00`);
 
+/* --------------------------------------------------------------- picture */
+
+// Reported from a real session: the sliders could not be moved and the type had gone
+// soft. Both were the same class of fault — the page deciding something on the learner's
+// behalf and giving them no way to say otherwise. So the escape from each is asserted.
+const quality = () => page.evaluate(() => window.__city.quality());
+
+const q0 = await quality();
+t('board text is filtered at whatever the GPU will actually honour, not a guessed 4',
+  q0.anisotropy >= 4, `anisotropy ${q0.anisotropy}`);
+
+// Drive the ladder down the way a slow machine would, then check there is a way back.
+await page.evaluate(() => { window.__city.setQuality('auto'); window.__city.setTier(0); });
+await page.waitForTimeout(300);
+const qLow = await quality();
+t('a slow machine still drops resolution — the ladder is intact',
+  qLow.tier === 0 && qLow.renderScale < 1, `${qLow.name}, scale ${qLow.renderScale}`);
+
+await page.evaluate(() => window.__city.setQuality('full'));
+await page.waitForTimeout(300);
+const qFull = await quality();
+t('pinning the picture restores full resolution and holds it',
+  qFull.tier === 3 && qFull.renderScale === 1 && qFull.auto === false && qFull.pixelCap === 2,
+  `${qFull.name}, scale ${qFull.renderScale}, cap ${qFull.pixelCap}`);
+t('and the drawing buffer is at least as wide as the element it fills',
+  qFull.drawing[0] >= 1000, `${qFull.drawing[0]}×${qFull.drawing[1]}`);
+
+const pinned = await page.$eval('#qualitySeg button[data-quality="full"]',
+  (b) => b.getAttribute('aria-pressed'));
+t('the control says which way it is set', pinned === 'true');
+
+// The sandbox gate is right for a learner and wrong for a demonstrator, so the page
+// offers the same escape the supervisory desk does. The arc is finished by this point,
+// so what is checkable here is that the offer withdraws once it is taken — the exact
+// cascade trap that once left a hidden .act button on screen.
+t('the sandbox escape is on the page as well as in the room',
+  (await page.$('#unlock')) !== null);
+t('and it withdraws once the sandbox is open',
+  await page.$eval('#unlock', (b) => b.hidden && getComputedStyle(b).display === 'none'));
+t('the sliders it governs are actually movable now',
+  !(await page.$eval('#cars', (i) => i.disabled))
+  && !(await page.$eval('#margin', (i) => i.disabled)));
+
 t('no console errors throughout', errors.length === 0, errors.slice(0, 3).join(' | '));
 
 await browser.close();

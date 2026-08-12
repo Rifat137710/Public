@@ -15,6 +15,7 @@
 import * as THREE from 'three';
 import {
   WORLD, N_BUS, BAND_LO, ROOM, EYE, place, mat, PALETTE, vMag, solids, STATION_SET,
+  maxAnisotropy,
 } from './core.js';
 
 const CSS = {
@@ -40,7 +41,7 @@ class Screen {
     this.ctx = this.canvas.getContext('2d');
     this.texture = new THREE.CanvasTexture(this.canvas);
     this.texture.colorSpace = THREE.SRGBColorSpace;
-    this.texture.anisotropy = 4;
+    this.texture.anisotropy = maxAnisotropy;
     const material = new THREE.MeshBasicMaterial({ map: this.texture, toneMapped: false });
     this.mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, h), material);
     this.mesh.position.set(pos.x, pos.y, pos.z);
