@@ -20,9 +20,12 @@ import {
 } from './core.js';
 import { buildCity } from './city.js';
 import { buildRoom } from './room.js';
-import { buildSky } from './sky.js';
+import { buildNight } from './sky.js';
+import { buildLiveDay, metSeries, CONTROLLER_IDS } from './live.js';
 import { STAGES, Progress } from './mission.js';
-import { FleetRun, fleetCheck } from '../../shared/fleet.js';
+import { FleetRun, FLEET_SIZE, fleetCheck } from '../../shared/fleet.js';
+import { MARGIN_PU } from '../../shared/control.js';
+import { priceAt, priceTier } from '../../shared/price.js';
 import { OBJECTIVES, findings, coverage } from './debrief.js';
 
 const el = (id) => document.getElementById(id);
@@ -73,7 +76,7 @@ function resize() {
 const city = buildCity(scene);
 const room = buildRoom(scene);
 
-const sky = buildSky(scene);
+const night = buildNight(scene);
 
 // A small pool of real lights follows the camera. Thirty-three shadow-casting point
 // lights is not something a browser will do; seven that move is indistinguishable.
@@ -92,24 +95,17 @@ const pool = Array.from({ length: POOL }, (_, i) => {
   return l;
 });
 
-/** How far up the sun is, 0 to 1. Kept here so the lamp pool can fade against it. */
-let daylight = 0;
-
 function assignPool() {
   const near = city.lamps
     .map((l) => ({ l, d: l.pos.distanceToSquared(camera.position) }))
     .sort((a, b) => a.d - b.d)
     .slice(0, POOL);
-  // Street lighting stops mattering once the sun is up — a 1550-candela point light at
-  // noon only washes out the face it lands on. It is dimmed rather than switched, so
-  // dusk brings the lamps up gradually instead of snapping them on.
-  const throw_ = 1 - 0.8 * daylight;
   pool.forEach((light, i) => {
     const hit = i < poolLimit ? near[i] : null;
     if (!hit) { light.intensity = 0; return; }
     light.position.copy(hit.l.pos);
     light.color.copy(hit.l.colour);
-    light.intensity = 1550 * hit.l.flux * throw_;
+    light.intensity = 1550 * hit.l.flux;
   });
 }
 
@@ -132,10 +128,73 @@ const manual = [null, null, null, null];
  */
 let gridKind = 'weak';
 let cfCache = { key: null, rows: null };
-const runSet = () => (gridKind === 'strong' ? WORLD.runsStrong : WORLD.runs);
+const recordedSet = () => (gridKind === 'strong' ? WORLD.runsStrong : WORLD.runs);
 const candidateSet = () => (gridKind === 'strong' ? WORLD.candidatesStrong : WORLD.candidates);
 
-const run = () => runSet()[runIndex];
+/* ------------------------------------------------------ recorded or live */
+
+/**
+ * How many cars are in town, and how hard the safety layer tries.
+ *
+ * These are the two settings the lesson page has and the control room did not, and they
+ * are the reason the room can now compute rather than only replay. Both start on what was
+ * exported, and while they are there the city runs the recorded episodes exactly as it
+ * always has — the six stages, the procurement table and the reference dots are all about
+ * the published controllers and must stay about them.
+ *
+ * Move either one and the day is computed instead. That is not a display mode: a droop
+ * curve backs off as its own voltage falls, so replaying its recorded commands to a
+ * hundred cars would not show a smaller town, it would show a controller that does not
+ * exist. The instruments say which of the two you are looking at, every time.
+ */
+const MARGIN_MAX = 0.045;
+let fleetSize = FLEET_SIZE;
+let marginPu = MARGIN_PU;
+
+const live = () => fleetSize !== FLEET_SIZE || marginPu !== MARGIN_PU;
+
+/**
+ * A computed day costs about 40 ms for a rule and 190 ms for SafeSAC, which is ten power
+ * flows a step. Cheap enough to ask for on a slider release, far too expensive to ask for
+ * on a redraw — so every one is kept, and only the controller actually driving is built.
+ * The map's reference dots stay recorded for the same reason: they are read every frame.
+ */
+const liveCache = new Map();
+function liveRun(id) {
+  const key = `${id}|${fleetSize}|${gridKind}|${loadScale}|${marginPu}`;
+  let hit = liveCache.get(key);
+  if (!hit) {
+    hit = buildLiveDay(id, { size: fleetSize, dayAt: dayFrameAt, marginPu });
+    if (liveCache.size > 24) liveCache.clear();
+    liveCache.set(key, hit);
+  }
+  return hit;
+}
+
+const run = () => (live() ? liveRun(CONTROLLER_IDS[runIndex]) : recordedSet()[runIndex]);
+
+/** Every controller on the same day, for the counterfactual rows. Built on demand only. */
+const compareSet = () => (live() ? CONTROLLER_IDS.map(liveRun) : recordedSet());
+
+/**
+ * Drivers who have reached their target charge, as at this step.
+ *
+ * A computed day carries it in the frame. A recorded one does not — the export has
+ * voltages, commands and plugged counts but no service — so the recorded commands are
+ * pushed back through the same fleet accounting, which needs no power flow and costs a
+ * couple of milliseconds. Cached per run, because it does not move until the run does.
+ */
+const metCache = new Map();
+function servedNow() {
+  // A run being scored is its own truth: the learner may have a station in manual, in
+  // which case neither the recording nor the computed day is what is actually happening.
+  if (runLive) return { met: fleetRun.totals().driversMet, of: fleetRun.vehicles.length, note: 'this run, as you are running it' };
+  if (live()) return { met: frame().met, of: fleetSize, note: 'computed here' };
+  const key = `${gridKind}|${runIndex}`;
+  let series = metCache.get(key);
+  if (!series) { series = metSeries(run().frames, FLEET_SIZE); metCache.set(key, series); }
+  return { met: series[frameIndex], of: FLEET_SIZE, note: 'from the recorded episode' };
+}
 const frame = () => run().frames[frameIndex];
 const commands = () => frame().kw.map((k, i) => (manual[i] === null ? k : manual[i]));
 const insideRoom = () => room.inside(camera.position.x, camera.position.z);
@@ -194,8 +253,8 @@ let loadScale = BASE_SCALE;
 const scaledP = new Float64Array(N_BUS + 1);
 const scaledQ = new Float64Array(N_BUS + 1);
 
-function dayFrame() {
-  const f = WORLD.day[frameIndex];
+function dayFrameAt(step) {
+  const f = WORLD.day[step];
   if (loadScale === BASE_SCALE) return f;
   const k = loadScale / BASE_SCALE;
   const solarPu = (f.solar ?? 0) / WORLD.kwPerPu;
@@ -207,6 +266,8 @@ function dayFrame() {
   return { p: scaledP, q: scaledQ, clock: f.clock, solar: f.solar };
 }
 
+const dayFrame = () => dayFrameAt(frameIndex);
+
 /**
  * Whether changing the load would still be showing the truth.
  *
@@ -217,6 +278,9 @@ function dayFrame() {
  * the control is refused rather than quietly lying.
  */
 function loadScaleHonest() {
+  // Once the day is computed the objection disappears: the controller is deciding against
+  // the scaled load, so it issues the commands it would actually issue for this town.
+  if (live()) return true;
   if (manual.every((m) => m !== null)) return true;
   return runIndex === 0 && manual.every((m) => m === null);
 }
@@ -230,12 +294,18 @@ const DOT_COLOURS = ['#e3b24f', '#5aa9d6', '#e4776b', '#4fb3a2'];
  * clock ends it: a fleet's state of charge is the integral of everything that happened
  * before now, and you cannot skip the middle of a day and still score it.
  */
-const fleetRun = new FleetRun();
+let fleetRun = new FleetRun(fleetSize);
 let runLive = false;
 const myDots = [];
 
+/**
+ * The four published controllers, always — never the computed ones.
+ *
+ * This is read on every redraw, so it has to be free; and the map is a place to put your
+ * own run beside the reference, which means the reference has to stay the reference.
+ */
 function referenceDots() {
-  return runSet().map((r, i) => ({
+  return recordedSet().map((r, i) => ({
     label: r.label,
     violationRate: r.violationRate,
     socMet: r.socMet,
@@ -257,13 +327,18 @@ function endRunIfComplete() {
   if (!runLive) return;
   runLive = false;
   const t = fleetRun.totals();
+  const notes = [];
+  if (loadScale !== BASE_SCALE) notes.push(`town ×${(loadScale / BASE_SCALE).toFixed(1)}`);
+  if (fleetSize !== FLEET_SIZE) notes.push(`${fleetSize} cars`);
+  if (marginPu !== MARGIN_PU) notes.push(`margin ${marginPu.toFixed(3)}`);
   myDots.push({
-    label: `Your run ${myDots.length + 1}` + (loadScale !== BASE_SCALE ? ` (town ×${(loadScale / BASE_SCALE).toFixed(1)})` : ''),
+    label: `Your run ${myDots.length + 1}` + (notes.length ? ` (${notes.join(', ')})` : ''),
     violationRate: t.violationRate,
     socMet: t.socMet,
     totalLossKwh: t.totalLossKwh,
     vMinPu: t.vMinPu,
     driversMet: t.driversMet,
+    fleetSize: t.fleetSize,
     colour: '#e8ecf2',
     mine: true,
   });
@@ -276,11 +351,7 @@ function endRunIfComplete() {
 function resolveNow() {
   const kw = commands();
   solution = solveAt(dayFrame(), kw);
-  // The sky is a function of the clock, so it moves on exactly the same beat as the
-  // solve. Cheap — a handful of colour lerps — and it keeps the light and the numbers
-  // from ever disagreeing about what time it is.
-  daylight = sky.apply(frameIndex).daylight;
-  city.applyVoltages(kw, manual, daylight);
+  city.applyVoltages(kw, manual);
   redrawInstruments();
   feederTableDue = true;
 }
@@ -309,9 +380,14 @@ function flushInstruments() {
   if (!wasNearRoom) { room.invalidate(); wasNearRoom = true; }
   instrumentsDue = false;
   const f = frame();
+  const kw = commands();
+  const served = servedNow();
   room.redraw({
     clock: f.clock,
     runLabel: run().label.replace(/ \(.*\)/, ''),
+    source: live()
+      ? `computed here · ${fleetSize} cars · margin ${marginPu.toFixed(3)} pu`
+      : `recorded episode · ${FLEET_SIZE} cars`,
     frames: run().frames,
     frameIndex,
     branchLoss: branchLossKw,
@@ -319,8 +395,17 @@ function flushInstruments() {
     vMinBus: solution.vMinBus,
     violations: solution.violations,
     lossKw: solution.lossKw,
-    stationKw: commands(),
+    // What the town is buying with all that voltage, so a controller cannot look good on
+    // the top row of the board by the simple expedient of charging nobody.
+    price: priceAt(frameIndex),
+    tier: priceTier(frameIndex),
+    pluggedTotal: f.plugged.reduce((a, b) => a + b, 0),
     plugged: f.plugged,
+    served: served.met,
+    fleetSize: served.of,
+    servedNote: served.note,
+    drawKw: kw.reduce((a, b) => a + Math.max(0, -b), 0),
+    stationKw: kw,
     manual,
     picked: progress.picked,
     youBus: nearestBus(),
@@ -349,7 +434,7 @@ room.consoles.forEach((c) => {
 });
 TARGETS.push({ kind: 'terminal', x: ROOM.east - 2.6, z: ROOM.z - 6.0, label: 'Read the procurement terminal' });
 TARGETS.push({
-  kind: 'supervisor', x: room.supervisorSpot.x, z: room.supervisorSpot.z,
+  kind: 'supervisor', x: room.supervisorFace.x, z: room.supervisorFace.z,
   label: 'Supervisory control — run the plant from here',
 });
 
@@ -397,9 +482,9 @@ function nearestBus() {
  * afterwards to put the world back exactly as it was.
  */
 function counterfactuals(bus) {
-  const key = `${bus}|${frameIndex}|${gridKind}|${loadScale}|${manual.join(',')}`;
+  const key = `${bus}|${frameIndex}|${gridKind}|${loadScale}|${fleetSize}|${marginPu}|${manual.join(',')}`;
   if (cfCache.key === key) return cfCache.rows;
-  const rows = runSet().map((r, i) => {
+  const rows = compareSet().map((r, i) => {
     solveAt(dayFrame(), r.frames[frameIndex].kw);
     return { label: r.label.replace(/ \(.*\)/, ''), v: vMag[bus], standIn: r.provenance === 'placeholder', index: i };
   });
@@ -503,18 +588,28 @@ function supervisorPanelHtml() {
     ${seg('supLoad', LOAD_MULTS.map((m) => [`${m}×`, m]))}
     <p class="hint" id="supLoadNote"></p>
 
+    <label class="slider" for="supCars">Electric cars in town</label>
+    <input id="supCars" type="range" min="20" max="${FLEET_SIZE}" step="1" value="${fleetSize}" />
+    <div class="readout" id="supCarsRead"></div>
+
+    <label class="slider" for="supMargin">How hard the safety layer tries</label>
+    <input id="supMargin" type="range" min="0" max="${MARGIN_MAX}" step="0.005" value="${marginPu}" />
+    <div class="readout" id="supMarginRead"></div>
+    <p class="hint" id="supLiveNote"></p>
+
     <label class="slider">The day</label>
     <div class="seg supseg" id="supTransport">
       <button data-value="play" id="supPlay">Play</button>
       <button data-value="reset">Reset to 00:00</button>
     </div>
-    ${seg('supSpeed', [['×1', 1], ['×4', 4], ['×16', 16], ['×64', 64]])}
+    ${seg('supSpeed', SPEEDS.map((n) => [`×${n}`, n]))}
     <input id="supScrub" type="range" min="0" max="${WORLD.day.length - 1}" step="1"
       value="${frameIndex}" aria-label="Time of day" />
     <div class="readout" id="supClock"></div>
     <p class="hint" id="supScoreNote"></p>
 
-    <button class="act" id="supCockpit"></button>`;
+    <button class="act" id="supCockpit"></button>
+    <button class="act" id="supUnlock" hidden>Open the sandbox without walking the six stages</button>`;
 }
 
 function wireSupervisorPanel() {
@@ -530,6 +625,23 @@ function wireSupervisorPanel() {
   pick('supTransport', (v) => (v === 'play' ? togglePlay() : resetDay()));
   el('supScrub').oninput = () => scrubTo(Number(el('supScrub').value));
   el('supCockpit').onclick = () => setCockpit(!cockpit);
+  el('supUnlock').onclick = () => {
+    unlockGrid();
+    room.logEvent(frame().clock, 'sandbox opened without the six stages', 'info');
+    syncSupervisorPanel();
+  };
+
+  // These two commit on release, not on drag. Each new value is a whole day re-computed —
+  // up to 190 ms for SafeSAC — and running that on every pixel of a drag would turn the
+  // slider into a slideshow. The readout still tracks the thumb, so the control feels live
+  // even though the plant only moves once.
+  const cars = el('supCars');
+  cars.oninput = () => { el('supCarsRead').textContent = `${cars.value} cars`; };
+  cars.onchange = () => setFleetSize(Number(cars.value));
+  const margin = el('supMargin');
+  margin.oninput = () => { el('supMarginRead').textContent = `${Number(margin.value).toFixed(3)} pu`; };
+  margin.onchange = () => setMargin(Number(margin.value));
+
   syncSupervisorPanel();
 }
 
@@ -546,6 +658,21 @@ function syncSupervisorPanel() {
   mark('supGrid', (v) => v === s.gridKind, !s.gridUnlocked);
   mark('supLoad', (v) => LOAD_MULTS.indexOf(Number(v)) === s.loadIndex, !s.loadUsable);
   mark('supSpeed', (v) => Number(v) === s.speed);
+
+  const cars = el('supCars');
+  const margin = el('supMargin');
+  cars.disabled = !s.sandbox;
+  margin.disabled = !s.sandbox;
+  if (document.activeElement !== cars) cars.value = String(fleetSize);
+  if (document.activeElement !== margin) margin.value = String(marginPu);
+  el('supCarsRead').textContent = `${fleetSize} cars` + (fleetSize === FLEET_SIZE ? ' — as exported' : '');
+  el('supMarginRead').textContent = `${marginPu.toFixed(3)} pu`
+    + (marginPu === MARGIN_PU ? ' — the thesis’s own value' : '');
+  el('supLiveNote').textContent = !s.sandbox
+    ? 'Both unlock when you finish the six stages.'
+    : s.live
+      ? 'The day is being computed here, at these settings — the four controllers re-decide every five minutes. Move both back to 287 cars and 0.010 pu to return to the recorded episodes.'
+      : 'On the recorded episodes. Move either slider and the day is computed here instead, which is the only honest way to show a controller a town it was never recorded on.';
 
   el('supGridNote').textContent = s.gridUnlocked
     ? 'Same day, same fleet, same controllers — only the substation impedance changes.'
@@ -566,6 +693,10 @@ function syncSupervisorPanel() {
   el('supCockpit').textContent = cockpit
     ? 'Show the page controls again'
     : 'Hide the page controls — run it all from in here';
+  // Offered only while the sandbox is shut. It does not mark the stages as taught — the
+  // objectives table still says "not yet" — because a demonstrator skipping ahead has not
+  // taught anybody anything, and the one thing that table must never do is flatter.
+  el('supUnlock').hidden = s.gridUnlocked;
 }
 
 function renderPanel() {
@@ -777,10 +908,15 @@ function renderDebrief() {
 function renderDotList() {
   const rows = allDots().map((d) => {
     const stand = d.provenance === 'placeholder' ? ' <em>*</em>' : '';
+    // Your own runs carry their own fleet size, which is not 287 once the town has been
+    // rebuilt. Scaling a rate by a constant would have quietly reported a hundred-car run
+    // as though it had been scored against the full fleet.
+    const of = d.fleetSize ?? 287;
+    const met = d.driversMet ?? Math.round(d.socMet * of);
     return `<tr${d.mine ? ' class="mine"' : ''}>
       <td><span class="swatch" style="background:${d.colour}"></span>${d.label}${stand}</td>
       <td class="num">${d.violationRate.toFixed(4)}</td>
-      <td class="num">${Math.round(d.socMet * 287)} of 287</td>
+      <td class="num">${met} of ${of}</td>
       <td class="num">${d.totalLossKwh ? d.totalLossKwh.toFixed(0) + ' kWh' : '—'}</td></tr>`;
   }).join('');
   el('dotBody').innerHTML = rows;
@@ -832,11 +968,19 @@ function updateHud() {
   const f = frame();
   setMetric(el('mClock'), 'time', f.clock);
   setMetric(el('mRun'), 'driving', run().label.replace(/ \(.*\)/, ''));
+  // Where the numbers on screen came from, in three words. A computed SafeSAC is still a
+  // stand-in for the trained agent — the projection in front of it is the real algorithm,
+  // the policy behind it is not — so becoming live must not launder it into a "real
+  // controller", which is what falling through on provenance alone would have done.
   const chip = el('runChip');
   const anyManual = manual.some((m) => m !== null);
-  const standIn = run().provenance === 'placeholder';
-  chip.textContent = anyManual ? 'you have taken over' : standIn ? 'labelled stand-in' : 'real controller';
-  chip.className = 'chip ' + (anyManual ? 'mine' : standIn ? 'stand-in' : 'real');
+  const learned = runIndex >= 2;
+  const standIn = run().provenance === 'placeholder' || (live() && learned);
+  const state = anyManual ? 'mine' : standIn ? 'stand-in' : 'real';
+  chip.textContent = anyManual ? 'you have taken over'
+    : standIn ? (live() ? 'stand-in · computed here' : 'labelled stand-in')
+    : (live() ? 'real rule · computed here' : 'real controller');
+  chip.className = 'chip ' + state;
   setMetric(el('mViol'), 'out of band', solution.violations + (solution.violations === 1 ? ' bus' : ' buses'), solution.violations > 0 ? 'bad' : 'good');
   setMetric(el('mLoss'), 'burnt in lines', solution.lossKw.toFixed(0) + ' kW');
   const pending = room.alarmsPending();
@@ -914,7 +1058,14 @@ addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase();
   if (TURN_KEYS[k] && driving()) { turn.add(TURN_KEYS[k]); e.preventDefault(); }
   if (['w', 'a', 's', 'd', 'shift'].includes(k)) { held.add(k); if (driving()) e.preventDefault(); }
-  if (k === 'e' && driving()) { const t = focused(); if (t) { openPanel(t); e.preventDefault(); } }
+  // Enter is the use key. E still works — it is in every screenshot, every instruction
+  // written before this, and in the hands of anyone who has already walked the city once —
+  // but Enter is what the prompts name, because it is the key a first-time visitor reaches
+  // for when a thing in front of them says it can be opened.
+  if ((k === 'enter' || k === 'e') && driving() && !panelTarget) {
+    const t = focused();
+    if (t) { openPanel(t); e.preventDefault(); }
+  }
   if (k === 'f') {
     const n = room.ackAlarms();
     if (n) {
@@ -931,13 +1082,17 @@ addEventListener('keydown', (e) => {
   // mid-walk. Suppressed while a panel is open, where the same keys belong to its fields.
   if (panelTarget || !driving()) return;
   if (k >= '1' && k <= String(WORLD.runs.length)) { setController(Number(k) - 1); e.preventDefault(); }
-  else if (k === ' ') { togglePlay(); e.preventDefault(); }
-  else if (k === 'r') { resetDay(); e.preventDefault(); }
+  else if (k === ' ' || k === '/') {
+    // Two keys for the same thing, because they are for two different hands. Space is
+    // where a keyboard's thumb already is; slash is next to the arrows, which is where a
+    // presenter's hand is when they stop mid-walk to explain what the town is doing.
+    togglePlay();
+    e.preventDefault();
+  } else if (k === 'r') { resetDay(); e.preventDefault(); }
   else if (k === 'g') { setFeeder(gridKind === 'weak' ? 'strong' : 'weak'); e.preventDefault(); }
   else if (k === '[' || k === ']') {
-    const speeds = [1, 4, 16, 64];
-    const at = speeds.indexOf(stepsPerTick);
-    setSpeed(speeds[Math.max(0, Math.min(speeds.length - 1, at + (k === ']' ? 1 : -1)))]);
+    const at = SPEEDS.indexOf(speed);
+    setSpeed(SPEEDS[Math.max(0, Math.min(SPEEDS.length - 1, at + (k === ']' ? 1 : -1)))]);
     e.preventDefault();
   } else if (k === ',' || k === '.') {
     scrubTo(frameIndex + (k === '.' ? 6 : -6));
@@ -1009,6 +1164,22 @@ function move(dt) {
 const LOAD_MULTS = [0.5, 1, 1.4, 1.8];
 
 /**
+ * How fast the day runs.
+ *
+ * Above ×1 the speed is steps taken per tick; below it, it is the tick that is stretched
+ * and a single step still taken. That asymmetry is the point: the two slow settings exist
+ * so that a presenter can talk over the evening peak, and stretching the tick is what puts
+ * the cars, the lamps and the instruments into slow motion together. Skipping fewer steps
+ * would not — at ×1 there is nothing left to skip.
+ *
+ * The fleet sees every step at every setting; only the render and the instruments skip
+ * intermediate ones. So a run scored at ×64 scores identically to one at ×0.25.
+ */
+const SPEEDS = [0.25, 0.5, 1, 4, 16, 64];
+const TICK_MS = 110;
+let speed = 1;
+
+/**
  * Cockpit mode hides the page's own toolbar, leaving the world as the only interface.
  * The toolbar is not deleted — an operator who wants both can have both, and a visitor
  * who has not found the supervisory console yet must not be stranded — but a
@@ -1048,8 +1219,45 @@ function setTownSize(mult) {
   syncSupervisor();
 }
 
+/**
+ * How many cars the town has, and how hard the safety layer tries.
+ *
+ * Both invalidate the same things and both are gated the same way, so they share the
+ * tail. A run in progress is ended rather than carried across: the fleet whose state of
+ * charge is being integrated has just been replaced, and a dot scored half on one fleet
+ * and half on another is not a measurement of either.
+ */
+function setFleetSize(n) {
+  n = Math.max(20, Math.min(FLEET_SIZE, Math.round(n)));
+  if (!gridUnlocked || n === fleetSize) return;
+  fleetSize = n;
+  fleetRun = new FleetRun(fleetSize);
+  afterPlantChange(`town rebuilt with ${fleetSize} electric cars`);
+}
+
+function setMargin(pu) {
+  pu = Math.max(0, Math.min(MARGIN_MAX, Math.round(pu / 0.005) * 0.005));
+  if (!gridUnlocked || pu === marginPu) return;
+  marginPu = pu;
+  afterPlantChange(`safety layer set to tighten the band by ${marginPu.toFixed(3)} pu`);
+}
+
+function afterPlantChange(message) {
+  if (runLive) { runLive = false; room.logEvent(frame().clock, 'plant changed under the run — not scored', 'info'); }
+  cfCache.key = null;
+  room.logEvent(frame().clock, message, 'info');
+  syncFleetControls();
+  // Going live makes the town-size control honest for every controller, not just the
+  // uncoordinated one, so the buttons have to be re-asked whether they are allowed.
+  syncLoadHonesty();
+  resolveNow();
+  updateHud();
+  renderDotList();
+  syncSupervisor();
+}
+
 function setSpeed(n) {
-  stepsPerTick = n;
+  speed = n;
   syncSpeedButtons();
   syncSupervisor();
 }
@@ -1100,11 +1308,18 @@ function supState() {
     runIndex,
     gridKind,
     gridUnlocked,
+    sandbox: gridUnlocked,
     loadIndex: LOAD_MULTS.indexOf(Number((loadScale / BASE_SCALE).toFixed(4))),
     loadUsable: gridUnlocked && loadScaleHonest(),
+    fleetSize,
+    fleetMax: FLEET_SIZE,
+    marginPu,
+    marginMax: MARGIN_MAX,
+    marginApplies: CONTROLLER_IDS[runIndex] === 'safesac',
+    live: live(),
     clock: frame().clock,
     playing,
-    speed: stepsPerTick,
+    speed,
     scoring: runLive,
     open: panelTarget?.kind === 'supervisor',
   };
@@ -1176,14 +1391,16 @@ function unlockGrid() {
   gridUnlocked = true;
   syncGridButtons();
   syncLoadButtons();
+  syncFleetControls();
   syncSupervisor();
 }
 
 const goSeg = el('goSeg');
 [['Control room', room.spawn.x, room.spawn.z, room.spawn.yaw],
  // Yaw here is an offset from facing east, which is the convention the handler below
- // applies to every entry except the control room. Zero puts the console dead ahead.
- ['Supervisory desk', room.supervisorSpot.x - 1.2, room.supervisorSpot.z, 0],
+ // applies to every entry except the control room. The console is now on the north wall,
+ // so this turns a quarter left from east to put it dead ahead.
+ ['Supervisory desk', room.supervisorSpot.x, room.supervisorSpot.z, -Math.PI / 2],
  ['Substation gate', -20, -12, -0.5],
  ['Bus 9, midway', place.get(9).x - 34, 2, 0],
  ['Bus 18, the far end', place.get(18).x - 40, 2, 0],
@@ -1204,16 +1421,43 @@ scrub.oninput = () => scrubTo(Number(scrub.value));
 el('play').onclick = togglePlay;
 
 const speedSeg = el('speedSeg');
-[['×1', 1], ['×4', 4], ['×16', 16], ['×64', 64]].forEach(([label, n]) => {
+SPEEDS.forEach((n) => {
   const b = document.createElement('button');
-  b.textContent = label;
+  b.textContent = `×${n}`;
   b.dataset.speed = String(n);
-  b.title = `${(WORLD.day.length * 110 / n / 1000).toFixed(0)} seconds a day`;
+  b.title = `${(WORLD.day.length * TICK_MS / n / 1000).toFixed(0)} seconds a day`;
   b.onclick = () => setSpeed(n);
   speedSeg.appendChild(b);
 });
 function syncSpeedButtons() {
-  [...speedSeg.children].forEach((c) => c.setAttribute('aria-pressed', String(Number(c.dataset.speed) === stepsPerTick)));
+  [...speedSeg.children].forEach((c) => c.setAttribute('aria-pressed', String(Number(c.dataset.speed) === speed)));
+}
+
+/* --------------------------------------------------------- the fleet */
+
+const carsInput = el('cars');
+const marginInput = el('margin');
+carsInput.max = String(FLEET_SIZE);
+carsInput.value = String(fleetSize);
+marginInput.max = String(MARGIN_MAX);
+marginInput.value = String(marginPu);
+carsInput.oninput = () => { el('carsRead').textContent = `${carsInput.value} cars`; };
+carsInput.onchange = () => setFleetSize(Number(carsInput.value));
+marginInput.oninput = () => { el('marginRead').textContent = `${Number(marginInput.value).toFixed(3)} pu`; };
+marginInput.onchange = () => setMargin(Number(marginInput.value));
+
+function syncFleetControls() {
+  carsInput.disabled = !gridUnlocked;
+  marginInput.disabled = !gridUnlocked;
+  if (document.activeElement !== carsInput) carsInput.value = String(fleetSize);
+  if (document.activeElement !== marginInput) marginInput.value = String(marginPu);
+  el('carsRead').textContent = `${fleetSize} cars`;
+  el('marginRead').textContent = `${marginPu.toFixed(3)} pu`;
+  el('fleetNote').textContent = !gridUnlocked
+    ? 'Unlocks when you finish the six stages.'
+    : live()
+      ? 'The day is computed here at these settings, not replayed.'
+      : 'On the recorded episodes. Move either and the day is computed here.';
 }
 
 const loadSeg = el('loadSeg');
@@ -1288,15 +1532,6 @@ function setTier(next) {
 
 let lastT = 0, lastTick = 0, frames = 0, fpsT = 0, slowSeconds = 0, flashT = 0;
 
-/**
- * How fast the day runs, in five-minute steps per tick.
- *
- * The fleet sees every step at every speed — only the render and the instruments skip
- * the intermediate ones — so a run scored at ×64 is scored identically to one at ×1.
- * The default is one step a tick, which puts a whole day at about half a minute: long
- * enough to walk out to the far end of the feeder while it happens.
- */
-let stepsPerTick = 1;
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function loop(t) {
@@ -1304,7 +1539,7 @@ function loop(t) {
   const dt = Math.min(0.05, (t - lastT) / 1000);
   lastT = t;
 
-  if (playing && t - lastTick > 110) {
+  if (playing && t - lastTick > (speed < 1 ? TICK_MS / speed : TICK_MS)) {
     lastTick = t;
     // The day ends rather than wrapping. A stage that asks you to run through the
     // evening peak has to mean something, and a clock that silently rolls over
@@ -1314,11 +1549,8 @@ function loop(t) {
       el('play').textContent = 'Replay the day';
       room.logEvent('23:55', 'day complete', 'info');
     } else {
-      // Two five-minute steps per tick. The export is now every step so a run can be
-      // scored the way the engine scores one, but a 288-step day at one step per tick
-      // would take twice as long to watch. The fleet still sees every step; only the
-      // instruments and the render skip the intermediate one.
-      for (let s = 0; s < stepsPerTick && frameIndex < WORLD.day.length - 1; s++) {
+      const perTick = Math.max(1, speed);
+      for (let s = 0; s < perTick && frameIndex < WORLD.day.length - 1; s++) {
         frameIndex++;
         // The fleet plugs in and unplugs before the step is dispatched, exactly as the
         // engine orders it: connections, then solve, then move the energy.
@@ -1364,7 +1596,7 @@ function loop(t) {
   const target = driving() ? focused() : null;
   const prompt = el('prompt');
   el('reticle').className = 'reticle' + (target ? ' hot' : '');
-  if (target && !panelTarget) { prompt.hidden = false; prompt.innerHTML = '<kbd>E</kbd>' + target.label; }
+  if (target && !panelTarget) { prompt.hidden = false; prompt.innerHTML = '<kbd>Enter</kbd>' + target.label; }
   else prompt.hidden = true;
 
   if (driving()) updateHud();
@@ -1400,6 +1632,7 @@ syncRunButtons();
 syncGridButtons();
 syncSpeedButtons();
 syncLoadButtons();
+syncFleetControls();
 renderTotals();
 renderDotList();
 renderDebrief();
@@ -1426,15 +1659,12 @@ window.__city = {
   setCockpit,
   cockpit: () => cockpit,
   sup: supState,
-  sky: () => ({
-    daylight,
-    elev: sky.apply(frameIndex).elev,
-    sunIntensity: sky.sun.intensity,
-    hemiIntensity: sky.hemi.intensity,
-    background: scene.background.getHexString(),
-    fogDensity: scene.fog.density,
-    solarHours: sky.solarHours,
-  }),
+  night: night.report,
+  setFleetSize,
+  setMargin,
+  live,
+  served: servedNow,
+  liveRun,
   ackAlarms: () => {
     const n = room.ackAlarms();
     if (n) { progress.observeAck(n); updateHud(); checkObjectives(); }
@@ -1453,4 +1683,12 @@ window.__city = {
   objectives: () => progress.status(liveState()),
   lockQuality() { autoQuality = false; setTier(3); },
   setPoolSize(n) { poolLimit = n; },
+  /** Where every board hangs and how tall it is, so sight lines can be asserted. */
+  boards: () => Object.fromEntries(Object.entries(room.screens).map(([k, s]) => [k, {
+    x: s.mesh.position.x, y: s.mesh.position.y, z: s.mesh.position.z,
+    h: s.mesh.geometry.parameters.height,
+    w: s.mesh.geometry.parameters.width,
+    bottom: s.mesh.position.y - s.mesh.geometry.parameters.height / 2,
+  }])),
+  room3d: { h: ROOM.h, north: ROOM.north, south: ROOM.south, west: ROOM.west, east: ROOM.east },
 };

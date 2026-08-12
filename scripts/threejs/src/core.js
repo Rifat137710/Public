@@ -35,10 +35,17 @@ export const SUB = { x: 2, z: -31 };
  * The control centre. It sits west of the substation, so you start the day inside it
  * and the walk out to the feeder is the first thing the city asks of you.
  * Interior is 26 x 18, door on the east wall.
+ *
+ * The ceiling is 6.2 m rather than a domestic 4.6 for a reason found by standing in the
+ * room: at the dispatch desk your eye is 1.7 m up and the console lids in front of you
+ * top out at 1.7 m too, so the sight line to the far wall is horizontal and everything
+ * below it on the mimic board — which is where the footer readouts live — is behind a
+ * monitor. The board has to start above 1.9 m to be read from the desk, and a board that
+ * starts at 1.9 m and is tall enough to be a mimic needs a wall this high to hang on.
  */
 export const ROOM = {
   x: -54, z: -14,
-  w: 26, d: 18, h: 4.6,
+  w: 26, d: 18, h: 6.2,
   doorZ: -14, doorW: 4.4,
   get west() { return this.x - this.w / 2; },
   get east() { return this.x + this.w / 2; },
@@ -103,7 +110,8 @@ export const mat = {
   wall: new THREE.MeshStandardMaterial({ color: 0x3c4756, roughness: 0.85 }),
   roof: new THREE.MeshStandardMaterial({ color: 0x2a323c, roughness: 0.95 }),
   steel: new THREE.MeshStandardMaterial({ color: 0x39434e, roughness: 0.55, metalness: 0.65 }),
-  car: new THREE.MeshStandardMaterial({ color: 0x2c3742, roughness: 0.35, metalness: 0.5 }),
+  car: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.34, metalness: 0.45 }),
+  tyre: new THREE.MeshStandardMaterial({ color: 0x14181d, roughness: 0.9 }),
   glass: new THREE.MeshStandardMaterial({ color: 0x14202b, roughness: 0.18, metalness: 0.3 }),
   roomFloor: new THREE.MeshStandardMaterial({ color: 0x232a33, roughness: 0.72 }),
   roomWall: new THREE.MeshStandardMaterial({ color: 0x323b46, roughness: 0.9 }),

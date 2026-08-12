@@ -78,6 +78,9 @@ class Screen {
 
 const busColour = (v) => (v < BAND_LO ? CSS.warn : v < 0.97 ? CSS.amber : CSS.ok);
 
+/** Height of the mimic board's two-row footer, in canvas pixels. */
+const FOOT_H = 104;
+
 export function buildRoom(scene) {
   const group = new THREE.Group();
 
@@ -112,26 +115,45 @@ export function buildRoom(scene) {
 
   // Room lighting. Fluorescent-cool, unlike the sodium street outside — the contrast
   // is what makes stepping out of the door feel like leaving the instruments behind.
-  // Intensity is candela and falls as 1/d². A ceiling fitting is ~3 m from the eye
+  // Intensity is candela and falls as 1/d². A ceiling fitting is ~4.5 m from the eye
   // where a street lamp is ~13 m, so it needs roughly a twentieth of the street lamp's
   // 1550 — not the same number. Using street values in here rendered a white-out.
-  for (const dx of [-7, 0, 7]) {
-    const panel = new THREE.Mesh(
-      new THREE.BoxGeometry(4.4, 0.1, 1.1),
-      new THREE.MeshBasicMaterial({ color: 0x9db2c4, toneMapped: false }),
-    );
-    panel.position.set(ROOM.x + dx, ROOM.h - 0.12, ROOM.z);
-    group.add(panel);
-    const l = new THREE.PointLight(0xdce8f4, 90, 20, 2);
-    l.position.set(ROOM.x + dx, ROOM.h - 0.5, ROOM.z);
-    group.add(l);
+  //
+  // Raising the ceiling from 4.6 m to 6.2 m moved the fittings from 3 m above the eye to
+  // 4.5 m, which is (3/4.5)² = 0.44 of the light at the desk. The intensity is scaled to
+  // match, so the taller room is not a darker one. Two extra fittings run north and south
+  // of the centre line, because a single row down the middle of a 6.2 m room leaves the
+  // wall boards — which is the whole reason to be in here — lit only by their own glow.
+  for (const dz of [-5.5, 0, 5.5]) {
+    for (const dx of [-7, 0, 7]) {
+      const panel = new THREE.Mesh(
+        new THREE.BoxGeometry(4.4, 0.1, 1.1),
+        new THREE.MeshBasicMaterial({ color: 0x9db2c4, toneMapped: false }),
+      );
+      panel.position.set(ROOM.x + dx, ROOM.h - 0.12, ROOM.z + dz);
+      group.add(panel);
+      // Nine fittings where there were three, so each carries roughly a third of the
+      // flux it would need alone. Matching the old room's 90 candela per fitting here
+      // rendered a white-out: three rows of them add up.
+      const l = new THREE.PointLight(0xdce8f4, dz === 0 ? 120 : 78, 24, 2);
+      l.position.set(ROOM.x + dx, ROOM.h - 0.6, ROOM.z + dz);
+      group.add(l);
+    }
   }
 
   /* ------------------------------------------------------- mimic board */
 
+  /**
+   * Sized and hung to be readable from the dispatch desk.
+   *
+   * The bottom edge sits at 1.95 m because that is what clears the console lids in front
+   * of it — below that the footer readouts are behind a monitor from the one position an
+   * operator actually occupies. Everything else follows from that: the board grew upward,
+   * and the ceiling grew to take it.
+   */
   const mimic = new Screen(scene, {
-    w: 15, h: 3.6, px: 112,
-    pos: { x: ROOM.west + 0.28, y: 2.55, z: ROOM.z },
+    w: 15, h: 4.1, px: 112,
+    pos: { x: ROOM.west + 0.28, y: 4.0, z: ROOM.z },
     rotY: Math.PI / 2,
   });
 
@@ -143,13 +165,19 @@ export function buildRoom(scene) {
 
     // Header strip.
     ctx.fillStyle = '#131c25';
-    ctx.fillRect(0, 0, W, 66);
-    s.label('FEEDER 33  ·  ONE-LINE MIMIC', 22, 43, { size: 26, colour: CSS.ink });
-    s.label(state.clock, W - 22, 43, { size: 30, colour: CSS.amber, align: 'right' });
-    s.label(state.runLabel.toUpperCase(), W / 2, 43, { size: 22, colour: CSS.cool, align: 'center' });
+    ctx.fillRect(0, 0, W, 72);
+    s.label('FEEDER 33  ·  ONE-LINE MIMIC', 22, 46, { size: 26, colour: CSS.ink });
+    s.label(state.clock, W - 22, 46, { size: 30, colour: CSS.amber, align: 'right' });
+    s.label(state.runLabel.toUpperCase(), W / 2, 32, { size: 22, colour: CSS.cool, align: 'center' });
+    s.label(state.source.toUpperCase(), W / 2, 58, { size: 16, colour: CSS.faint, align: 'center' });
 
+    // Four rows of buses: the trunk and three laterals. The row spacing is derived from
+    // the plot area rather than fixed, because a fixed 78 px put the third lateral 3 px
+    // below the bottom edge of the old board — eight buses drawn where nobody could see
+    // them, on the one instrument that claims to show the whole feeder.
+    const TOP = 100, BOT = H - FOOT_H - 30;
     const xOf = (col) => 90 + (col / 17) * (W - 190);
-    const yOf = (row) => 250 + row * 78;
+    const yOf = (row) => TOP + ((row + 1) / 3) * (BOT - TOP);
 
     // Branches first, coloured by the loss they are carrying.
     ctx.lineWidth = 4;
@@ -208,15 +236,31 @@ export function buildRoom(scene) {
       s.label('YOU', x, y - 32, { size: 14, colour: CSS.ink, align: 'center' });
     }
 
-    // Footer readouts.
-    const foot = H - 24;
+    // Footer readouts, in two rows.
+    //
+    // The top row is the feeder's health and the bottom row is the service it is buying,
+    // which is the whole argument of the project laid out on one instrument. A viewer who
+    // reads only the top row can be told a controller is doing well by one that has simply
+    // stopped charging anybody; the second row is what makes that impossible to claim.
     ctx.fillStyle = '#131c25';
-    ctx.fillRect(0, H - 58, W, 58);
-    s.label(`WORST  ${state.vMin.toFixed(4)} pu @ BUS ${state.vMinBus}`, 22, foot,
+    ctx.fillRect(0, H - FOOT_H, W, FOOT_H);
+    const r1 = H - FOOT_H + 36;
+    const r2 = H - 22;
+    const cols = [22, W * 0.28, W * 0.56];
+
+    s.label(`WORST  ${state.vMin.toFixed(4)} pu @ BUS ${state.vMinBus}`, cols[0], r1,
       { size: 22, colour: state.vMin < BAND_LO ? CSS.warn : CSS.ok });
-    s.label(`OUT OF BAND  ${state.violations} / ${N_BUS}`, W * 0.42, foot,
+    s.label(`OUT OF BAND  ${state.violations} / ${N_BUS}`, cols[1], r1,
       { size: 22, colour: state.violations ? CSS.warn : CSS.ok });
-    s.label(`LINE LOSS  ${state.lossKw.toFixed(0)} kW`, W - 22, foot, { size: 22, colour: CSS.amber, align: 'right' });
+    s.label(`LINE LOSS  ${state.lossKw.toFixed(0)} kW`, cols[2], r1, { size: 22, colour: CSS.amber });
+    s.label(`POWER  $${state.price.toFixed(2)} · ${state.tier.toUpperCase()}`, W - 22, r1,
+      { size: 22, colour: state.tier === 'peak' ? CSS.warn : CSS.dim, align: 'right' });
+
+    s.label(`PLUGGED IN  ${state.pluggedTotal} cars`, cols[0], r2, { size: 20, colour: CSS.cool });
+    s.label(`CHARGED  ${state.served} / ${state.fleetSize} drivers`, cols[1], r2,
+      { size: 20, colour: CSS.cool });
+    s.label(`DRAWING  ${state.drawKw.toFixed(0)} kW`, cols[2], r2, { size: 20, colour: CSS.cool });
+    s.label(state.servedNote, W - 22, r2, { size: 16, colour: CSS.faint, align: 'right' });
     s.done();
   }
 
@@ -233,10 +277,13 @@ export function buildRoom(scene) {
     { id: 'std', text: 'STAND-IN\nCONTROLLER', test: (s) => s.standIn },
   ];
 
+  // South wall, above the relay cabinets. The cabinets stand 2.2 m and the board's bottom
+  // edge is at 2.6 m, which is the whole reason it is up here: at its old height the row
+  // of tiles a visitor most needs to read was behind a cubicle.
   const annun = new Screen(scene, {
     w: 6.4, h: 2.4, px: 130,
-    pos: { x: ROOM.x - 6.2, y: 2.7, z: ROOM.north + 0.28 },
-    rotY: 0,
+    pos: { x: ROOM.x - 6.0, y: 3.8, z: ROOM.south - 0.28 },
+    rotY: Math.PI,
   });
 
   // Annunciator behaviour, as built: a new alarm flashes until acknowledged, then
@@ -302,7 +349,7 @@ export function buildRoom(scene) {
 
   const trend = new Screen(scene, {
     w: 7, h: 2.6, px: 130,
-    pos: { x: ROOM.x + 6.4, y: 2.6, z: ROOM.north + 0.28 },
+    pos: { x: ROOM.x + 6.4, y: 3.0, z: ROOM.north + 0.28 },
   });
 
   function drawTrend(state) {
@@ -359,7 +406,7 @@ export function buildRoom(scene) {
 
   const soe = new Screen(scene, {
     w: 7, h: 2.4, px: 130,
-    pos: { x: ROOM.x - 6.0, y: 2.5, z: ROOM.south - 0.28 },
+    pos: { x: ROOM.x + 5.6, y: 3.8, z: ROOM.south - 0.28 },
     rotY: Math.PI,
   });
 
@@ -390,11 +437,25 @@ export function buildRoom(scene) {
 
   /* ------------------------------------------------------- the map wall */
 
+  // On the east side, on the cabinet the supervisory console used to stand on. It is the
+  // one board you read on the way out rather than while working, which is what a kiosk in
+  // the middle of the floor is for.
   const mapScreen = new Screen(scene, {
-    w: 5.6, h: 3.3, px: 150,
-    pos: { x: ROOM.x + 5.6, y: 2.4, z: ROOM.south - 0.28 },
-    rotY: Math.PI,
+    w: 5.0, h: 3.0, px: 150,
+    pos: { x: ROOM.east - 1.5, y: 2.7, z: ROOM.z + 5.6 },
+    rotY: -Math.PI / 2,
   });
+  {
+    const stand = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.05, 2.6), mat.cabinet);
+    stand.position.set(ROOM.east - 1.3, 0.52, ROOM.z + 5.6);
+    stand.castShadow = true;
+    group.add(stand);
+    solids.push({ x: ROOM.east - 1.3, z: ROOM.z + 5.6, w: 1.2, d: 2.6 });
+
+    const l = new THREE.PointLight(0xdce8f4, 30, 10, 2);
+    l.position.set(ROOM.east - 2.6, 4.4, ROOM.z + 5.6);
+    group.add(l);
+  }
 
   /**
    * The Pareto map: every finished run leaves a dot. Safety on one axis, service on
@@ -408,8 +469,10 @@ export function buildRoom(scene) {
     s.label('EVERY RUN YOU FINISH LEAVES A DOT', 16, 30, { size: 20, colour: CSS.dim });
 
     const L = 74, R = W - 24, T = 56, B = H - 52;
-    const xs = (v) => L + Math.min(1, v / 0.36) * (R - L);
-    const ys = (v) => B - Math.min(1, v) * (B - T);
+    // Clamped a dot's radius inside the frame, so a controller that serves everybody is
+    // a circle at the top rather than a half-circle bleeding off the board.
+    const xs = (v) => L + 9 + Math.min(1, v / 0.36) * (R - L - 18);
+    const ys = (v) => B - 9 - Math.min(1, v) * (B - T - 18);
 
     s.ctx.strokeStyle = '#1d2731';
     s.ctx.lineWidth = 1;
@@ -443,14 +506,15 @@ export function buildRoom(scene) {
 
     // Legend down the right, inside the plot, since the room wall has no margin.
     let ly = T + 18;
+    const lx = R - 220;
     for (const d of dots.filter((x) => !x.mine)) {
       s.ctx.fillStyle = d.colour;
-      s.ctx.beginPath(); s.ctx.arc(R - 150, ly - 5, 5, 0, Math.PI * 2); s.ctx.fill();
-      s.label(d.label.replace(/ \(.*\)/, ''), R - 138, ly, { size: 15, colour: CSS.dim });
+      s.ctx.beginPath(); s.ctx.arc(lx, ly - 5, 5, 0, Math.PI * 2); s.ctx.fill();
+      s.label(d.label.replace(/ \(.*\)/, ''), lx + 12, ly, { size: 15, colour: CSS.dim });
       ly += 22;
     }
     const mine = dots.filter((d) => d.mine).length;
-    s.label(mine ? `${mine} of your own` : 'none of your own yet', R - 150, ly + 4,
+    s.label(mine ? `${mine} of your own` : 'none of your own yet', lx, ly + 4,
       { size: 15, colour: mine ? CSS.ink : CSS.faint });
     s.done();
   }
@@ -556,7 +620,7 @@ export function buildRoom(scene) {
     });
 
     s.label('* labelled stand-in, not the trained agent', 16, H - 46, { size: 14, colour: CSS.faint });
-    s.label(state.picked === null ? 'PRESS  E  TO CHOOSE' : 'DEPLOYED — WALK THE FEEDER',
+    s.label(state.picked === null ? 'PRESS  ENTER  TO CHOOSE' : 'DEPLOYED — WALK THE FEEDER',
       16, H - 18, { size: 17, colour: state.picked === null ? CSS.amber : CSS.ok });
     s.done();
   }
@@ -574,27 +638,26 @@ export function buildRoom(scene) {
    * face here is a live mimic of the settings — it never asks a question, it only shows
    * what the plant is set to — and `E` opens the panel that changes them.
    */
-  // Square to the room, unlike the procurement terminal's angled kiosk. That one is
-  // read once and walked away from; this one is operated, and a face you have to stand
+  // On the north wall, where the alarm board used to be — the largest uninterrupted face
+  // in the room, and now the busiest board in it. It carries every setting the plant has,
+  // so it needs the space the old kiosk did not have and the clear approach a wall gives.
+  //
+  // Square to the room, unlike the procurement terminal's angled kiosk. That one is read
+  // once and walked away from; this one is operated, and a face you have to stand
   // off-normal to reach is a face you misread.
   const supervisor = new Screen(scene, {
-    w: 3.4, h: 2.2, px: 200,
-    // High enough that the cabinet below does not eat the transport strip along the
-    // bottom edge, which is where the clock and the scoring state live.
-    pos: { x: ROOM.east - 1.5, y: 2.25, z: ROOM.z + 6.0 },
-    rotY: -Math.PI / 2,
+    w: 6.4, h: 3.0, px: 150,
+    // Low enough that the whole face is inside a standing 68° frame from the spot the
+    // Go-to shortcut drops you on. A board you have to crane at is one you operate from
+    // memory, which defeats the reason it was moved off the page in the first place.
+    pos: { x: ROOM.x - 6.2, y: 2.8, z: ROOM.north + 0.28 },
+    rotY: 0,
   });
   {
-    const stand = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.05, 2.6), mat.cabinet);
-    stand.position.set(ROOM.east - 1.3, 0.52, ROOM.z + 6.0);
-    stand.castShadow = true;
-    group.add(stand);
-    solids.push({ x: ROOM.east - 1.3, z: ROOM.z + 6.0, w: 1.2, d: 2.6 });
-
     // A lamp over it, because the one thing a visitor must find is the one thing the
     // room was not previously lighting.
-    const l = new THREE.PointLight(0xdce8f4, 26, 9, 2);
-    l.position.set(ROOM.east - 2.4, 3.1, ROOM.z + 6.0);
+    const l = new THREE.PointLight(0xdce8f4, 40, 12, 2);
+    l.position.set(ROOM.x - 6.2, 4.9, ROOM.north + 2.0);
     group.add(l);
   }
 
@@ -621,6 +684,21 @@ export function buildRoom(scene) {
     return cx;
   }
 
+  /** A labelled dial: a number, its units, and a bar showing where it sits in its range. */
+  function dial(s, { x, y, w, label, value, unit, frac, note, locked }) {
+    s.label(label, x, y, { size: 15, colour: CSS.dim });
+    s.label(value, x, y + 44, { size: 34, colour: locked ? CSS.faint : CSS.ink });
+    s.ctx.font = `34px ${MONO}`;
+    s.label(unit, x + s.ctx.measureText(value).width + 10, y + 44, { size: 16, colour: CSS.dim });
+
+    const by = y + 60;
+    s.ctx.fillStyle = '#151d25';
+    s.ctx.fillRect(x, by, w, 12);
+    s.ctx.fillStyle = locked ? CSS.faint : CSS.ok;
+    s.ctx.fillRect(x, by, Math.max(3, w * frac), 12);
+    if (note) s.label(note, x, by + 32, { size: 13, colour: CSS.faint });
+  }
+
   function drawSupervisor(state) {
     const s = supervisor;
     const sup = state.sup;
@@ -630,27 +708,56 @@ export function buildRoom(scene) {
     s.ctx.fillStyle = '#131c25';
     s.ctx.fillRect(0, 0, W, 52);
     s.label('SUPERVISORY CONTROL', 18, 34, { size: 22, colour: CSS.ink });
-    s.label(sup.open ? 'IN USE' : 'PRESS  E', W - 18, 34,
+    s.label(sup.open ? 'IN USE' : 'PRESS  ENTER', W - 18, 34,
       { size: 19, colour: sup.open ? CSS.ok : CSS.amber, align: 'right' });
 
-    // Notes sit on their own line under the row they qualify, not beside it. Beside it
-    // they ran into the last pill at exactly the loads a learner is most likely to be
-    // reading, which is the worst place for two pieces of text to touch.
-    s.label('WHO IS DRIVING', 18, 84, { size: 15, colour: CSS.dim });
-    pills(s, sup.runLabels, sup.runIndex, 18, 96);
+    // Two columns: what is running the plant on the left, what the plant is made of on
+    // the right. Notes sit on their own line under the row they qualify, not beside it —
+    // beside it they ran into the last pill at exactly the settings a learner is most
+    // likely to be reading, which is the worst place for two pieces of text to touch.
+    const L = 18, R = 500;
 
-    s.label('THE FEEDER', 18, 166, { size: 15, colour: CSS.dim });
-    pills(s, ['WEAK', 'STIFF'], sup.gridKind === 'strong' ? 1 : 0, 18, 178,
+    s.label('WHO IS DRIVING', L, 88, { size: 15, colour: CSS.dim });
+    pills(s, sup.runLabels, sup.runIndex, L, 100);
+
+    s.label('THE FEEDER', L, 176, { size: 15, colour: CSS.dim });
+    pills(s, ['WEAK', 'STIFF'], sup.gridKind === 'strong' ? 1 : 0, L, 188,
       { locked: !sup.gridUnlocked });
-    if (!sup.gridUnlocked) s.label('locked until the six stages are done', 18, 226, { size: 13, colour: CSS.faint });
+    if (!sup.gridUnlocked) s.label('locked until the six stages are done', L, 236, { size: 13, colour: CSS.faint });
 
-    s.label('HOW BIG THE TOWN IS', 18, 262, { size: 15, colour: CSS.dim });
-    pills(s, ['0.5x', '1x', '1.4x', '1.8x'], sup.loadIndex, 18, 274,
+    s.label('HOW BIG THE TOWN IS', L, 268, { size: 15, colour: CSS.dim });
+    pills(s, ['0.5x', '1x', '1.4x', '1.8x'], sup.loadIndex, L, 280,
       { locked: !sup.loadUsable });
     if (!sup.loadUsable) {
       s.label(sup.gridUnlocked ? 'take the stations manual to change this' : 'locked until the six stages are done',
-        18, 322, { size: 13, colour: CSS.faint });
+        L, 328, { size: 13, colour: CSS.faint });
     }
+
+    dial(s, {
+      x: R, y: 88, w: 400,
+      label: 'ELECTRIC CARS IN TOWN',
+      value: String(sup.fleetSize), unit: `of ${sup.fleetMax}`,
+      frac: sup.fleetSize / sup.fleetMax,
+      locked: !sup.sandbox,
+      note: sup.sandbox ? null : 'locked until the six stages are done',
+    });
+
+    dial(s, {
+      x: R, y: 190, w: 400,
+      label: 'HOW HARD THE SAFETY LAYER TRIES',
+      value: sup.marginPu.toFixed(3), unit: 'pu of band',
+      frac: sup.marginPu / sup.marginMax,
+      locked: !sup.sandbox || !sup.marginApplies,
+      note: sup.marginApplies ? null : 'only SafeSAC has a safety layer to tighten',
+    });
+
+    // What the numbers on the board are, said plainly. A viewer who cannot tell a
+    // replayed export from something computed in front of them has no way to weigh either.
+    s.label(sup.live ? 'COMPUTED LIVE, HERE, AT THESE SETTINGS' : 'REPLAYING THE RECORDED EPISODES',
+      R, 322, { size: 16, colour: sup.live ? CSS.amber : CSS.dim });
+    s.label(sup.live ? 'the four controllers, re-decided every five minutes'
+      : 'exported from the notebook at 287 vehicles',
+      R, 346, { size: 13, colour: CSS.faint });
 
     // The transport strip, given its own ground so the clock reads as an instrument
     // rather than as another setting.
@@ -660,6 +767,8 @@ export function buildRoom(scene) {
     s.label(sup.clock, 18, ty + 44, { size: 38, colour: CSS.amber });
     s.label(sup.playing ? '▶ RUNNING' : '‖ HELD', 150, ty + 30, { size: 17, colour: sup.playing ? CSS.ok : CSS.dim });
     s.label(`SPEED  x${sup.speed}`, 150, ty + 56, { size: 17, colour: CSS.dim });
+    s.label('/  HOLDS THE DAY', 330, ty + 30, { size: 15, colour: CSS.faint });
+    s.label('SPACE RUNS IT · R RESETS', 330, ty + 56, { size: 15, colour: CSS.faint });
     s.label(sup.scoring ? 'SCORING THIS RUN' : 'NOT SCORED', W - 18, ty + 30,
       { size: 17, colour: sup.scoring ? CSS.ok : CSS.faint, align: 'right' });
     s.label(sup.scoring ? 'a dot will land on the map' : 'reset and play from 00:00 to score',
@@ -718,7 +827,7 @@ export function buildRoom(scene) {
     // Voltages move every step, so the board and consoles key off the step itself
     // plus anything a learner can change between steps.
     const step = `${state.frameIndex}|${state.runLabel}|${state.stationKw.join(',')}`;
-    if (changed('mimic', `${step}|${state.youBus}|${state.inside}`)) drawMimic(state);
+    if (changed('mimic', `${step}|${state.source}|${state.served}|${state.youBus}|${state.inside}`)) drawMimic(state);
     if (changed('trend', `${state.frameIndex}|${state.runLabel}`)) drawTrend(state);
     if (changed('term', String(state.picked))) drawTerminal(state);
     if (changed('sup', Object.values(state.sup).join('|'))) drawSupervisor(state);
@@ -754,8 +863,15 @@ export function buildRoom(scene) {
   return {
     redraw, invalidate, logEvent, ackAlarms, updateAlarms, alarmsPending, setFlash, drawSoe, drawMap,
     inside, spawn, consoles, desk: DESK, terminal, supervisor,
-    // On the console's normal, far enough back that the whole face is in view at once.
-    supervisorSpot: { x: ROOM.east - 4.2, z: ROOM.z + 6.0 },
+    // Every board, so the checks can assert where they hang. Two of the complaints this
+    // room has attracted were sight-line complaints — the mimic's footer behind the
+    // console lids, the annunciator's bottom row behind the relay cabinets — and a
+    // sight line is a number, so it can be tested rather than re-eyeballed.
+    screens: { mimic, annun, trend, soe, map: mapScreen, supervisor },
+    // Two points on the console's normal: the face you have to be near to reach it, and
+    // the spot to stand on, far enough back that the whole board is in view at once.
+    supervisorFace: { x: ROOM.x - 6.2, z: ROOM.north + 2.0 },
+    supervisorSpot: { x: ROOM.x - 6.2, z: ROOM.north + 4.6 },
     events,
   };
 }

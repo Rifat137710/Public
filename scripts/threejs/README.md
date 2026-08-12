@@ -167,9 +167,14 @@ problem the other five stages are about, they have removed it.
 
 Pointer lock is the nicer way to look around, and it is still the default — but it is
 also a hard dependency on a device not everyone has. So the canvas is focusable, and
-while it holds focus the arrow keys turn, WASD walks, and E and F work as they do under
-lock. Every objective in all six stages is reachable this way; the keyboard test drives
-the whole thing with pointer lock never engaged.
+while it holds focus `←` `→` turn, `↑` `↓` look up and down, `WASD` walks, and `Enter`
+and `F` work as they do under lock. Every objective in all six stages is reachable this
+way; the keyboard test drives the whole thing with pointer lock never engaged.
+
+`Enter` is what every prompt and every screen names. `E` still opens things too — it is
+in every instruction written before this and in the hands of anyone who has already
+walked the city — but a first-time visitor standing in front of a thing that says it can
+be opened reaches for `Enter`, so `Enter` is what the city asks for.
 
 Alongside that:
 

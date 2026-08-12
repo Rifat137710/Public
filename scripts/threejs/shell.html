@@ -233,6 +233,9 @@
   .slider { display: block; margin: .8rem 0 .2rem; font-family: var(--mono); font-size: .7rem; color: var(--faint); }
   #panel input[type=range] { width: 100%; accent-color: var(--amber); }
   .readout { font-family: var(--mono); color: var(--amber); font-size: .84rem; }
+  /* An author `display: block` beats the user agent's `[hidden] { display: none }`, so a
+     hidden .act button stayed on screen. Restated here rather than relied on. */
+  .act[hidden] { display: none; }
   .act {
     display: block;
     width: 100%;
@@ -390,6 +393,14 @@
   #gridNote { font-size: .7rem; color: var(--faint); margin: .25rem 0 0; max-width: 20rem; }
   #loadNote { font-size: .7rem; color: var(--faint); margin: .25rem 0 0; max-width: 22rem; }
   #loadNote.warnNote { color: var(--warn); }
+  #fleetNote { font-size: .7rem; color: var(--faint); margin: .25rem 0 0; max-width: 20rem; }
+  #cars, #margin { width: 13rem; accent-color: var(--amber); }
+  #cars:disabled, #margin:disabled { opacity: .38; }
+  .bar .readout {
+    font-family: var(--mono);
+    font-size: .72rem;
+    color: var(--amber);
+  }
   .seg button:hover, .transport button:hover { border-color: var(--dim); color: var(--ink); }
   .transport { display: flex; gap: .5rem; align-items: center; }
   #scrub { flex: 1; accent-color: var(--amber); }
@@ -474,21 +485,27 @@
     <p>A working evening on a real distribution feeder. You start at the desk in the control room
       with four charging stations and 287 vehicles, and every lamp, meter and instrument in the city
       is lit by the same power-flow solution.</p>
-    <p><b>WASD</b> walks, <b>Shift</b> runs, <b>E</b> uses what you are facing, <b>F</b> acknowledges
-      alarms. Click the view to look with the mouse — or just give it focus and use the
-      <b>arrow keys</b> to turn, which needs no mouse at all. Every bus is also listed as live text
-      below the controls.</p>
-    <p>The <b>supervisory console</b> on the far wall of the control room carries every setting on
-      this page — who is driving, the feeder itself, how big the town is, and the clock. Walk to it
-      and press <b>E</b>, or take the <em>Go to → Supervisory desk</em> shortcut. Keys work anywhere:
-      <b>1</b>–<b>4</b> pick a controller, <b>space</b> runs the day, <b>R</b> resets it,
+    <p><b>W A S D</b> walks and <b>Shift</b> runs. <b>←</b> <b>→</b> turn and <b>↑</b> <b>↓</b> look
+      up and down, so the whole city is walkable with no mouse at all — or click the view to look
+      with the mouse instead. <b>Enter</b> uses whatever you are facing and <b>F</b> acknowledges
+      alarms. Every bus is also listed as live text below the controls.</p>
+    <p>The <b>supervisory console</b> on the north wall of the control room carries every setting
+      this page has and two it does not — how many electric cars are in town, and how hard the
+      safety layer tries. Walk to it and press <b>Enter</b>, or take the
+      <em>Go to → Supervisory desk</em> shortcut. Keys work anywhere: <b>1</b>–<b>4</b> pick a
+      controller, <b>space</b> or <b>/</b> holds and releases the day, <b>R</b> resets it,
       <b>[</b> <b>]</b> change speed, <b>,</b> <b>.</b> nudge the clock, <b>G</b> rebuilds the feeder
       once it is unlocked, and <b>T</b> hides these page controls so the room is the only interface.</p>
+    <p>It is night here at every hour of the day, on purpose. A streetlight's brightness <em>is</em>
+      the voltage at its bus — that is the instrument you walk out to read — and under a daylit sky
+      the difference between a healthy street and a browned-out one falls under the ambient and
+      stops being visible. The sky keeps a moonlit floor so a dark street is still a street; the
+      lamps themselves stay exactly as dark as the physics says.</p>
   </header>
 
   <div class="stage">
     <canvas id="view" tabindex="0" role="application"
-      aria-label="The city. Arrow keys turn, W A S D walk, E uses what you are facing, F acknowledges alarms. A live text readout of every bus is below the controls."></canvas>
+      aria-label="The city. W A S D walk, arrow keys turn and look, Enter uses what you are facing, F acknowledges alarms. A live text readout of every bus is below the controls."></canvas>
     <p id="announce" class="sr" aria-live="polite"></p>
     <div class="overlay">
       <div class="hud">
@@ -527,7 +544,7 @@
         </div>
       </div>
 
-      <button id="enter">Click to enter the city<span>WASD to walk · E to use · F to acknowledge</span></button>
+      <button id="enter">Click to enter the city<span>WASD to walk · Enter to use · F to acknowledge</span></button>
       <div id="cockpitTag">COCKPIT MODE · walk to the supervisory desk · T for page controls</div>
     </div>
   </div>
@@ -551,6 +568,15 @@
       <label id="lblLoad">How big the town is</label>
       <div class="seg" role="group" aria-labelledby="lblLoad" id="loadSeg"></div>
       <p id="loadNote" hidden></p>
+    </div>
+    <div class="group">
+      <label for="cars">Electric cars in town</label>
+      <input id="cars" type="range" min="20" max="287" step="1" value="287" />
+      <span class="readout" id="carsRead">287 cars</span>
+      <label for="margin">How hard the safety layer tries</label>
+      <input id="margin" type="range" min="0" max="0.045" step="0.005" value="0.01" />
+      <span class="readout" id="marginRead">0.010 pu</span>
+      <p id="fleetNote"></p>
     </div>
     <div class="group grow">
       <label for="scrub">Time of day</label>

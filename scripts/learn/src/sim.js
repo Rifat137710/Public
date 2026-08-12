@@ -13,23 +13,11 @@
 import { WORLD, setGrid, solveAt, sensitivitiesAt, vMag, N_NODE } from '../../shared/grid.js';
 import { FleetRun, FLEET_SIZE } from '../../shared/fleet.js';
 import { CONTROLLERS, byId, safeSacWithMargin, MARGIN_PU } from '../../shared/control.js';
+import { priceAt, priceTier } from '../../shared/price.js';
 
-export { CONTROLLERS, byId, FLEET_SIZE, WORLD, MARGIN_PU };
+export { CONTROLLERS, byId, FLEET_SIZE, WORLD, MARGIN_PU, priceAt, priceTier };
 
 export const STEPS = WORLD.day.length;
-
-/** Three-tier time-of-use retail price, $/kWh, as the thesis uses. */
-export function priceAt(step) {
-  const hour = (step * 5) / 60;
-  if (hour >= 17 && hour < 22) return 0.30;
-  if (hour >= 7 && hour < 17) return 0.15;
-  return 0.08;
-}
-
-export function priceTier(step) {
-  const p = priceAt(step);
-  return p >= 0.30 ? 'peak' : p >= 0.15 ? 'day' : 'cheap';
-}
 
 /**
  * The margins the sweep reports, in per unit.

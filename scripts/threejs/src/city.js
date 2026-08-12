@@ -9,6 +9,7 @@
  */
 
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
   WORLD, BAND_LO, COL, ROAD_W, POLE_H, SUB, place, buildings, solids, stationSpot,
   maxX, mat, PALETTE, vMag, branchLossKw, lampBrightness, clamp01, PV_SET, rng,
@@ -362,10 +363,50 @@ export function buildCity(scene) {
   /* --------------------------------------------------------- vehicles */
 
   const FLEET = 30;
-  const carMesh = new THREE.InstancedMesh(new THREE.BoxGeometry(2.4, 1.45, 4.4), mat.car, FLEET);
+
+  /**
+   * The cars, and the two things that were wrong with them.
+   *
+   * The first was the geometry: a single 2.4 x 1.45 x 4.4 box. At night, at a distance,
+   * lit from one side, that is a crate on a road.
+   *
+   * The second was worse and had been there all along. The instance quaternion is built
+   * as a rotation of `-yaw` about Y, and a Y rotation of theta maps local +X onto
+   * (cos theta, 0, -sin theta) — so at theta = -yaw it is local **+X** that ends up
+   * pointing along the direction of travel, not local +Z. The old box put its 4.4 m on Z
+   * and its 2.4 m on X, which means every car in the city was driving sideways: 4.4 m
+   * wide and 2.4 m long. The headlights, placed 2.1 m along the heading, were the one
+   * part that had it right, and they sat a metre outside the bodywork they belonged to.
+   *
+   * So the car is built along X, and everything is merged into three instanced meshes —
+   * painted body, glazing, wheels — which is three draw calls for the whole fleet.
+   */
+  const carGeo = mergeGeometries([
+    new THREE.BoxGeometry(4.5, 0.58, 1.94).translate(0, 0.55, 0),          // hull
+    new THREE.BoxGeometry(3.5, 0.26, 1.98).translate(-0.05, 0.94, 0),      // shoulder line
+    new THREE.BoxGeometry(2.30, 0.50, 1.74).translate(-0.35, 1.29, 0),     // cabin
+  ]);
+  const glassGeo = mergeGeometries([
+    new THREE.BoxGeometry(2.10, 0.34, 1.80).translate(-0.35, 1.31, 0),     // side glazing
+    new THREE.BoxGeometry(2.34, 0.30, 1.58).translate(-0.35, 1.31, 0),     // screen and rear
+  ]);
+  const wheelGeo = mergeGeometries([1.42, -1.38].flatMap((wx) => [0.86, -0.86].map((wz) => {
+    const g = new THREE.CylinderGeometry(0.42, 0.42, 0.26, 12);
+    g.rotateX(Math.PI / 2);          // barrel axis along Z, so the wheel rolls along X
+    g.translate(wx, 0.42, wz);
+    return g;
+  })));
+
+  const carMesh = new THREE.InstancedMesh(carGeo, mat.car, FLEET);
   carMesh.castShadow = true;
+  const glassMesh = new THREE.InstancedMesh(glassGeo, mat.glass, FLEET);
+  const wheelMesh = new THREE.InstancedMesh(wheelGeo, mat.tyre, FLEET);
+
+  // The bar grows forward from the back of the roof rather than out from its middle, so
+  // a half-charged car reads as half a bar rather than as a shorter centred one.
+  const socGeo = new THREE.PlaneGeometry(1, 0.30).rotateX(-Math.PI / 2).translate(0.5, 0, 0);
   const socMesh = new THREE.InstancedMesh(
-    new THREE.PlaneGeometry(1, 0.28),
+    socGeo,
     new THREE.MeshBasicMaterial({ toneMapped: false, side: THREE.DoubleSide }),
     FLEET,
   );
@@ -374,7 +415,19 @@ export function buildCity(scene) {
     new THREE.MeshBasicMaterial({ color: 0xf2ead6, toneMapped: false }),
     FLEET * 2,
   );
-  scene.add(carMesh, socMesh, headMesh);
+  const tailMesh = new THREE.InstancedMesh(
+    new THREE.BoxGeometry(0.1, 0.14, 0.42),
+    new THREE.MeshBasicMaterial({ color: 0xd8422f, toneMapped: false }),
+    FLEET * 2,
+  );
+  scene.add(carMesh, glassMesh, wheelMesh, socMesh, headMesh, tailMesh);
+
+  // Paint. A car park of one colour reads as one object with a repeating texture; a car
+  // park of six reads as a car park. They are muted because a saturated fleet under
+  // sodium lamps competes with the lamps, and the lamps are the instrument here.
+  const PAINT = [0x9aa6b4, 0x3d5a74, 0x7d3f3a, 0x4a5b4e, 0xb0a48c, 0x2f3742];
+  for (let i = 0; i < FLEET; i++) carMesh.setColorAt(i, scratch.setHex(PAINT[i % PAINT.length]));
+  carMesh.instanceColor.needsUpdate = true;
 
   const routes = new Map();
   for (const bus of WORLD.stations) routes.set(bus, routeTo(bus));
@@ -430,7 +483,7 @@ export function buildCity(scene) {
     const { plugged, stationKw, running } = ctx;
     const m = new THREE.Matrix4();
     const q = new THREE.Quaternion();
-    let head = 0;
+    let head = 0, tail = 0;
 
     // How many bays each station should have filled, scaled from the recorded count.
     const want = plugged.map((n) => Math.min(6, Math.ceil(n / 7)));
@@ -493,30 +546,41 @@ export function buildCity(scene) {
         }
       }
 
+      // Local +X is the direction of travel. Every offset below is written in that frame
+      // and rotated out, which is the only way to keep the lamps on the front of the car.
+      const cos = Math.cos(car.yaw), sin = Math.sin(car.yaw);
+      const at = (ax, ay, az) => V3(car.x + cos * ax - sin * az, ay, car.z + sin * ax + cos * az);
+
       q.setFromAxisAngle(V3(0, 1, 0), -car.yaw);
-      m.compose(V3(car.x, 0.75, car.z), q, ONE);
+      m.compose(V3(car.x, 0, car.z), q, ONE);
       carMesh.setMatrixAt(i, m);
+      glassMesh.setMatrixAt(i, m);
+      wheelMesh.setMatrixAt(i, m);
 
       // State of charge, drawn as a bar on the roof: teal while it fills, amber when full.
-      m.compose(V3(car.x, 1.56, car.z), new THREE.Quaternion().setFromEuler(new THREE.Euler(-Math.PI / 2, 0, -car.yaw)), V3(1.7 * car.soc, 1, 1));
+      m.compose(at(-1.45, 1.57, 0), q, V3(2.1 * car.soc, 1, 1));
       socMesh.setMatrixAt(i, m);
       socMesh.setColorAt(i, scratch.copy(car.soc > 0.98 ? WARM : COOL).multiplyScalar(1.7));
 
       if (car.state !== 'charging') {
-        for (const side of [-0.75, 0.75]) {
-          const hx = car.x + Math.cos(car.yaw) * 2.1 - Math.sin(car.yaw) * side;
-          const hz = car.z + Math.sin(car.yaw) * 2.1 + Math.cos(car.yaw) * side;
-          m.compose(V3(hx, 0.72, hz), IDENT_Q, ONE);
+        for (const side of [-0.72, 0.72]) {
+          m.compose(at(2.18, 0.72, side), IDENT_Q, ONE);
           headMesh.setMatrixAt(head++, m);
+          m.compose(at(-2.22, 0.78, side), q, ONE);
+          tailMesh.setMatrixAt(tail++, m);
         }
       }
     });
 
     for (let i = head; i < FLEET * 2; i++) headMesh.setMatrixAt(i, HIDDEN);
+    for (let i = tail; i < FLEET * 2; i++) tailMesh.setMatrixAt(i, HIDDEN);
     carMesh.instanceMatrix.needsUpdate = true;
+    glassMesh.instanceMatrix.needsUpdate = true;
+    wheelMesh.instanceMatrix.needsUpdate = true;
     socMesh.instanceMatrix.needsUpdate = true;
     socMesh.instanceColor.needsUpdate = true;
     headMesh.instanceMatrix.needsUpdate = true;
+    tailMesh.instanceMatrix.needsUpdate = true;
   }
 
   function segLength(route, leg) {
@@ -528,15 +592,14 @@ export function buildCity(scene) {
   /* -------------------------------------------------- voltage -> light */
 
   /**
-   * `daylight` runs 0 at night to 1 at noon and only ever attenuates what is drawn — it
-   * never touches `lamp.flux`, which is the physics. Streetlights and lit windows are
-   * not visible against a midday sky, and leaving them at full emissive put a field of
-   * glowing dots over a sunlit town and pushed the bloom pass into a white haze.
+   * Voltage, rendered.
+   *
+   * There is no daylight term here and there deliberately never will be again. A lamp's
+   * brightness is the readout for the voltage at its bus, and anything that attenuates it
+   * for reasons of its own — a sun, a time of day, a mood — is attenuating the instrument.
+   * The town is held at night so that this stays the only thing moving.
    */
-  function applyVoltages(stationKw, manual, daylight = 0) {
-    const lampSeen = 1 - 0.55 * daylight;
-    const winSeen = 1 - 0.85 * daylight;
-
+  function applyVoltages(stationKw, manual) {
     for (const lamp of lamps) {
       const v = vMag[lamp.bus];
       const b = lampBrightness(v);
@@ -548,7 +611,7 @@ export function buildCity(scene) {
       // under one at 0.86 pu needs to see that it is a lamp that has failed rather than
       // an empty frame. The light it casts is unaffected: that stays at flux.
       bulbs.setColorAt(lamp.index,
-        scratch.copy(lamp.colour).multiplyScalar((0.35 + 2.6 * lamp.flux) * lampSeen));
+        scratch.copy(lamp.colour).multiplyScalar(0.35 + 2.6 * lamp.flux));
     }
     bulbs.instanceColor.needsUpdate = true;
 
@@ -558,7 +621,7 @@ export function buildCity(scene) {
       const health = clamp01((v - 0.84) / 0.11);
       // Mixed up from a dark base, so a sagging bus reads as dim rather than lurid.
       scratch.copy(v >= BAND_LO ? WARM : SICK.clone().lerp(WARM, health))
-        .multiplyScalar((0.16 + 1.5 * b) * winSeen);
+        .multiplyScalar(0.16 + 1.5 * b);
       winMesh.setColorAt(i, scratch);
     });
     winMesh.instanceColor.needsUpdate = true;
