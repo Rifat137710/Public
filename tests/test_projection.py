@@ -9,6 +9,7 @@ import numpy as np
 import pytest
 
 from safesac.config import ExperimentConfig
+from safesac.env import ChargingFeederEnv
 from safesac.network import build_feeder, scale_loads, set_loads, set_pv_power, set_station_power
 from safesac.powerflow import JacobianSensitivities, RadialPowerFlow
 from safesac.projection import SensitivityProjector, compute_loading_sensitivities
@@ -271,3 +272,74 @@ def test_both_bounds_bind_on_the_same_feeder():
     assert np.all(inject.p_kw < rated)      # curtailed by the upper bound
     assert np.all(charge.p_kw > -rated)     # curtailed by the lower bound
     assert np.all(inject.p_kw > 0) and np.all(charge.p_kw < 0)
+
+
+# --- ProjectedAgent: the baseline the thesis never ran -----------------------
+
+
+def test_projection_makes_a_greedy_charger_strictly_safe():
+    """The headline of docs/03: the safety layer does the work, not the learner.
+
+    Uncoordinated charging violates the band on ~6 % of steps. The same request
+    passed through the projection violates on none of them, while keeping most
+    of the service -- which is why "why RL at all?" is the question the paper
+    has to answer rather than avoid.
+    """
+    from safesac.agents import UncoordinatedAgent
+    from safesac.evaluate import evaluate
+    from safesac.projected import ProjectedAgent
+
+    cfg = ExperimentConfig.stage1("weak")
+
+    env = ChargingFeederEnv(cfg)
+    raw = evaluate(UncoordinatedAgent(env), env, cfg, n_episodes=3,
+                   run_label="stage1_eval")["aggregate"]
+
+    env = ChargingFeederEnv(cfg)
+    proj = evaluate(ProjectedAgent(UncoordinatedAgent(env), env, cfg), env, cfg,
+                    n_episodes=3, run_label="stage1_eval")["aggregate"]
+
+    assert raw["voltage_violation_step_rate_mean"] > 0.02
+    assert proj["voltage_violation_step_rate_mean"] == 0.0
+    # service is retained, not destroyed
+    assert proj["frac_meeting_soc_target_mean"] > 0.5 * raw["frac_meeting_soc_target_mean"]
+
+
+def test_wrong_sensitivities_make_the_projection_permissive():
+    """Arm B: a projection carrying the *training* network's physics is unsafe.
+
+    Comparing single actions is vacuous -- early in the episode nothing is
+    connected, and the first binding constraint is the ramp limit, which does
+    not involve the sensitivities at all. So compare behaviour over a rollout:
+    a projector that believes injections barely move voltage permits more
+    charging, and the feeder pays for it.
+    """
+    import numpy as np
+
+    from safesac.agents import UncoordinatedAgent
+    from safesac.evaluate import evaluate
+    from safesac.projected import ProjectedAgent
+
+    cfg = ExperimentConfig.stage1("weak")
+
+    env = ChargingFeederEnv(cfg)
+    live = ProjectedAgent(UncoordinatedAgent(env), env, cfg)
+    a_live = evaluate(live, env, cfg, n_episodes=2, run_label="stage1_eval")["aggregate"]
+
+    env = ChargingFeederEnv(cfg)
+    probe = ProjectedAgent(UncoordinatedAgent(env), env, cfg)
+    obs, _ = env.reset(seed=3)   # the feeder must exist before the cache binds
+    probe.reset_episode()
+    probe.select_action(obs)
+    understated = replace(probe.cache.sens, dv_dp=probe.cache.sens.dv_dp * 0.05)
+
+    env = ChargingFeederEnv(cfg)
+    stale = ProjectedAgent(UncoordinatedAgent(env), env, cfg,
+                           frozen_sensitivities=understated,
+                           frozen_loading=probe.cache.loading)
+    a_stale = evaluate(stale, env, cfg, n_episodes=2, run_label="stage1_eval")["aggregate"]
+
+    assert a_live["voltage_violation_step_rate_mean"] == 0.0
+    assert a_stale["voltage_violation_step_rate_mean"] > a_live["voltage_violation_step_rate_mean"]
+    assert a_stale["throughput_kwh_mean"] > a_live["throughput_kwh_mean"]
+    assert not np.isclose(a_stale["vmin_pu_mean"], a_live["vmin_pu_mean"])
