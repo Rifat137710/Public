@@ -49,18 +49,71 @@ This is a two-line experiment. A reviewer will run it. It had to be run first.
 
 ---
 
-## 1. What the conference paper is
+## 1. G0 — run, and it decided the paper
 
-The framing is decided by **G0** below, not assumed.
+`scripts/operating_point_sweep.py`, heuristics only, load scale × EV penetration, with a
+deadline-aware request (`UrgencyAgent`) added so *sequencing* could be measured apart from
+raw energy demand.
 
-| | If G0 finds a non-trivial regime | If it does not |
-|---|---|---|
-| **Claim** | Where network physics enters the controller determines whether constraint satisfaction survives deployment on an unseen feeder. A projection rebuilt from *deployment-side* sensitivities restores it zero-shot; the same projection frozen at training-side values does not. | A deployment-parametrised sensitivity projection converts an unsafe charging schedule into a strictly safe one at 88 % service retention and 3 ms/step, zero-shot across feeder stiffness — and it, not the learner, is what delivers safe service. |
-| **Category** | 5 (realistic uncertainty) · mechanism 4 (new formulation) | 4 (new formulation) · fallback 2 |
-| **Risk** | requires the regime to exist | none — supported by data already in hand |
+| load | EVs | idle viol | uncoord+proj viol/SoC | retention | **sequencing gain** |
+|---|---|---|---|---|---|
+| 0.40 | 30 | 0.0000 | 0.0000 / 0.725 | 0.894 | **−0.1358** |
+| 0.40 | 60 | 0.0000 | 0.0000 / 0.186 | 0.847 | **−0.0568** |
+| 0.40 | 100 | 0.0000 | 0.0000 / 0.016 | 0.879 | **−0.0141** |
+| 0.55 | 30 | **0.1341** | 0.1228 / 0.548 | 0.675 | −0.0842 |
+| 0.55 | 100 | **0.1341** | 0.1280 / 0.005 | 0.300 | −0.0048 |
+| 0.70 | 30 | **0.3173** | 0.3121 / 0.425 | 0.525 | −0.0094 |
 
-Both keep the same experimental skeleton, so **G0 does not change what we build**, only
-what the abstract claims. That is deliberate.
+1. **The load axis is closed.** At 0.55 the *idle* feeder violates on 13.4 % of steps and at
+   0.70 on 31.7 %, destroying the clean attribution audit A4 exists to protect.
+2. **At load 0.40 the projection is near-free** — retention 0.85–0.89 at every penetration,
+   infeasible on 0.13–0.35 % of steps.
+3. **Sequencing gain is negative everywhere.** Deferring non-urgent stations does *worse*
+   than charging everything, because deferred energy is never made up. The binding resource
+   is energy over the day, not allocation across stations — **the problem has no scheduling
+   structure for a policy to exploit.**
+
+**Verdict: no reachable operating point on this testbed rewards a learner.** The conference
+paper is about the safety layer.
+
+### The claim
+
+> A safety projection that ships with its **training** network's sensitivities silently
+> stops being a safety layer when deployed on a feeder of different stiffness — it admits
+> *exactly* the unprojected violation rate. One that rebuilds its sensitivities from the
+> **deployment** feeder holds the band zero-shot, at ~89 % service retention, independent
+> of what controller is upstream of it.
+
+**Category 4 (new formulation), supported by 5 (model uncertainty).** The learned policy
+becomes one *request source* among several, and its underperformance against greedy is
+reported as a finding rather than hidden.
+
+### First evidence — `scripts/projection_transfer.py`, no training required
+
+Model built at Z = 0.5 %, deployed unchanged (violation step rate):
+
+| deploy Z | source | raw | **frozen model** | **deployment model** |
+|---|---|---|---|---|
+| 0.5 % | uncoordinated | 0.0000 | 0.0000 | 0.0000 |
+| 2.0 % | uncoordinated | 0.0000 | 0.0000 | 0.0000 |
+| 4.0 % | uncoordinated | 0.0000 | 0.0000 | 0.0000 |
+| **6.0 %** | **uncoordinated** | **0.0561** | **0.0561** | **0.0000** |
+| **6.0 %** | **urgency** | **0.0593** | **0.0593** | **0.0000** |
+| 6.0 % | droop | 0.0000 | 0.0000 | 0.0000 |
+
+The frozen-model projection is not merely worse — it is **exactly as unsafe as no
+projection at all**, to four decimals, for both aggressive sources. At Z = 0.5 % the carried
+model believes ∂V/∂P is small, so no constraint binds and the raw request passes untouched.
+Rebuilt at deployment: every violating step removed, SoC 0.864 → 0.770.
+
+Droop is the control — never violates at any stiffness, with or without the projection, and
+serves 0.019. Safe because it barely charges. It shows the effect is the safety layer, not
+conservatism.
+
+**Known weakness, not papered over:** three of four deployment points are violation-free for
+every method, so this is a *step*, not a degradation curve. Extended sweep to Z = 12 % and
+the reverse direction (weak-feeder model deployed on stiff feeders — expected
+over-conservative rather than unsafe) are running.
 
 ---
 
@@ -108,30 +161,32 @@ what the abstract claims. That is deliberate.
 
 ### 3b. To do
 
-| # | Task | Why it is required | Est. |
+| # | Task | Why it is required | State |
 |---|---|---|---|
-| **G0** | **Operating-point sweep, heuristics only** — raise load scale and EV count until greedy + projection stops saturating | Decides the paper's framing. No training needed | **~1 h** |
-| T1 | Parametric stiffness axis in `FeederConfig`: Z ∈ {0, 2, 4, 6} % at R/X = 2 | The deployment axis. Cheaper and more convincing than a second real feeder — and it is what makes category 5 literal | 4 h |
-| T2 | Frozen-sensitivity deployment mode | **Already built** in `ProjectedAgent(frozen_sensitivities=…)`; needs wiring + a test | 2 h |
-| T3 | Mixture-line frontier reported for every arm | **Already built** in `projected_heuristics.py`; needs lifting into the main results path | 1 h |
-| T4 | Train 5 seeds, `autotune_alpha=False`, at the training stiffness point | 5 seeds, not 3 — the σ claim needs it | ~3 h compute |
-| T5 | Deploy 4 stiffness points × arms × 5 seeds | The transfer matrix | ~3 h compute |
-| T6 | Silence / diagnose CVXPY `Solution may be inaccurate` warnings | Currently emitted on a minority of solves. Outcomes are measured from AC power flow, not the solver's claim, so results stand — but it must not appear in a released artifact | 2 h |
-| T7 | Tests for `ProjectedAgent` and the stiffness axis | Keeps the suite the credibility anchor it is | 2 h |
+| **G0** | Operating-point sweep, heuristics only | Decided the framing | ✅ **done** — §1 |
+| **T1** | Parametric stiffness axis, `ExperimentConfig.stiffness()` | The deployment axis. Always the weak topology so bus count (34) and obs dim (95) stay constant — a study that changed the obs vector mid-way could not claim zero-shot transfer | ✅ **done, validated** |
+| **T2** | Frozen-sensitivity treatment | The mechanism control; earns category 4 | ✅ **done + tested** |
+| **T3** | Mixture-line frontier | Pre-empts "a coin flip beats you" | ✅ **done** |
+| **T9** | **Extended stiffness sweep, Z → 12 %, both directions** | Turns a step into a degradation curve; the reverse direction tests over-conservatism | 🔵 **running** |
+| T4 | Train 5 seeds, `autotune_alpha=False` | Now a *supporting row*, not the headline — the learned policy is one request source | ⬜ ~3 h Kaggle |
+| T5 | Deploy learned policy across the stiffness axis | Completes the request-source set | ⬜ ~1 h |
+| T6 | CVXPY `Solution may be inaccurate` warnings | Outcomes are measured from AC power flow, not the solver's claim, so results stand — but this must not ship in a released artifact | ⬜ 2 h |
+| T7 | Tests for the stiffness axis + transfer invariants | Keeps the suite the credibility anchor | ⬜ 2 h |
+| T10 | A5 infeasibility across the stiffness axis | The method's own failure mode, stated with a number | ⬜ 1 h |
 
-**Arms (one trained policy, three deployment treatments — no training confound):**
+**Treatments (identical upstream request; only the projection's physics differs):**
 
-| arm | policy | projection | sensitivities |
-|---|---|---|---|
-| **A** | SAC-Lag | none | — |
-| **B** | SAC-Lag | yes | **frozen at training network** (prior-art style) |
-| **C** | SAC-Lag | yes | **deployment network** (ours) |
-| **H** | uncoordinated | yes | deployment network — *the honest upper reference* |
+| treatment | projection | sensitivities |
+|---|---|---|
+| **raw** | none | — |
+| **frozen** | yes | **training network** (prior-art parametrisation) |
+| **deploy** | yes | **deployment network** (ours) |
 
-Baselines throughout: zero · uncoordinated · droop · **uncoordinated↔droop mixture line**.
-Reference: the diagonal (train = deploy) cell. **No MPC oracle at ISGT.**
+**Request sources:** uncoordinated · droop · urgency · SAC-Lag (supporting row).
+Baselines: zero · **uncoordinated↔droop mixture line**. **No MPC oracle at ISGT.**
 
-**Total remaining: ~2 days of code, ~7 h of background compute.**
+**Total remaining: ~1 day of code, ~4 h of compute** — down from ~2 days and ~7 h, because
+the headline result needs no training.
 
 ---
 
@@ -185,14 +240,16 @@ Reference: the diagonal (train = deploy) cell. **No MPC oracle at ISGT.**
 | "single seed, no statistics" | 5 seeds, seed-level CIs |
 | "unclear novelty" | frozen-sensitivity arm isolates the mechanism → category 4/5 |
 | "out of scope" | V2G voltage support is core ISGT |
-| **"why RL at all?"** | **the question D15 forces — G0 decides whether we answer it or drop the RL claim** |
+| **"why RL at all?"** | **answered by not claiming it.** G0 found no operating point that rewards a learner, so the paper does not assert one. The learned policy is one request source, and its underperformance is reported |
 
-**Open** — one item, and it is the framing, not the execution. The projected-heuristic
-result is strong enough to carry a paper on its own; what G0 determines is whether the
-paper is *about safe RL* or *about the safety layer*. Either is publishable. Only the
-first is at risk.
+**Open — one item, and it is now an evidence-breadth question, not a framing one.** The
+effect appears at a single deployment point (Z = 6 %); three of four points are
+violation-free for every method. T9 extends the range to Z = 12 % to convert a step into a
+curve. If the curve does not materialise, the claim narrows from *"degradation grows with
+network distance"* to *"there exists a deployment gap at which a carried model becomes
+wholly inert"* — weaker, still true, still publishable, and still category 4.
 
-**What would get this rejected:** submitting a safe-RL claim without having run G0, and
+**What would have got this rejected:** submitting a safe-RL claim without running G0, and
 meeting a reviewer who runs `projected_heuristics.py` in ten minutes.
 
 ---
