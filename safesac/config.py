@@ -288,6 +288,46 @@ class ExperimentConfig:
         )
 
     @classmethod
+    def stiffness(
+        cls,
+        substation_z_pct: float,
+        *,
+        rx_ratio: float = 2.0,
+        evs_per_station: float = 30.0,
+        load_scale: float = 0.40,
+    ) -> "ExperimentConfig":
+        """A `stage1` feeder at an arbitrary substation stiffness.
+
+        The deployment axis for the transfer study. The thesis had exactly two
+        networks -- "weak" (Z = 6 %) and "strong" (an infinite bus) -- which is
+        two points, one of them synthesised. Two points cannot show that
+        degradation is systematic rather than anecdotal; a continuum can, and
+        it costs no new feeder data.
+
+        Always the *weak* topology, never `variant="strong"`, even at the stiff
+        end. The Thevenin bus must exist at every point on the sweep or the bus
+        count changes from 34 to 33 mid-study, which changes the observation
+        vector and makes zero-shot transfer meaningless. Stiffness is expressed
+        by shrinking the impedance, not by deleting the bus: Z = 0.5 % on a
+        10 MVA base is a short-circuit ratio of 200, stiff by any measure.
+        """
+        if substation_z_pct <= 0.0:
+            raise ValueError(
+                "substation_z_pct must be > 0; use a small value (0.5) for a stiff "
+                "feeder so the Thevenin bus survives and the obs vector is stable"
+            )
+        base = cls.stage1("weak", evs_per_station=evs_per_station)
+        return replace(
+            base,
+            feeder=replace(
+                base.feeder,
+                substation_z_pct=substation_z_pct,
+                substation_rx_ratio=rx_ratio,
+            ),
+            scenario=replace(base.scenario, load_scale=load_scale),
+        )
+
+    @classmethod
     def high_pv_overvoltage(cls, variant: str = "weak") -> "ExperimentConfig":
         """The V2G-safety case the thesis claims but never ran (audit A3).
 

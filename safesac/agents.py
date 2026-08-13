@@ -100,3 +100,50 @@ class DroopAgent(BaseAgent):
             [self._qv_droop(float(v[bus])) for bus in env.feeder.ev_buses], dtype=np.float32
         )
         return np.concatenate([p, q])
+
+
+class UrgencyAgent(BaseAgent):
+    """Deadline-aware greedy: charge only the stations that cannot afford to wait.
+
+    The diagnostic baseline for "is there a control problem here at all?".
+    Uncoordinated charging asks for everything at once; this asks only for what
+    is about to miss its deadline, deferring the rest. On a feeder with slack,
+    the two are indistinguishable once projected -- nothing had to be sequenced.
+    Where they separate, ordering matters, and a learner has something to learn.
+
+    Deliberately myopic: no price, no voltage, no V2G. It isolates sequencing.
+    """
+
+    name = "urgency"
+
+    def __init__(self, env, slack_steps: float = 24.0):
+        self.env = env
+        self.slack_steps = slack_steps
+
+    def select_action(self, obs=None, info=None, deterministic=False):
+        env = self.env
+        n = env.n_stations
+        cfg = env.cfg
+        p = np.zeros(n, dtype=np.float32)
+
+        dt_h = cfg.time.step_minutes / 60.0
+        cap_kw = cfg.feeder.ev_station_kva
+        eff = cfg.fleet.charge_efficiency
+        per_step_kwh = max(cap_kw * dt_h * eff, 1e-9)
+        t = env.current_step
+
+        for j in range(n):
+            evs = [ev for ev in env.active_evs[j] if ev.soc < ev.soc_target]
+            if not evs:
+                continue
+            need_kwh = sum(
+                (ev.soc_target - ev.soc) * ev.battery_capacity_kwh for ev in evs
+            )
+            # Steps of full-rate charging the station still owes its vehicles,
+            # against the soonest departure it has to meet.
+            required = need_kwh / per_step_kwh
+            remaining = min(ev.arrival_step + ev.dwell_steps - t for ev in evs)
+            if remaining - required <= self.slack_steps:
+                p[j] = -1.0
+
+        return np.concatenate([p, np.zeros(n, dtype=np.float32)])
