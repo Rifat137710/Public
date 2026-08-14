@@ -305,41 +305,56 @@ def test_projection_makes_a_greedy_charger_strictly_safe():
     assert proj["frac_meeting_soc_target_mean"] > 0.5 * raw["frac_meeting_soc_target_mean"]
 
 
-def test_wrong_sensitivities_make_the_projection_permissive():
-    """Arm B: a projection carrying the *training* network's physics is unsafe.
+def test_the_base_point_carries_the_safety_not_the_jacobian():
+    """The correction to my first transfer claim, pinned so it cannot recur.
 
-    Comparing single actions is vacuous -- early in the episode nothing is
-    connected, and the first binding constraint is the ramp limit, which does
-    not involve the sensitivities at all. So compare behaviour over a rollout:
-    a projector that believes injections barely move voltage permits more
-    charging, and the feeder pays for it.
+    Freezing a `Sensitivities` object freezes two different things: the Jacobian
+    dV/dP, dV/dQ, and the operating point it was linearised about. My first
+    transfer experiment froze both and attributed the whole effect to the
+    Jacobian. Splitting them shows the opposite:
+
+      * a projection carrying a Jacobian understated 20x, but *measuring* its
+        own voltages, still holds the band -- the base point tells it where it
+        is, and the Jacobian only sets the step size;
+      * a projection carrying the right Jacobian about a stale idle base point
+        is exactly as unsafe as no projection at all.
+
+    Hence the finding is about refresh cadence (audit B3), not about network
+    transfer, and `frozen_mode` exists so the two cannot be conflated again.
     """
-    import numpy as np
-
     from safesac.agents import UncoordinatedAgent
     from safesac.evaluate import evaluate
     from safesac.projected import ProjectedAgent
 
-    cfg = ExperimentConfig.stage1("weak")
+    cfg = ExperimentConfig.stiffness(6.0)   # weak enough that greedy violates
 
     env = ChargingFeederEnv(cfg)
-    live = ProjectedAgent(UncoordinatedAgent(env), env, cfg)
-    a_live = evaluate(live, env, cfg, n_episodes=2, run_label="stage1_eval")["aggregate"]
+    raw = evaluate(UncoordinatedAgent(env), env, cfg, n_episodes=3,
+                   run_label="transfer_eval")["aggregate"]
+    assert raw["voltage_violation_step_rate_mean"] > 0.02, "no safety problem to solve"
 
+    # The model a fixed-model controller would ship with: idle feeder, t = 0.
     env = ChargingFeederEnv(cfg)
     probe = ProjectedAgent(UncoordinatedAgent(env), env, cfg)
-    obs, _ = env.reset(seed=3)   # the feeder must exist before the cache binds
+    obs, _ = env.reset(seed=3)
     probe.reset_episode()
     probe.select_action(obs)
-    understated = replace(probe.cache.sens, dv_dp=probe.cache.sens.dv_dp * 0.05)
+    idle_sens, idle_loading = probe.cache.sens, probe.cache.loading
+    understated = replace(idle_sens, dv_dp=idle_sens.dv_dp * 0.05)
 
-    env = ChargingFeederEnv(cfg)
-    stale = ProjectedAgent(UncoordinatedAgent(env), env, cfg,
-                           frozen_sensitivities=understated,
-                           frozen_loading=probe.cache.loading)
-    a_stale = evaluate(stale, env, cfg, n_episodes=2, run_label="stage1_eval")["aggregate"]
+    def run(**kw):
+        e = ChargingFeederEnv(cfg)
+        return evaluate(ProjectedAgent(UncoordinatedAgent(e), e, cfg, **kw), e, cfg,
+                        n_episodes=3, run_label="transfer_eval")["aggregate"]
 
-    assert a_live["voltage_violation_step_rate_mean"] == 0.0
-    assert a_stale["voltage_violation_step_rate_mean"] > a_live["voltage_violation_step_rate_mean"]
-    assert a_stale["throughput_kwh_mean"] > a_live["throughput_kwh_mean"]
-    assert not np.isclose(a_stale["vmin_pu_mean"], a_live["vmin_pu_mean"])
+    snapshot = run(frozen_sensitivities=idle_sens, frozen_loading=idle_loading,
+                   frozen_mode="snapshot")
+    jacobian = run(frozen_sensitivities=understated, frozen_loading=idle_loading,
+                   frozen_mode="jacobian")
+
+    # A stale base point removes the protection entirely.
+    assert snapshot["voltage_violation_step_rate_mean"] == pytest.approx(
+        raw["voltage_violation_step_rate_mean"], abs=1e-9
+    )
+    # A badly wrong Jacobian, with the base point measured, does not.
+    assert jacobian["voltage_violation_step_rate_mean"] == 0.0
