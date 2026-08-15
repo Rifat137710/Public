@@ -516,7 +516,10 @@ class ProjectionStats:
     n_infeasible: int = 0
     n_frozen_steps: int = 0
     n_unavailable: int = 0
+    n_inaccurate: int = 0        # solver said "inaccurate" but the point passed
+    max_residual: float = 0.0    # worst accepted constraint violation seen
     statuses: Dict[str, int] = field(default_factory=dict)
+    solver_statuses: Dict[str, int] = field(default_factory=dict)
 
     @property
     def infeasible_rate(self) -> float:
@@ -526,6 +529,15 @@ class ProjectionStats:
         self.n_calls += 1
         if res.solved:
             self.n_solved += 1
+            ss = getattr(res, "solver_status", "") or "unknown"
+            self.solver_statuses[ss] = self.solver_statuses.get(ss, 0) + 1
+            if res.ok:
+                # Accepted despite the solver's own hedge -- worth counting, so
+                # "how often did we trust a hedged solve?" has an answer.
+                if "inaccurate" in ss:
+                    self.n_inaccurate += 1
+                self.max_residual = max(self.max_residual,
+                                        float(getattr(res, "residual", 0.0)))
         else:
             self.n_skipped_feasible += 1
         if not res.ok:
@@ -545,6 +557,10 @@ class ProjectionStats:
                 self.n_skipped_feasible / self.n_calls if self.n_calls else 0.0
             ),
             "projection_unavailable": self.n_unavailable,
+            "projection_inaccurate_rate": (
+                self.n_inaccurate / self.n_solved if self.n_solved else 0.0
+            ),
+            "projection_max_residual": self.max_residual,
         }
 
 

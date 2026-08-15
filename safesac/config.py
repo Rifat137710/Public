@@ -196,6 +196,15 @@ class SafetyConfig:
     max_consecutive_failures: int = 3
     station_ramp_per_step_pu: float = 0.50
 
+    # A solution is accepted on its measured constraint residual, not on the
+    # solver's own label. CLARABEL reports `optimal_inaccurate` whenever it
+    # stops on its duality-gap tolerance, which on a reactive-power request
+    # happens on ~62 % of real solves while the returned point still satisfies
+    # the voltage band exactly. 1e-6 is four orders of magnitude tighter than
+    # the projection margin and three tighter than the worst residual measured
+    # on any accepted solve.
+    projection_residual_tol: float = 1e-6
+
 
 @dataclass(frozen=True)
 class ExperimentConfig:

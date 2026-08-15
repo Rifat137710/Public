@@ -87,6 +87,12 @@ def main() -> int:
                     "viol": agg["voltage_violation_step_rate_mean"],
                     "soc": agg["frac_meeting_soc_target_mean"],
                     "infeasible": s["projection_infeasible_rate"],
+                    # Audit A5: infeasibility only matters because of what it
+                    # triggers -- the freeze latch zeroes the station, removing
+                    # voltage support exactly when the band is hardest to hold.
+                    "frozen": s["projection_frozen_step_rate"],
+                    "inaccurate": s["projection_inaccurate_rate"],
+                    "max_residual": s["projection_max_residual"],
                     "ms_step": agg["mean_step_time_ms_mean"],
                 }
                 line += f"   {r}={row[str(r)]['viol']:.4f}/{row[str(r)]['soc']:.3f}"

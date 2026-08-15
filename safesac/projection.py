@@ -14,6 +14,7 @@ See docs/01-audit item B3.
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from typing import Optional
 
@@ -38,6 +39,15 @@ class ProjectionResult:
     frozen: np.ndarray
     all_frozen: bool
     solved: bool  # False when the feasibility pre-check let the raw action through
+    # Raw solver verdict, kept separate from `status`. CLARABEL returns
+    # `optimal_inaccurate` when it stops on its own duality-gap tolerance, and
+    # collapsing that into "ok" hid it from every log we produced: a safety
+    # layer that reports only "it worked" cannot be audited. See `residual`.
+    solver_status: str = ""
+    # Worst constraint violation of the *returned* point, in pu for the voltage
+    # band and normalised for the apparent-power cone. This, not the solver's
+    # label, is what decides whether a solution is accepted.
+    residual: float = 0.0
 
     @property
     def ok(self) -> bool:
@@ -303,18 +313,38 @@ class SensitivityProjector:
         par["frozen"].value = self.frozen.astype(float)
 
         try:
-            self.problem.solve(solver=cp.CLARABEL, verbose=False)
+            with warnings.catch_warnings():
+                # CLARABEL's "solution may be inaccurate" is a statement about
+                # its own stopping tolerance, not about feasibility. We do not
+                # trust the label in either direction -- the returned point is
+                # checked against the constraints below -- so the warning is
+                # pure noise on every log. Measured on this testbed: a droop
+                # request (which commands reactive power, unlike the greedy
+                # one) is labelled inaccurate on ~62 % of real solves, while
+                # its worst voltage-band residual is exactly 0 and its worst
+                # cone residual is 4.9e-05 kVA against an 80 kVA rating.
+                warnings.filterwarnings("ignore", message=".*may be inaccurate.*")
+                self.problem.solve(solver=cp.CLARABEL, verbose=False)
             status = str(self.problem.status)
         except Exception as exc:  # solver blow-up is a failure, not a crash
             status = f"solver_exception:{type(exc).__name__}"
 
-        if status in ("optimal", "optimal_inaccurate"):
+        residual = float("inf")
+        if status.startswith("optimal") and self.P.value is not None:
+            residual = self._residual(sens)
+
+        # Accept on the residual, not on the label. An "optimal" solve that
+        # does not satisfy the constraints is a failure; an "inaccurate" one
+        # that does is fine.
+        if residual <= self.cfg.safety.projection_residual_tol:
             self.consecutive_failures[~self.frozen] = 0
             p = np.asarray(self.P.value, dtype=float)
             q = np.asarray(self.Q.value, dtype=float)
             p[self.frozen] = 0.0
             q[self.frozen] = 0.0
-            return ProjectionResult(p, q, "ok", self.frozen.copy(), False, solved=True)
+            return ProjectionResult(p, q, "ok", self.frozen.copy(), False,
+                                    solved=True, solver_status=status,
+                                    residual=residual)
 
         self.consecutive_failures += 1
         newly_frozen = (self.consecutive_failures >= self.cfg.safety.max_consecutive_failures) & (
@@ -328,7 +358,29 @@ class SensitivityProjector:
             self.frozen.copy(),
             bool(self.frozen.all()),
             solved=True,
+            solver_status=status,
+            residual=residual,
         )
+
+    def _residual(self, sens: Sensitivities) -> float:
+        """Worst constraint violation of the point the solver returned.
+
+        Voltage in pu against the margin-tightened band; the apparent-power
+        cone normalised by the station rating so the two are comparable.
+        """
+        p = np.asarray(self.P.value, dtype=float)
+        q = np.asarray(self.Q.value, dtype=float)
+        v = self._pad(sens.v_base, fill=1.0)
+        dv_dp = self._pad_matrix(sens.dv_dp)
+        dv_dq = self._pad_matrix(sens.dv_dq)
+        v_pred = (v - dv_dp @ sens.p_base_kw - dv_dq @ sens.q_base_kvar
+                  + dv_dp @ p + dv_dq @ q)
+        m = self.cfg.safety.projection_margin_pu
+        lo = self.cfg.safety.voltage_lower_pu + m
+        hi = self.cfg.safety.voltage_upper_pu - m
+        rated = max(self.cfg.feeder.ev_station_kva, 1e-9)
+        cone = (np.sqrt(p**2 + q**2) - rated) / rated
+        return float(max((lo - v_pred).max(), (v_pred - hi).max(), cone.max(), 0.0))
 
     # -- padding, so weak (34 bus) and strong (33 bus) share one compiled problem
 

@@ -358,3 +358,93 @@ def test_the_base_point_carries_the_safety_not_the_jacobian():
     )
     # A badly wrong Jacobian, with the base point measured, does not.
     assert jacobian["voltage_violation_step_rate_mean"] == 0.0
+
+
+# --- T7: the stiffness axis and the staleness invariants ---------------------
+
+
+def test_the_stiffness_axis_keeps_the_observation_vector_fixed():
+    """A transfer claim is meaningless if the obs vector changes along the axis.
+
+    `ExperimentConfig.stiffness` always builds the weak topology, so the
+    Thevenin bus survives even at the stiff end. If it were dropped for Z = 0
+    the bus count would fall 34 -> 33 and the policy would be reading a
+    different vector on each feeder.
+    """
+    from safesac.env import N_BUS_CANONICAL
+
+    dims, buses = set(), set()
+    for z in (0.5, 2.0, 4.0, 6.0, 12.0):
+        env = ChargingFeederEnv(ExperimentConfig.stiffness(z))
+        env.reset(seed=5)
+        dims.add(env.obs_dim)
+        buses.add(len(env.feeder.net.bus))
+    assert len(dims) == 1, dims
+    assert buses == {N_BUS_CANONICAL}, buses
+
+    with pytest.raises(ValueError):
+        ExperimentConfig.stiffness(0.0)
+
+
+def test_a_never_refreshed_projection_is_inert():
+    """The headline: staleness does not degrade the layer, it switches it off.
+
+    At a refresh interval of one episode the base point is captured on an idle
+    feeder, the constraint never appears to bind, the feasibility pre-check
+    skips every solve, and the raw request passes through untouched -- so the
+    violation rate is the *unprojected* one.
+    """
+    from safesac.agents import UncoordinatedAgent
+    from safesac.evaluate import evaluate
+    from safesac.projected import ProjectedAgent
+
+    base = ExperimentConfig.stiffness(6.0)
+
+    env = ChargingFeederEnv(base)
+    raw = evaluate(UncoordinatedAgent(env), env, base, n_episodes=3,
+                   run_label="transfer_eval")["aggregate"]
+
+    stale_cfg = replace(base, safety=replace(base.safety,
+                                             sensitivity_refresh_steps=288))
+    env = ChargingFeederEnv(stale_cfg)
+    stale_agent = ProjectedAgent(UncoordinatedAgent(env), env, stale_cfg)
+    stale = evaluate(stale_agent, env, stale_cfg, n_episodes=3,
+                     run_label="transfer_eval")["aggregate"]
+
+    fresh_cfg = replace(base, safety=replace(base.safety,
+                                             sensitivity_refresh_steps=1))
+    env = ChargingFeederEnv(fresh_cfg)
+    fresh = evaluate(ProjectedAgent(UncoordinatedAgent(env), env, fresh_cfg), env,
+                     fresh_cfg, n_episodes=3, run_label="transfer_eval")["aggregate"]
+
+    assert raw["voltage_violation_step_rate_mean"] > 0.02
+    assert fresh["voltage_violation_step_rate_mean"] == 0.0
+    assert stale["voltage_violation_step_rate_mean"] == pytest.approx(
+        raw["voltage_violation_step_rate_mean"], abs=1e-9
+    )
+    # and it is inert because it never solves, not because it solves and allows
+    assert stale_agent.stats.summary()["projection_infeasible_rate"] == 0.0
+
+
+def test_an_inaccurate_solve_is_accepted_on_its_residual_not_its_label():
+    """T6. A reactive-power request makes CLARABEL hedge on most real solves.
+
+    Those points satisfy the voltage band exactly, so rejecting them on the
+    label alone would freeze the stations for nothing. Acceptance is decided by
+    the measured residual instead, and the hedged solves are counted rather
+    than relabelled 'ok' and lost.
+    """
+    from safesac.agents import DroopAgent
+    from safesac.evaluate import evaluate
+    from safesac.projected import ProjectedAgent
+
+    cfg = ExperimentConfig.stage1("weak")
+    env = ChargingFeederEnv(cfg)
+    agent = ProjectedAgent(DroopAgent(env), env, cfg)
+    agg = evaluate(agent, env, cfg, n_episodes=3, run_label="transfer_eval")["aggregate"]
+    s = agent.stats.summary()
+
+    assert agent.stats.n_solved > 0
+    assert s["projection_inaccurate_rate"] > 0.1, s      # droop does trigger it
+    assert s["projection_max_residual"] <= cfg.safety.projection_residual_tol
+    assert agg["voltage_violation_step_rate_mean"] == 0.0
