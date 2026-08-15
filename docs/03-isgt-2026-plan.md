@@ -112,39 +112,67 @@ impedances or the topology.
 
 > A sensitivity-based safety projection for EV voltage support is **insensitive to
 > network-model error** but **critically sensitive to the currency of its linearisation
-> base point**. Carrying a different feeder's Jacobian costs nothing; letting the base
-> point age past about an hour returns the unprojected violation rate exactly. Exact
-> Jacobian sensitivities (0.662 ms against 447.6 ms) make the safe configuration free.
+> base point** — and the relationship is **non-monotone**. Carrying a different feeder's
+> Jacobian costs nothing. Refreshing every 5 minutes is *worse* than every 2 hours: the
+> same zero violations, 3 pp less service. Refreshing every 4 hours recovers almost none
+> of the protection, and never refreshing reproduces the unprojected violation rate
+> exactly. We locate the usable band (≤ 2 h), the hosting-capacity envelope (Z ≤ 8 %),
+> and the regime past it where the freeze-to-zero fallback becomes the dominant failure
+> mode. Exact Jacobian sensitivities (0.662 ms against 447.6 ms) make every point in the
+> band computationally free.
 
 **Category 5 (realistic uncertainty)**, supported by 2. Model error and measurement
 staleness are the realistic deployment uncertainties, and nobody reports the second.
 
-### The staleness cliff — `scripts/staleness_sweep.py`
+### The staleness cliff — `scripts/staleness_sweep.py`, 25 episodes
 
 One feeder, correct model throughout, nothing varying but the refresh interval.
-Violation step rate:
+Violation step rate (5-min control step, so 12 = hourly, 288 = never):
 
-| Z | source | raw | every 1 | every 3 | **every 12** | **every 48** | every 288 |
+| Z | source | raw | 1 | 3 | 12 | **24** | **48** | 288 |
+|---|---|---|---|---|---|---|---|---|
+| 6 % | uncoordinated | 0.0606 | 0.0000 | 0.0000 | 0.0000 | **0.0000** | **0.0586** | 0.0606 |
+| 6 % | urgency | 0.0633 | 0.0000 | 0.0000 | 0.0000 | **0.0000** | **0.0599** | 0.0633 |
+| 8 % | uncoordinated | 0.1051 | 0.0000 | 0.0000 | 0.0001 | **0.0069** | **0.0883** | 0.1051 |
+| 8 % | urgency | 0.1042 | 0.0000 | 0.0000 | 0.0000 | **0.0051** | **0.0831** | 0.1042 |
+| 10 % | uncoordinated | 0.1361 | 0.0408 | 0.0413 | 0.0294 | 0.0217 | 0.1058 | 0.1361 |
+| 10 % | urgency | 0.1349 | 0.0408 | 0.0415 | 0.0300 | 0.0164 | 0.1001 | 0.1349 |
+
+Service (SoC targets met) for the same cells, uncoordinated request:
+
+| Z | raw | 1 | 3 | 12 | **24** | 48 | 288 |
 |---|---|---|---|---|---|---|---|
-| 6 % | uncoordinated | 0.0561 | 0.0000 | 0.0000 | **0.0000** | **0.0550** | 0.0561 |
-| 6 % | urgency | 0.0593 | 0.0000 | 0.0000 | **0.0000** | **0.0558** | 0.0593 |
-| 8 % | uncoordinated | 0.1007 | 0.0000 | 0.0000 | **0.0000** | **0.0874** | 0.1007 |
-| 8 % | urgency | 0.1019 | 0.0000 | 0.0000 | **0.0000** | **0.0807** | 0.1019 |
-| 10 % | uncoordinated | 0.1331 | 0.0414 | 0.0420 | 0.0301 | 0.1047 | 0.1331 |
-| 10 % | urgency | 0.1285 | 0.0414 | 0.0425 | 0.0304 | 0.0981 | 0.1285 |
+| 6 % | 0.840 | 0.742 | 0.747 | 0.738 | **0.764** | 0.793 | 0.840 |
+| 8 % | 0.840 | 0.641 | 0.639 | 0.667 | **0.689** | 0.717 | 0.840 |
 
-1. **The cliff sits between 12 and 48 steps** (1 h and 4 h). At or under hourly the layer
-   is perfect; at 4-hourly ~98 % of the violations return; never-refreshed is *exactly* the
-   raw rate — the layer is completely inert.
-2. **This partly exonerates the thesis.** Audit B3 flagged that the refresh was hourly while
-   the text claimed per-step. Hourly is *sufficient* at Z ≤ 8 %, so B3 is a documentation
-   defect, not a safety defect. Report it that way.
-3. **There is a hosting-capacity limit.** At Z = 10 % the *idle* feeder already violates on
-   5.16 % of steps, so no projection can reach zero — the best is 0.0301. **Z ≤ 8 % is the
-   envelope**, and that is a deployment guideline worth stating.
-4. **Not claimed:** at Z = 10 %, refresh 12 beats refresh 1 (0.0301 vs 0.0414). Twelve
-   episodes cannot separate that from noise. Re-run at 25 before saying anything about
-   non-monotonicity.
+**1. The cliff sits between 24 and 48 steps (2 h and 4 h).** At or under 2-hourly the layer
+is perfect at Z ≤ 6 %; at 4-hourly it recovers only ~3 % of the protection; never-refreshed
+reproduces the raw rate *exactly*, for every Z and both request sources. The layer does not
+degrade gracefully — it stops being a safety layer.
+
+**2. Faster is not better — there is a sweet spot.** At Z = 6 %, refresh 24 *dominates*
+refresh 1: identical zero violations, and **0.764 against 0.742** service. A base point that
+tracks every sag curtails harder than necessary; a mildly stale one permits more while still
+holding the band. Practical guidance for a DSO is "every two hours", not "as fast as you
+can" — and that is a more useful sentence than the usual one.
+
+**3. This exonerates the thesis on B3.** The audit flagged the refresh as hourly while the
+text claimed per-step. Hourly is not merely sufficient at Z ≤ 8 %, it is **inside the
+optimal band**. B3 is a documentation defect, not a safety defect. Say so.
+
+**4. The hosting-capacity envelope is Z ≤ 8 %.** At Z = 10 % the *idle* feeder already
+violates on 5.16 % of steps, so no refresh setting reaches zero — the best is 0.0164.
+
+**5. Past the envelope the method's own fallback becomes the problem.** At Z = 10 % the
+projection is infeasible on 0.7–8.6 % of steps, and infeasibility triggers freeze-to-zero —
+which removes all V2G support exactly when the feeder needs it. Violation rate stops being
+monotone in refresh interval there (0.0408 → 0.0294 → 0.0217 → 0.1058). Report Z = 10 % as
+the **boundary of validity** and name the fallback as the suspected cause; the redesign is
+journal item **J6**, not an ISGT claim.
+
+Infeasibility is **0.0000 at refresh 288 everywhere** — the signature of the inert case. The
+stale base point makes the constraint look satisfied, the pre-check skips the solve, and the
+raw request passes through untouched. That is the mechanism, and it is directly measured.
 
 ---
 
@@ -201,7 +229,7 @@ Violation step rate:
 | **T9** | Extended stiffness sweep, both directions | Exposed the confound above; axis retired | ✅ **done — negative** |
 | **T11** | **Model-error vs base-point split** (`frozen_mode`) | The correction. Jacobian error is free; base-point staleness is fatal | ✅ **done + pinned by test** |
 | **T12** | **Staleness cliff sweep** | The headline | ✅ **done at 12 ep** |
-| T13 | Re-run T12 at 25 episodes with episode-paired CIs | 12 episodes cannot support the non-monotonicity at Z = 10 % | ⬜ ~40 min local |
+| **T13** | Re-run T12 at 25 episodes, refresh axis {1,3,12,24,48,288} | The non-monotonicity replicated across both request sources; cliff refined to 24-48 steps | ✅ **done** |
 | T4 | Train 3–5 seeds, `autotune_alpha=False` | Supporting row: the findings hold for a *learned* request source too | ⬜ ~2 h Kaggle |
 | T5 | Learned policy across the **refresh** axis at Z ∈ {6, 8} % | Completes the request-source set | ⬜ ~1 h |
 | T6 | CVXPY `Solution may be inaccurate` warnings | Outcomes are measured from AC power flow, not the solver's claim, so results stand — but this must not ship in a released artifact | ⬜ 2 h |
