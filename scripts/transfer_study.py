@@ -1,4 +1,20 @@
-"""T4 + T5 -- the transfer study. This is the conference paper.
+"""T4 + T5 -- RETIRED. Kept as the record of a negative result.
+
+This script tested whether a projection carrying the *training* feeder's
+sensitivities fails when deployed on a feeder of different substation
+stiffness. It does not. `ProjectedAgent.frozen_mode` showed the effect I first
+read here came from freezing the linearisation *base point* along with the
+Jacobian, not from the Jacobian being wrong: across Z in [0.5%, 12%] the
+station-bus Jacobians differ by only 1.16x, because dV/dP at those buses is set
+by the radial path impedance, which the substation Thevenin does not change.
+
+The live experiments are `scripts/staleness_sweep.py` (the cliff) and
+`scripts/learned_source.py` (the same axis with a learned request). Do not
+revive the stiffness-transfer axis without one that changes feeder impedances
+or topology.
+
+Original description follows.
+
 
 One policy per seed, trained at a single feeder stiffness, then deployed
 zero-shot across a stiffness sweep under four treatments:

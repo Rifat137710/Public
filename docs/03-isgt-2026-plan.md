@@ -76,44 +76,75 @@ raw energy demand.
 **Verdict: no reachable operating point on this testbed rewards a learner.** The conference
 paper is about the safety layer.
 
-### The claim
+### A claim I made and had to withdraw
 
-> A safety projection that ships with its **training** network's sensitivities silently
-> stops being a safety layer when deployed on a feeder of different stiffness — it admits
-> *exactly* the unprojected violation rate. One that rebuilds its sensitivities from the
-> **deployment** feeder holds the band zero-shot, at ~89 % service retention, independent
-> of what controller is upstream of it.
+I first reported that *"a projection carrying the training feeder's model is exactly as
+unsafe as no projection at all"*, from `scripts/projection_transfer.py`. **That was wrong,
+and the fault was in my script.**
 
-**Category 4 (new formulation), supported by 5 (model uncertainty).** The learned policy
-becomes one *request source* among several, and its underperformance against greedy is
-reported as a finding rather than hidden.
+Freezing a `Sensitivities` object freezes **two** things — the Jacobian ∂V/∂P, ∂V/∂Q, and
+the operating point it was linearised about. I attributed the whole effect to the first.
+Splitting them (`ProjectedAgent.frozen_mode`) reverses the reading:
 
-### First evidence — `scripts/projection_transfer.py`, no training required
-
-Model built at Z = 0.5 %, deployed unchanged (violation step rate):
-
-| deploy Z | source | raw | **frozen model** | **deployment model** |
+| deploy Z | raw | full snapshot | **Jacobian frozen, voltages measured** | correct model |
 |---|---|---|---|---|
-| 0.5 % | uncoordinated | 0.0000 | 0.0000 | 0.0000 |
-| 2.0 % | uncoordinated | 0.0000 | 0.0000 | 0.0000 |
-| 4.0 % | uncoordinated | 0.0000 | 0.0000 | 0.0000 |
-| **6.0 %** | **uncoordinated** | **0.0561** | **0.0561** | **0.0000** |
-| **6.0 %** | **urgency** | **0.0593** | **0.0593** | **0.0000** |
-| 6.0 % | droop | 0.0000 | 0.0000 | 0.0000 |
+| 6.0 % | 0.0577 | 0.0577 | **0.0000** | 0.0000 |
+| 8.0 % | 0.0994 | 0.0994 | **0.0000** | 0.0000 |
 
-The frozen-model projection is not merely worse — it is **exactly as unsafe as no
-projection at all**, to four decimals, for both aggressive sources. At Z = 0.5 % the carried
-model believes ∂V/∂P is small, so no constraint binds and the raw request passes untouched.
-Rebuilt at deployment: every violating step removed, SoC 0.864 → 0.770.
+A projection carrying a **different feeder's Jacobian** but measuring its own voltages is
+**exactly as safe** as one with the correct Jacobian. The network model can be wrong at no
+cost.
 
-Droop is the control — never violates at any stiffness, with or without the projection, and
-serves 0.019. Safe because it barely charges. It shows the effect is the safety layer, not
-conservatism.
+The tell was visible and I missed it: the forward sweep (model from Z = 0.5 %) and the
+reverse (Z = 12 %) returned **byte-identical** numbers. A real transfer effect cannot be
+symmetric under reversal. Treat an implausible symmetry as a bug signal, not a curiosity.
 
-**Known weakness, not papered over:** three of four deployment points are violation-free for
-every method, so this is a *step*, not a degradation curve. Extended sweep to Z = 12 % and
-the reverse direction (weak-feeder model deployed on stiff feeders — expected
-over-conservative rather than unsafe) are running.
+Physically it is obvious in hindsight. At the station buses ∂V/∂P is dominated by the
+**radial path impedance of the 33-bus feeder**, which does not change when the substation
+Thevenin impedance does. Across Z ∈ [0.5 %, 12 %] the Jacobians differ by only **1.16×**.
+Substation stiffness moves the *base voltage* (0.9658 → 0.9440), not the sensitivities.
+
+**Consequence: stiffness is a weak model-mismatch axis, and the cross-network transfer
+claim is not supported on it.** Do not revive it without an axis that changes the *feeder*
+impedances or the topology.
+
+### The claim that is supported
+
+> A sensitivity-based safety projection for EV voltage support is **insensitive to
+> network-model error** but **critically sensitive to the currency of its linearisation
+> base point**. Carrying a different feeder's Jacobian costs nothing; letting the base
+> point age past about an hour returns the unprojected violation rate exactly. Exact
+> Jacobian sensitivities (0.662 ms against 447.6 ms) make the safe configuration free.
+
+**Category 5 (realistic uncertainty)**, supported by 2. Model error and measurement
+staleness are the realistic deployment uncertainties, and nobody reports the second.
+
+### The staleness cliff — `scripts/staleness_sweep.py`
+
+One feeder, correct model throughout, nothing varying but the refresh interval.
+Violation step rate:
+
+| Z | source | raw | every 1 | every 3 | **every 12** | **every 48** | every 288 |
+|---|---|---|---|---|---|---|---|
+| 6 % | uncoordinated | 0.0561 | 0.0000 | 0.0000 | **0.0000** | **0.0550** | 0.0561 |
+| 6 % | urgency | 0.0593 | 0.0000 | 0.0000 | **0.0000** | **0.0558** | 0.0593 |
+| 8 % | uncoordinated | 0.1007 | 0.0000 | 0.0000 | **0.0000** | **0.0874** | 0.1007 |
+| 8 % | urgency | 0.1019 | 0.0000 | 0.0000 | **0.0000** | **0.0807** | 0.1019 |
+| 10 % | uncoordinated | 0.1331 | 0.0414 | 0.0420 | 0.0301 | 0.1047 | 0.1331 |
+| 10 % | urgency | 0.1285 | 0.0414 | 0.0425 | 0.0304 | 0.0981 | 0.1285 |
+
+1. **The cliff sits between 12 and 48 steps** (1 h and 4 h). At or under hourly the layer
+   is perfect; at 4-hourly ~98 % of the violations return; never-refreshed is *exactly* the
+   raw rate — the layer is completely inert.
+2. **This partly exonerates the thesis.** Audit B3 flagged that the refresh was hourly while
+   the text claimed per-step. Hourly is *sufficient* at Z ≤ 8 %, so B3 is a documentation
+   defect, not a safety defect. Report it that way.
+3. **There is a hosting-capacity limit.** At Z = 10 % the *idle* feeder already violates on
+   5.16 % of steps, so no projection can reach zero — the best is 0.0301. **Z ≤ 8 % is the
+   envelope**, and that is a deployment guideline worth stating.
+4. **Not claimed:** at Z = 10 %, refresh 12 beats refresh 1 (0.0301 vs 0.0414). Twelve
+   episodes cannot separate that from noise. Re-run at 25 before saying anything about
+   non-monotonicity.
 
 ---
 
@@ -167,26 +198,29 @@ over-conservative rather than unsafe) are running.
 | **T1** | Parametric stiffness axis, `ExperimentConfig.stiffness()` | The deployment axis. Always the weak topology so bus count (34) and obs dim (95) stay constant — a study that changed the obs vector mid-way could not claim zero-shot transfer | ✅ **done, validated** |
 | **T2** | Frozen-sensitivity treatment | The mechanism control; earns category 4 | ✅ **done + tested** |
 | **T3** | Mixture-line frontier | Pre-empts "a coin flip beats you" | ✅ **done** |
-| **T9** | **Extended stiffness sweep, Z → 12 %, both directions** | Turns a step into a degradation curve; the reverse direction tests over-conservatism | 🔵 **running** |
-| T4 | Train 5 seeds, `autotune_alpha=False` | Now a *supporting row*, not the headline — the learned policy is one request source | ⬜ ~3 h Kaggle |
-| T5 | Deploy learned policy across the stiffness axis | Completes the request-source set | ⬜ ~1 h |
+| **T9** | Extended stiffness sweep, both directions | Exposed the confound above; axis retired | ✅ **done — negative** |
+| **T11** | **Model-error vs base-point split** (`frozen_mode`) | The correction. Jacobian error is free; base-point staleness is fatal | ✅ **done + pinned by test** |
+| **T12** | **Staleness cliff sweep** | The headline | ✅ **done at 12 ep** |
+| T13 | Re-run T12 at 25 episodes with episode-paired CIs | 12 episodes cannot support the non-monotonicity at Z = 10 % | ⬜ ~40 min local |
+| T4 | Train 3–5 seeds, `autotune_alpha=False` | Supporting row: the findings hold for a *learned* request source too | ⬜ ~2 h Kaggle |
+| T5 | Learned policy across the **refresh** axis at Z ∈ {6, 8} % | Completes the request-source set | ⬜ ~1 h |
 | T6 | CVXPY `Solution may be inaccurate` warnings | Outcomes are measured from AC power flow, not the solver's claim, so results stand — but this must not ship in a released artifact | ⬜ 2 h |
-| T7 | Tests for the stiffness axis + transfer invariants | Keeps the suite the credibility anchor | ⬜ 2 h |
-| T10 | A5 infeasibility across the stiffness axis | The method's own failure mode, stated with a number | ⬜ 1 h |
+| T7 | Tests for the stiffness axis + staleness invariants | Keeps the suite the credibility anchor | ⬜ 2 h |
+| T10 | A5 infeasibility across the refresh axis | The method's own failure mode, with a number | ⬜ free — already collected |
 
-**Treatments (identical upstream request; only the projection's physics differs):**
+**Axes (identical upstream request; one thing varies at a time):**
 
-| treatment | projection | sensitivities |
+| axis | levels | what it establishes |
 |---|---|---|
-| **raw** | none | — |
-| **frozen** | yes | **training network** (prior-art parametrisation) |
-| **deploy** | yes | **deployment network** (ours) |
+| **refresh interval** | 1, 3, 12, 48, 288 steps | **the cliff — the headline** |
+| **model error** | correct Jacobian vs another feeder's | it is free |
+| **feeder stiffness** | Z ∈ {0.5 … 12} % | the hosting-capacity envelope (Z ≤ 8 %) |
 
 **Request sources:** uncoordinated · droop · urgency · SAC-Lag (supporting row).
 Baselines: zero · **uncoordinated↔droop mixture line**. **No MPC oracle at ISGT.**
 
-**Total remaining: ~1 day of code, ~4 h of compute** — down from ~2 days and ~7 h, because
-the headline result needs no training.
+**Total remaining: ~1 day of code, ~3 h of compute.** The headline needs no training at all;
+Kaggle is only for the supporting learned row.
 
 ---
 
@@ -194,7 +228,7 @@ the headline result needs no training.
 
 | # | Item | State | Note |
 |---|---|---|---|
-| J1 | **C3 network-distance predictor** (regress degradation on ‖S_P^i − S_P^j‖_F, SCR, R/X; held-out feeders, R² > 0.7) | ⬜ | **The journal's contribution. Deliberately withheld from ISGT** — this is the 30 %+ delta IEEE requires |
+| J1 | **C3 network-distance predictor — on a *real* mismatch axis.** T11 showed station-bus ∂V/∂P is set by the radial path impedance, so substation stiffness varies it only 1.16×. The axis must change *feeder* impedances, conductor sizing, or topology (IEEE 123-bus, European LV). Still the journal's 30 %+ delta, but the ISGT work has now ruled out the cheap version of the axis | ⬜ |
 | J2 | MPC / multi-period OPF oracle (SOC relaxation of branch flow) | ⬜ | "How far from optimal?" — journal-mandatory, ISGT-optional |
 | J3 | Second *real* feeder — IEEE 123-bus and/or European LV (unbalanced 3-phase) | ⬜ | External validity |
 | J4 | Kou-style fixed-model ablation, full treatment | 🟨 arm B is the seed of it | ISGT gets one arm; journal gets the sweep |

@@ -9,10 +9,17 @@ Kaggle settings that matter:
   * Internet: **On** (pip + git clone).
   * Expect ~2.5-3.5 h. The 12 h session cap is ample.
 
-What this produces: the learned policy as one request source in the transfer
-study, deployed zero-shot across the stiffness axis under three treatments
-(raw / frozen model / deployment model). The heuristic sources run locally in
-minutes -- only this arm needs real compute.
+What this produces: the *supporting* row of the conference paper -- the learned
+policy as one request source on the refresh-staleness axis, to show the cliff
+sits in the same place whether a greedy heuristic or a trained SAC-Lag policy
+generates the request.
+
+It is deliberately not the headline. G0 found no operating point on this
+testbed where a learner beats a greedy request passed through the projection,
+so the paper's claim is about the safety layer; this run answers "does it also
+hold for the RL controller?" rather than carrying the argument.
+
+Three seeds is enough for a supporting row. Five if the quota is there.
 """
 
 # ========================= CELL 1 -- get the code =========================
@@ -44,14 +51,14 @@ print("cvxpy", cvxpy.__version__, "| gymnasium", gymnasium.__version__)
 # hours of quota on a broken environment.
 SANITY = r"""
 !python -m pytest tests/test_powerflow.py -q 2>&1 | tail -4
-!python -u scripts/transfer_study.py --seeds 0 --episodes 3 --eval-episodes 2 \
-    --train-z 0.5 --deploy-z 0.5 6.0 --out-dir /kaggle/working/smoke \
+!python -u scripts/learned_source.py --seeds 0 --episodes 3 --eval-episodes 2 \
+    --eval-z 6.0 --refresh 1 288 --out-dir /kaggle/working/smoke \
     2>&1 | grep -v "UserWarning\|warnings.warn" | tail -12
 """
-# Expected from the smoke run (3 episodes is far too few to mean anything, so
-# read only the *pattern*): at Z=6% arm A and arm B should show the SAME
-# violation rate and arm C should show 0.0000. If B differs from A, the frozen
-# sensitivities are not being used and the run is invalid.
+# Read only the *pattern* -- 3 episodes means nothing numerically. In the
+# reference block, refresh=1 must be 0.0000 and refresh=288 must equal the raw
+# rate. If refresh=288 is not the raw rate, the projection is still acting when
+# it should be inert and the run is invalid.
 
 # ========================= CELL 4 -- the experiment =======================
 # Operating point fixed by G0 (scripts/operating_point_sweep.py): load 0.40 is
@@ -62,16 +69,17 @@ import os
 os.environ["OMP_NUM_THREADS"] = "4"
 os.environ["MKL_NUM_THREADS"] = "4"
 
-!python -u scripts/transfer_study.py \
-    --seeds 0 1 2 3 4 \
+!python -u scripts/learned_source.py \
+    --seeds 0 1 2 \
     --episodes 200 \
     --eval-episodes 20 \
     --alpha 0.003 \
-    --train-z 0.5 \
-    --deploy-z 0.5 4.0 6.0 8.0 10.0 12.0 \
+    --train-z 6.0 \
+    --eval-z 6.0 8.0 \
+    --refresh 1 12 48 288 \
     --load 0.40 \
     --evs 30 \
-    --out-dir /kaggle/working/results/transfer \
+    --out-dir /kaggle/working/results/learned_source \
     2>&1 | grep -v "UserWarning\|warnings.warn"
 """
 
@@ -80,18 +88,19 @@ COLLECT = r"""
 import json, shutil
 from pathlib import Path
 
-d = json.loads(Path("/kaggle/working/results/transfer/transfer.json").read_text())
-print("train Z", d["train_z_pct"], "| deploy", d["deploy_z_pct"],
-      "| seeds", d["seeds"], "| fingerprint", d["train_fingerprint"])
-print(f"{'Z%':>6}{'A raw':>18}{'B frozen':>18}{'C deploy':>18}")
+d = json.loads(
+    Path("/kaggle/working/results/learned_source/learned_source.json").read_text())
+print("train Z", d["train_z_pct"], "| eval Z", d["eval_z_pct"],
+      "| refresh", d["refresh"], "| seeds", d["seeds"],
+      "| fingerprint", d["fingerprint"])
+cols = ["raw"] + [str(r) for r in d["refresh"]]
+print(f"{'Z%':>6}" + "".join(f"{c:>14}" for c in cols))
 for z, row in d["summary"].items():
-    print(f"{z:>6}" + "".join(
-        f"{row[a]['viol'][0]:>9.4f}/{row[a]['soc'][0]:.3f}"
-        for a in ("A_raw", "B_frozen_proj", "C_deploy_proj")))
+    print(f"{z:>6}" + "".join(f"{row[c]['viol'][0]:>14.4f}" for c in cols))
 
-shutil.make_archive("/kaggle/working/transfer_results", "zip",
+shutil.make_archive("/kaggle/working/learned_source_results", "zip",
                     "/kaggle/working/results")
-print("\ndownload /kaggle/working/transfer_results.zip and send it back")
+print("\ndownload /kaggle/working/learned_source_results.zip and send it back")
 """
 
 CELLS = [CLONE, DEPS, SANITY, RUN, COLLECT]
