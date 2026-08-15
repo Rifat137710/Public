@@ -202,3 +202,51 @@ journals value.
   metering-requirement result.
 
 **Immediate next action: §5. Falsify our own premise before building on it.**
+
+---
+
+## 8. Is `Q1_workflow.md` a good pipeline?
+
+**Its execution discipline is good. Its decision structure is weak.** A good
+build system with a bad compass.
+
+### What is genuinely right, and should be kept
+
+- **The freeze.** "After the freeze, no method or hyperparameter changes; any
+  tuning happens only on a held-out dev feeder/seeds." This is real research
+  hygiene and rarer than it should be. It is *exactly* the discipline whose
+  absence produced the thesis's confounded ablation — two agents differing in
+  four ways, not one. Keep it verbatim.
+- **Gate before build.** Phase 0 decides scope before anything is constructed.
+- **Parallel tracks after the freeze**, and **one sharded campaign** rather
+  than compute dribbled out in fragments.
+- **The baseline list.** OPF, MPC, PPO-Lag, CPO, PI-TD3, vanilla. PI-TD3 is
+  precisely the competitor the audit in §1 identified independently.
+- **Compute-heavy vs light is separated explicitly**, which is what makes the
+  campaign schedulable on borrowed hardware.
+
+### What is missing, and what each omission cost
+
+| Missing | What it cost |
+|---|---|
+| **A kill branch.** D0 can pass or escalate, never abandon. | It asks "does the projection kill policy-attributable violations?" — yes. It never asks "does the *policy* contribute anything?" — no. A gate with no kill branch cannot detect that the object of study is the wrong object. |
+| **A premise-falsification phase.** Nothing asks whether the problem is real or whether anyone would deploy the thing. | This is how a working method for a non-problem gets built. It is why §5 of this document exists. |
+| **A literature gate.** No phase checks novelty against prior art. | The mechanism turned out to be conceded to three literatures (`04-novelty-and-reviewer-defence.md` §2.1). That check belongs at Phase −1, not at writing time. |
+| **Claim freeze, not just method freeze.** It freezes the method early and writes the claim last. | Right for reproducibility, backwards for direction. The claim should be frozen and the method should serve it. |
+| **A premise audit on inherited results.** START reads "method + thesis results in hand." | Both headline thesis results were dead. No phase in the pipeline would have caught that. |
+
+### The corrected pipeline
+
+Insert three phases ahead of the existing flow, and one branch inside it:
+
+- **Phase −1 — literature gate.** Is the claim novel, and against whom? Done:
+  `04-novelty-and-reviewer-defence.md`.
+- **Phase −0.5 — premise falsification.** Does the problem occur in a regime
+  anyone occupies? *Not done — this is §5, and it is the blocker.*
+- **Phase 0 — inherited-result audit.** Re-run every claim you plan to build
+  on before building on it. Done, and it killed two.
+- **Kill branch on every gate.** Each decision node needs a third exit:
+  *abandon this object of study.*
+
+Everything from FREEZE onward in the original document stands unchanged and
+should be executed as written.
