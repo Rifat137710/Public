@@ -11,7 +11,7 @@ Last updated: 8 August 2026 (post-design, pre-build).
 ## 0. Where we are right now
 
 **Decision made and final:** build **Bus 18**, a browser-based weak-feeder operator trainer that
-teaches what the user's SafeSAC thesis discovered. The thesis is *underlying research*, not the entry.
+teaches what the user's Shielded RL reference study discovered. The reference study is *underlying research*, not the entry.
 
 **Built so far:** a TypeScript simulation engine + validation harness (generic microgrid version,
 9/9 assertions passing) and a notebook exporter. **Next step:** repoint the engine onto the IEEE
@@ -100,7 +100,7 @@ simulations replacing an expensive or risky physical activity**. None built a ge
 
 ---
 
-## 2. The thesis (user's own prior work)
+## 2. The reference study (user's own prior work)
 
 **"Safe Deep Reinforcement Learning for Vehicle-to-Grid Voltage Support in Weak Distribution Feeders:
 A Physics-Aware Approach"**
@@ -108,15 +108,15 @@ A Physics-Aware Approach"**
 - Authors: **Md. Rifat Rahman (202006137)** — the user — and **Sad Sami (202006150)**
 - Supervisor: Dr. Md. Forkan Uddin, Professor
 - Institution: Dept. of EEE, **BUET**, Dhaka. Course EEE 400. **Accepted/certified June 2026.**
-- Files supplied: `SafeSAC_Final.pdf` (64 pp), `Abstract.pdf`, `thesis11.ipynb` (39 cells, ~286k chars),
-  `thesisbookartifacts21.ipynb` (12 cells)
+- Files supplied: `evaluation-report.pdf` (64 pp), `Abstract.pdf`, `evaluation.ipynb` (39 cells, ~286k chars),
+  `evaluation-artifacts.ipynb` (12 cells)
 - User states he did all the work and enters solo. The PDF carries two names plus supervisor
-  certification, so cite the thesis as published when referencing it.
+  certification, so cite the reference study as published when referencing it.
 
 ### Method
 
 Bidirectional EV charging as a **constrained Markov decision process** over a 288-step day on a modified
-**IEEE 33-bus Baran–Wu** feeder. **SafeSAC** = augmented-Lagrangian Soft Actor-Critic + a safety
+**IEEE 33-bus Baran–Wu** feeder. **Shielded RL** = augmented-Lagrangian Soft Actor-Critic + a safety
 projection solving an **8-variable SOCP every control step**, rebuilt each step from **voltage
 sensitivities measured on the live network**.
 
@@ -128,7 +128,7 @@ sensitivities measured on the live network**.
 
 - Transmission (strong): X ≫ R → **reactive** power drives voltage
 - Weak distribution feeder: R ≈ X → **active** power drives voltage — what an EV charger commands
-- Measured: `mean|∂V/∂P| / |∂V/∂Q| = **1.271**` (thesis Gate 1)
+- Measured: `mean|∂V/∂P| / |∂V/∂Q| = **1.271**` (reference study Gate 1)
 
 This inverts the intuition anyone trained on transmission carries.
 
@@ -138,12 +138,12 @@ This inverts the intuition anyone trained on transmission carries.
 | --- | --- | --- | --- | --- | --- | --- |
 | Uncoordinated | 0.116 ± 0.009 | 0.9383 | 0.996 ± 0.012 | $230.7 | −205.6 | 0.000 |
 | Droop (IEEE 1547) | 0.052 ± 0.009 | 0.9474 | 0.325 ± 0.113 | $66.3 | −733.2 | 0.097 |
-| SAC-Lag (weak) | 0.090 ± 0.024 | 0.9425 | 0.277 ± 0.117 | $104.3 | −923.5 | 0.176 |
-| **SafeSAC (weak)** | **0.091 ± 0.002** | 0.9438 | **0.569 ± 0.164** | $125.9 | −505.2 | 0.103 |
-| SAC-Lag (strong→weak) | 0.015 ± 0.014 | 0.9492 | **0.000 ± 0.000** | −$38.2 | −1898.7 | 0.105 |
-| SafeSAC (strong→weak) | 0.106 ± 0.003 | 0.9438 | 0.447 ± 0.074 | $69.7 | −1024.1 | 0.048 |
+| Plain RL (weak) | 0.090 ± 0.024 | 0.9425 | 0.277 ± 0.117 | $104.3 | −923.5 | 0.176 |
+| **Shielded RL (weak)** | **0.091 ± 0.002** | 0.9438 | **0.569 ± 0.164** | $125.9 | −505.2 | 0.103 |
+| Plain RL (strong→weak) | 0.015 ± 0.014 | 0.9492 | **0.000 ± 0.000** | −$38.2 | −1898.7 | 0.105 |
+| Shielded RL (strong→weak) | 0.106 ± 0.003 | 0.9438 | 0.447 ± 0.074 | $69.7 | −1024.1 | 0.048 |
 
-### Paired statistics, SafeSAC vs SAC-Lag (n = 25)
+### Paired statistics, Shielded RL vs Plain RL (n = 25)
 
 | Comparison | Metric | Δ | 95% CI | p (t) | p (Wilcoxon) | Cohen's d |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -163,14 +163,14 @@ This inverts the intuition anyone trained on transmission carries.
 | 3 | −80.0 | −76.85 | −80.00 | 3.15 kW |
 | 4 | −80.0 | −73.30 | −80.00 | 6.70 kW |
 
-### Pre-registered decision gates — 3/5 pass (disclosed honestly in the thesis)
+### Pre-registered decision gates — 3/5 pass (disclosed honestly in the reference study)
 
 1. V–P dominance ≥ 0.90 → 1.271 **PASS**
 2. Projection grid-awareness > 1 kW → **FAIL** — artefact of a conservative feasibility guard; the weak
    grid was infeasible while the strong grid allowed full −80 kW, an 80 kW divergence, which is
    *stronger* evidence than the gate sought
 3. In-distribution safety ratio ≤ 1.05 → 1.009 **PASS**
-4. Cross-deployment safety → **FAIL** — SAC-Lag "wins" only by not operating (SoC met 0.000)
+4. Cross-deployment safety → **FAIL** — Plain RL "wins" only by not operating (SoC met 0.000)
 5. Service quality ≥ −0.10 → +0.292 **PASS**
 
 ### Stack and reproducibility
@@ -178,12 +178,12 @@ This inverts the intuition anyone trained on transmission carries.
 Python 3.12, PyTorch 2.10 (CUDA 12.8), Tesla T4, pandapower 3.2.0, CVXPY 1.5.3 + CLARABEL, Gymnasium.
 Master seed **137710**. Disjoint train/eval seed bands. SHA-256-fingerprinted checkpoints.
 Key notebook globals: `EVChargingFeederEnv`, `SensitivityProjector`, `GridSensitivities`,
-`compute_voltage_sensitivities`, `SACLagAgent`, `SafeSACLagAgent`, `DroopAgent`, `UncoordinatedAgent`,
+`compute_voltage_sensitivities`, `SACLagAgent`, `Shielded RLLagAgent`, `DroopAgent`, `UncoordinatedAgent`,
 `Scenario`, `NetworkContext`, `build_network`, `evaluate_agent`.
 Constants: `EV_MAX_CHARGE_KW = 22.0`, `EV_MAX_DISCHARGE_KW = 22.0`, `EV_SOC_FLOOR_DISCHARGE = 0.20`,
 `LINEAR_DEGRADATION_COST_PER_KWH = 0.04`, TOU 0.08/0.15/0.30 $/kWh, `N_BUS_CANONICAL = 34`.
 
-### Stated limitations (thesis §6.11)
+### Stated limitations (reference study §6.11)
 
 Single training seed per configuration · parametric (not measured) load model · structural 9–12%
 violation floor at load scale 0.50 · linearised safety model, fixed 0.010 pu margin · **simulation only,
@@ -191,20 +191,20 @@ no field validation**.
 
 ---
 
-## 3. Why the thesis is the foundation and not the entry
+## 3. Why the reference study is the foundation and not the entry
 
-Submitting the thesis itself would score ~30/100 and carries a real disqualification risk:
+Submitting the reference study itself would score ~30/100 and carries a real disqualification risk:
 
-1. **Wrong sense of "simulation."** The thesis uses simulation as a *training environment for an RL
+1. **Wrong sense of "simulation."** The reference study uses simulation as a *training environment for an RL
    agent*. The competition means an environment *a human learns inside*. No human learner exists in the
-   thesis. This fails the 25% criterion definitionally.
+   reference study. This fails the 25% criterion definitionally.
 2. **No user experience** → 15% near zero.
 3. **No gamification / adaptive learning for a person** → most of the 10% AI criterion lost.
 4. **Prior submission.** Certified for a B.Sc. at BUET, June 2026. FAQ 8 and the warranty clause both
    bar previously submitted work.
 
 **Resolution:** the submitted artefact is a **new educational simulator built for this competition**.
-The thesis is disclosed as underlying prior research and cited as published — normal practice.
+The reference study is disclosed as underlying prior research and cited as published — normal practice.
 
 **Open action:** email `metaversechallenge@ieee.org` disclosing the provenance and asking for
 confirmation. Not yet done.
@@ -223,10 +223,10 @@ projection curtails from −80 kW to −54.13 kW.
 | | Violations | SoC met |
 | --- | --- | --- |
 | Droop (IEEE 1547, a fixed rule) | 0.052 | 0.325 |
-| **SAC-Lag (plain deep RL)** | **0.090** | **0.277** |
+| **Plain RL** | **0.090** | **0.277** |
 
 **Plain deep RL is strictly dominated by a 1970s droop rule** — more violations *and* less service.
-Then SafeSAC: same backbone, same budget, plus the physics projection → service 0.277 → 0.569 at
+Then Shielded RL: same backbone, same budget, plus the physics projection → service 0.277 → 0.569 at
 statistically identical safety (p = 0.86).
 
 **The win is not RL. It is RL with the physics put back in.**
@@ -242,8 +242,8 @@ of choices. One screen, no navigation — also far easier to film.
 | Register | What it is | Job | Criterion |
 | --- | --- | --- | --- |
 | **1 · The Village** | Isometric 2.5D rural feeder — poles, houses, 4 EV stations, rooftop PV. **Voltage rendered as light**: houses at the feeder end dim, flicker, go dark. Canvas 2D, simple shapes and glow. | Feel it | UX & engagement 15% |
-| **2 · The Console** | **|V| vs bus index with the 0.95 pu limit in red** (thesis Fig. 5.2, live). SafeSAC ghost trace on the same axes. Four station sliders (−80…+80 kW), projection toggle, weak/strong toggle, scorecard. | Measure it | Simulation effectiveness 25% |
-| **3 · The Map** | The safety–service plane (violation rate vs SoC met). **Every attempt leaves a permanent dot, the learner's own first.** Becomes thesis Fig. 6.6, built by the learner. | Locate it | Educational impact 20% |
+| **2 · The Console** | **|V| vs bus index with the 0.95 pu limit in red** (reference study Fig. 5.2, live). Shielded RL ghost trace on the same axes. Four station sliders (−80…+80 kW), projection toggle, weak/strong toggle, scorecard. | Measure it | Simulation effectiveness 25% |
+| **3 · The Map** | The safety–service plane (violation rate vs SoC met). **Every attempt leaves a permanent dot, the learner's own first.** Becomes reference study Fig. 6.6, built by the learner. | Locate it | Educational impact 20% |
 
 **Why voltage-as-light:** 0.96 → 0.94 means nothing to most viewers; a street going dark means
 something to everyone. The village carries stakes so the console can carry precision.
@@ -257,16 +257,16 @@ something to everyone. The village carries stakes so the console can carry preci
    at the evening peak. Service without safety.
 3. **Droop (IEEE 1547).** 0.052 violations, 0.325 service. Lights stay on, cars stay empty.
    Safety without service.
-4. **Plain deep RL loses.** SAC-Lag: 0.090 / 0.277 — dominated by the rule. The credibility beat.
-5. **Physics fixes it.** SafeSAC: 0.569 service at 0.091 violations. **The learner can toggle the
-   projection off and watch the same agent fall back to the dominated point. That toggle is the thesis.**
-6. **The trap.** Strong→weak SAC-Lag: violation 0.015 (best), cost −$38 (profitable), **SoC met 0.000**.
+4. **Plain deep RL loses.** Plain RL: 0.090 / 0.277 — dominated by the rule. The credibility beat.
+5. **Physics fixes it.** Shielded RL: 0.569 service at 0.091 violations. **The learner can toggle the
+   projection off and watch the same agent fall back to the dominated point. That toggle is the reference study.**
+6. **The trap.** Strong→weak Plain RL: violation 0.015 (best), cost −$38 (profitable), **SoC met 0.000**.
    Nearly everyone picks it when shown only safety and cost. A constraint satisfied by refusing to
    operate is not safety.
 
 ### 4.4 Runtime architecture — deliberately tiny
 
-The thesis already ran every expensive computation. Only two things run live in the browser:
+The reference study already ran every expensive computation. Only two things run live in the browser:
 
 ```
 v = v₀ + Sᴾ·u        ← one matrix–vector product, ~5 lines
@@ -281,7 +281,7 @@ it. 4 variables, ~70 constraints → **Dykstra's alternating projection, sub-mil
 Same constraints, same 0.010 pu margin. Verify it reproduces −54.13 kW at station 1 before trusting it.
 
 **De-risk:** the IEEE 33-bus Baran–Wu line data is a **published standard benchmark**, so sensitivity
-matrices can be computed from public R/X data if the notebook export stalls. The user's export makes the
+matrices can be computed from public R/X data if the source evaluation export stalls. The user's export makes the
 numbers *his*, which is better — but it is an improvement, not a dependency.
 
 ### 4.5 Tech stack — decided
@@ -340,7 +340,7 @@ reported 80.28) and one open question: *"What surprised you?"*
 | 0:00–0:30 | Cold open: −80 kW at bus 18, projection off, voltage profile drops through the red line, village goes dark. Title. |
 | 0:30–1:10 | The problem: mass EV charging on weak rural feeders. Theme + benchmark named. |
 | 1:10–2:20 | Stage 1–3: you drive and fail; uncoordinated; droop. Dots accumulate on the Map. |
-| 2:20–3:30 | Stage 4: plain deep RL loses to the 1970s rule. The credibility beat. |
+| 2:20–3:30 | Stage 4: unshielded RL loses to the 1970s rule. The credibility beat. |
 | 3:30–4:30 | Stage 5: projection on. 0.277 → 0.569 at the same safety. Toggle it off and back. |
 | 4:30–5:30 | Stage 6: the leaderboard, the pick, SoC met 0.000, the replay. |
 | 5:30–6:15 | Evidence: n, pre/post, SUS, and the pick rate. |
@@ -363,7 +363,7 @@ scripts/export_evaluation_artifacts.py  notebook exporter + probe() introspectio
 ```
 
 **Note:** `src/sim/*` is currently the *generic microgrid* model (swing equation, frequency, diesel
-genset, grid-forming vs grid-following inverters). It was built before the thesis arrived. It must be
+genset, grid-forming vs grid-following inverters). It was built before the reference study arrived. It must be
 **repointed** onto the 33-bus linearised voltage model. The clock, scoring skeleton, seeded determinism
 and headless harness pattern all carry over; the physics module is replaced.
 
@@ -373,7 +373,7 @@ than retuning the scenario to protect the assumption.
 
 ### Exporter contract (`scripts/export_evaluation_artifacts.py`)
 
-Run `probe()` in the notebook **first** — it reports which expected globals exist so naming mismatches
+Run `probe()` in the source evaluation **first** — it reports which expected globals exist so naming mismatches
 are fixed in one place. Then `export_all(...)`. Produces:
 
 | File | Contents | Priority |
@@ -428,7 +428,7 @@ Against *Sustainable Smart Cities and Urban Innovation*:
 - **"energy-efficient systems … sustainability analytics in an educational setting"** — was the real
   gap and is now closed. `totalLossKwh` had been computed at every step and thrown away. Measured
   across a day at load scale 0.50, seed 137710: idle **551.7 kWh**, uncoordinated **3397.7**, droop
-  **1116.1**, SAC-Lag **1221.5**, SafeSAC **946.9**. Per driver *actually served*: SafeSAC **6.0 kWh**
+  **1116.1**, Plain RL **1221.5**, Shielded RL **946.9**. Per driver *actually served*: Shielded RL **6.0 kWh**
   against uncoordinated **12.0**, and plain RL **16.1** against droop **6.9** — so the plain agent is
   wasteful as well as dominated, a third axis on the stage-4 result. Surfaced on the scorecard, in the
   stage-2 reveal, in the debrief and in the one-page export, and guarded by three assertions.
@@ -481,9 +481,9 @@ via OpenCV (invert dark-background codes before decoding).
 ## 8. Open items
 
 - [ ] **Claude:** repoint engine onto 33-bus linearised model; build village, console, map, six stages
-- [ ] **User:** email `metaversechallenge@ieee.org` re: thesis provenance and originality
+- [ ] **User:** email `metaversechallenge@ieee.org` re: reference study provenance and originality
 - [ ] **User:** open the Smartsheet portal, report fields and file-size limits
-- [ ] **User:** run `probe()` in the notebook, then export `sensitivities.json` (highest priority file)
+- [ ] **User:** run `probe()` in the source evaluation, then export `sensitivities.json` (highest priority file)
 - [ ] **User:** recruit 8–10 testers
 - [ ] Decide: start with engine, or mock the screen layout first for approval — *awaiting user's answer*
 
@@ -500,7 +500,7 @@ register.
 **Deadline reality:** entry closes 15 Aug 2026 23:59 EDT = **09:59 on 16 Aug, Dhaka time**. Seven
 days from the blueprint date.
 
-### Numbers verified from the thesis text on 8 Aug (use these, they are checked)
+### Numbers verified from the reference study text on 8 Aug (use these, they are checked)
 
 - 288 steps × 5 min = one day (§4.5, `T = 288`, `Δt = 5 min`)
 - EV stations at **buses 18, 22, 25, 33** (Fig. 4.2, 1-indexed); Table 4.1 lists the same as

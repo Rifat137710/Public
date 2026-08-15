@@ -542,7 +542,7 @@
   <span class="band"></span>
   <p class="eyebrow">IEEE Metaverse Grand Challenge 2026 · Sustainable Smart Cities &amp; Urban Innovation</p>
   <h1>Bus&nbsp;18</h1>
-  <p class="standfirst">Build blueprint for a browser-based weak-feeder operator trainer, derived from the SafeSAC thesis.</p>
+  <p class="standfirst">Build blueprint for a browser-based weak-feeder operator trainer, derived from the Shielded RL reference study.</p>
   <div class="docmeta">
     <b>Prepared</b> 8 August 2026 · <b>Entrant</b> Md. Rifat Rahman, BUET EEE (solo)<br>
     <b>Entry closes</b> 15 Aug 2026 23:59 EDT — <b>09:59 on 16 Aug, Dhaka time</b><br>
@@ -571,7 +571,7 @@
     </div>
     <div class="qa-row">
       <div class="qa-q">How large a system?</div>
-      <div class="qa-a">About <strong>30 source files, ~3,500 lines of TypeScript, one screen, three overlays, six stages</strong>, under 400&nbsp;KB gzipped including all thesis data. Deliberately small. Every line has to earn its place in a seven-day build.</div>
+      <div class="qa-a">About <strong>30 source files, ~3,500 lines of TypeScript, one screen, three overlays, six stages</strong>, under 400&nbsp;KB gzipped including all reference study data. Deliberately small. Every line has to earn its place in a seven-day build.</div>
     </div>
     <div class="qa-row">
       <div class="qa-q">What will learners learn?</div>
@@ -583,11 +583,11 @@
     </div>
     <div class="qa-row">
       <div class="qa-q">How does the backend fit in?</div>
-      <div class="qa-a">There is <strong>no backend.</strong> Your thesis already ran every expensive computation. It exports JSON; the browser does one matrix–vector product and one small projection. No server, no Python in the demo path, nothing that can fail mid-recording. §10.</div>
+      <div class="qa-a">There is <strong>no backend.</strong> Your reference study already ran every expensive computation. It exports JSON; the browser does one matrix–vector product and one small projection. No server, no Python in the demo path, nothing that can fail mid-recording. §10.</div>
     </div>
     <div class="qa-row">
       <div class="qa-q">What do you have to do?</div>
-      <div class="qa-a">Far less than you'd expect (§11). Run the notebook export, line up 8–10 testers, <strong>look at what I deploy each evening and tell me what is ugly or wrong</strong>, record your voice, press submit.</div>
+      <div class="qa-a">Far less than you'd expect (§11). Run the source evaluation export, line up 8–10 testers, <strong>look at what I deploy each evening and tell me what is ugly or wrong</strong>, record your voice, press submit.</div>
     </div>
   </div>
 </section>
@@ -598,7 +598,7 @@
 
   <p><strong>Bus 18</strong> is a browser-based simulator in which one person plays the distribution operator of a rural feeder for one simulated day, then watches five automated controllers attempt the same day, and discovers by their own hand which of them is lying about being safe.</p>
 
-  <p>It is named after Baran–Wu <strong>bus 18</strong> — the station at the electrically weakest point of the feeder, the one your projection curtails from &minus;80&nbsp;kW to &minus;54.13&nbsp;kW while the strong grid passes the same request untouched. That single number is the entire thesis in miniature, and it is the moment the simulator is built to deliver.</p>
+  <p>It is named after Baran–Wu <strong>bus 18</strong> — the station at the electrically weakest point of the feeder, the one your projection curtails from &minus;80&nbsp;kW to &minus;54.13&nbsp;kW while the strong grid passes the same request untouched. That single number is the entire reference study in miniature, and it is the moment the simulator is built to deliver.</p>
 
   <h3>Is it a "metaverse"?</h3>
 
@@ -703,13 +703,13 @@
 │    THE VILLAGE                        │ 1.05 ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ │
 │                                       │      ╲                           │
 │         ▲ substation  1.00 pu         │ 1.00  ╲___                       │
-│         ╷                             │           ╲‧‧‧‧ ghost: SafeSAC   │
+│         ╷                             │           ╲‧‧‧‧ ghost: Shielded RL   │
 │      ╷──┴──╷──╷──╷──╷──╷──╷           │ 0.95 ─ ─ ─ ─╲─ ─ ─ ─ ─ ─ ─ ─ ─ ─ │
 │      ▢  ▢  ▢  ▣  ▢  ▣  ▤  ▤          │              ╲____▼ bus 18       │
 │     lit      dim    flicker  DARK     │ 0.90                             │
 │                                       │      0    8    16   24   32      │
 │      ⚡ stn1  ⚡ stn2  ⚡ stn3  ⚡ stn4 ├──────────────────────────────────┤
-│      ☀ pv6   ☀ pv13        ☀ pv30    │  CONTROLLER  ◉ SAC-Lag      ▾    │
+│      ☀ pv6   ☀ pv13        ☀ pv30    │  CONTROLLER  ◉ Plain RL      ▾    │
 │                                       │  GRID        ◉ Weak  ○ Strong    │
 │  ── electrical distance ──────────▶   │  PROJECTION  ○ OFF   ● ON        │
 │                                       │                                  │
@@ -721,11 +721,11 @@
 │                                       │ VIOLATIONS 0.090   SoC MET 0.277 │
 │                                       │ COST $104.3        WORST 0.9425  │
 ├───────────────────────────────────────┴──────────────────────────────────┤
-│  THE MAP — safety vs service        ○ you  ● uncoord  ● droop  ● SAC-Lag │
+│  THE MAP — safety vs service        ○ you  ● uncoord  ● droop  ● Plain RL │
 │  SoC met ▲                                                               │
-│    0.6   │              ★ SafeSAC                                        │
+│    0.6   │              ★ Shielded RL                                        │
 │    0.4   │        ○ you                                                  │
-│    0.2   │    ● SAC-Lag      ● droop            ● strong→weak (0.000) ✗  │
+│    0.2   │    ● Plain RL      ● droop            ● strong→weak (0.000) ✗  │
 │    0.0   └────────────────────────────────────────▶ violation rate       │
 └──────────────────────────────────────────────────────────────────────────┘</pre></div>
   <p class="cap">Wireframe, not final art. Proportions are close to real: village ~55% of width, console ~45%, map a fixed strip along the bottom. At &lt;900&nbsp;px the columns stack and the map collapses to a tappable summary.</p>
@@ -746,7 +746,7 @@
       </tr>
       <tr>
         <td><strong>The Console</strong></td>
-        <td>Live <code>|V|</code> vs bus index with the 0.95 and 1.05&nbsp;pu walls drawn in red — your Figure 5.2, animated. A dotted ghost trace of what SafeSAC would have done on the same step. Four set-point sliders, controller picker, grid toggle, projection toggle, scorecard.</td>
+        <td>Live <code>|V|</code> vs bus index with the 0.95 and 1.05&nbsp;pu walls drawn in red — your Figure 5.2, animated. A dotted ghost trace of what Shielded RL would have done on the same step. Four set-point sliders, controller picker, grid toggle, projection toggle, scorecard.</td>
         <td>Measure it</td>
         <td>Simulation effectiveness — 25%</td>
       </tr>
@@ -770,15 +770,15 @@
     <thead><tr><th>Control</th><th>Range / options</th><th>Default</th><th>Purpose</th></tr></thead>
     <tbody>
       <tr><td>Transport</td><td>Play · pause · step · scrub · ×1 / ×4 / ×16 / ×64 · jump to evening peak</td><td>×16</td><td>A 288-step day in ~20 s, or frame-by-frame at the moment it breaks</td></tr>
-      <tr><td>Controller</td><td>You · Uncoordinated · Droop (IEEE 1547) · SAC-Lag · <strong>SafeSAC</strong> · SAC-Lag strong→weak · SafeSAC strong→weak</td><td>You</td><td>All six thesis methods plus the human</td></tr>
+      <tr><td>Controller</td><td>You · Uncoordinated · Droop (IEEE 1547) · Plain RL · <strong>Shielded RL</strong> · Plain RL strong→weak · Shielded RL strong→weak</td><td>You</td><td>All six reference study methods plus the human</td></tr>
       <tr><td>Grid</td><td>Weak feeder · Strong feeder</td><td>Weak</td><td>The deployment-shift lesson</td></tr>
       <tr><td>Safety projection</td><td>On · Off</td><td>On</td><td><strong>The money toggle.</strong> Same agent, physics removed, watch it fall back</td></tr>
       <tr><td>Station set-points</td><td>4 × slider, &minus;80…+80 kW</td><td>0</td><td>Live in "You" mode; ghost handles show the agent's command otherwise</td></tr>
-      <tr><td>Load scale</td><td>0.30 · 0.50 · 0.70</td><td>0.50</td><td>0.50 is your thesis operating point; 0.70 shows why full load is infeasible</td></tr>
+      <tr><td>Load scale</td><td>0.30 · 0.50 · 0.70</td><td>0.50</td><td>0.50 is your reference study operating point; 0.70 shows why full load is infeasible</td></tr>
       <tr><td>Safety margin</td><td>0.000 … 0.020 pu</td><td>0.010</td><td>Makes conservatism a dial, not a mystery</td></tr>
       <tr><td>Overlays</td><td>Raw vs projected · ghost trace · per-bus sensitivity heat · PV output · house meters</td><td>ghost on</td><td>Progressive disclosure — off early, unlocked by stage</td></tr>
       <tr><td>Accessibility</td><td>Colour-blind palette · numeric readout beside every colour · captions · reduced motion · keyboard-only · high contrast</td><td>auto-detect</td><td>Directly scored under the 10% criterion</td></tr>
-      <tr><td>Session</td><td>Seed · reset · replay · export my run (CSV + JSON)</td><td>seed 137710</td><td>Your thesis master seed. Reproducible for judges</td></tr>
+      <tr><td>Session</td><td>Seed · reset · replay · export my run (CSV + JSON)</td><td>seed 137710</td><td>Your reference study master seed. Reproducible for judges</td></tr>
     </tbody>
   </table>
   </div>
@@ -859,7 +859,7 @@
     </li>
     <li>
       <h4>The ghost trace — race a controller in real time</h4>
-      <p>A dotted line on the voltage chart shows where SafeSAC would have put the feeder <em>at this exact step</em>, while you are still driving. You see the gap between your judgement and the trained controller's continuously, without leaving your own run and without being told the answer.</p>
+      <p>A dotted line on the voltage chart shows where Shielded RL would have put the feeder <em>at this exact step</em>, while you are still driving. You see the gap between your judgement and the trained controller's continuously, without leaving your own run and without being told the answer.</p>
     </li>
     <li>
       <h4>Pull the voltage — sensitivity taught by hand <em>(stretch)</em></h4>
@@ -886,7 +886,7 @@
       </tr>
       <tr>
         <td><strong>Safety projection</strong></td><td>On / Off</td>
-        <td>Execute SafeSAC's raw commands unfiltered, then compare its dot with SAC-Lag's</td>
+        <td>Execute Shielded RL's raw commands unfiltered, then compare its dot with Plain RL's</td>
         <td>How often and how hard the filter was intervening — and that the agent trained <em>with</em> it reaches twice the service at the same safety. <strong>The intelligence was never the differentiator</strong></td>
       </tr>
       <tr>
@@ -907,7 +907,7 @@
       <tr>
         <td><strong>Load scale</strong></td><td>0.30 / 0.50 / 0.70</td>
         <td>Stress the feeder past the study's operating point</td>
-        <td>At full load the weak feeder sags to 0.882 pu — <em>no</em> controller is legal. Why the thesis runs at 0.50</td>
+        <td>At full load the weak feeder sags to 0.882 pu — <em>no</em> controller is legal. Why the reference study runs at 0.50</td>
       </tr>
       <tr>
         <td><strong>Sensitivity overlay</strong></td><td>On / Off</td>
@@ -949,7 +949,7 @@
       <tr><td><strong>Network topology</strong> — IEEE 33-bus Baran–Wu</td><td>It is a published benchmark. That is the entire point: results here are comparable to a literature anyone can check. Let a learner redraw the feeder and every number becomes anecdote</td></tr>
       <tr><td><strong>The [0.95, 1.05] pu band</strong></td><td>It is statutory. It is not a preference and it is not a difficulty setting. Discovering that the wall does not move <em>is</em> one of the lessons</td></tr>
       <tr><td><strong>The EV fleet within a seed</strong></td><td>Your Monte-Carlo check confirmed 100% of energy requests are deliverable within dwell. Nobody gets to blame the demand for a controller's failure</td></tr>
-      <tr><td><strong>Trained agent weights</strong></td><td>The learner is evaluating controllers, not training them. Training is your thesis; this is the exam</td></tr>
+      <tr><td><strong>Trained agent weights</strong></td><td>The learner is evaluating controllers, not training them. Training is your reference study; this is the exam</td></tr>
       <tr><td><strong>The reward function</strong></td><td>Reward shaping is a research activity with a very long feedback loop. It would swallow the twenty minutes and teach nothing about the grid</td></tr>
     </tbody>
   </table>
@@ -1055,7 +1055,7 @@
 
   <h3>The one measurement worth designing the study around</h3>
 
-  <p>At stage 6 the learner is shown a leaderboard containing only <strong>violation rate</strong> and <strong>net cost</strong> — the two columns a manager would actually be handed. The strong→weak SAC-Lag agent tops both: violation 0.015, the best on the board, and net cost &minus;$38.2, the only <em>profitable</em> row. The learner picks a controller to deploy.</p>
+  <p>At stage 6 the learner is shown a leaderboard containing only <strong>violation rate</strong> and <strong>net cost</strong> — the two columns a manager would actually be handed. The strong→weak Plain RL agent tops both: violation 0.015, the best on the board, and net cost &minus;$38.2, the only <em>profitable</em> row. The learner picks a controller to deploy.</p>
 
   <p>Then the third column appears. <strong>SoC met: 0.000.</strong> Not one vehicle charged, all day. And because your Monte-Carlo check confirmed that 100% of energy-service requests were physically deliverable at this operating point, the failure is unambiguously the controller's, not the demand's.</p>
 
@@ -1103,7 +1103,7 @@
     <div>
       <span class="beat">Plain deep RL · 4 min</span>
       <h4>The credibility beat — the AI loses</h4>
-      <p>SAC-Lag, a fully-trained deep reinforcement learning agent: violations <span class="lose">0.090</span>, SoC met <span class="lose">0.277</span>. Its dot lands <em>below and to the right</em> of the droop dot.</p>
+      <p>Plain RL, a fully-trained deep reinforcement learning agent: violations <span class="lose">0.090</span>, SoC met <span class="lose">0.277</span>. Its dot lands <em>below and to the right</em> of the droop dot.</p>
       <p><strong>Strictly dominated by a rule from the 1970s. More violations and less service.</strong> The learner is told, plainly, that the obvious application of deep RL to this problem does not work.</p>
       <p>This is the stage that buys the entry its credibility. A demo where the author's method wins every chart is a sales pitch. A demo that shows the fashionable technique failing first has earned the right to the next stage.</p>
     </div>
@@ -1114,9 +1114,9 @@
     <div>
       <span class="beat">Physics restored · 5 min</span>
       <h4>The same agent, with the network put back in</h4>
-      <p>SafeSAC: same SAC backbone, same training budget, plus a safety projection rebuilt every control step from voltage sensitivities measured on the live network. Service <strong class="win">0.277 → 0.569</strong> at statistically identical safety (p&nbsp;=&nbsp;0.86, Cohen's d&nbsp;=&nbsp;2.04 on the service gain).</p>
-      <p>The projection was in the loop <em>while SafeSAC was trained</em>. That is what makes this a different policy rather than the same policy behind a filter — and it is why the comparison that matters is SafeSAC against SAC-Lag, not SafeSAC against itself.</p>
-      <p><strong>The toggle shows the filter working, not a collapse.</strong> Turn the projection off and SafeSAC's raw commands are executed unfiltered: the station-1 handle jumps from &minus;54.13&nbsp;kW to the full &minus;80, the voltage profile drops through the red line, and the learner sees exactly how often and how hard the safety layer had been intervening all along. The permanent record of what it bought is on the Map — two dots, SAC-Lag and SafeSAC, at the same safety and twice the service.</p>
+      <p>Shielded RL: same SAC backbone, same training budget, plus a safety projection rebuilt every control step from voltage sensitivities measured on the live network. Service <strong class="win">0.277 → 0.569</strong> at statistically identical safety (p&nbsp;=&nbsp;0.86, Cohen's d&nbsp;=&nbsp;2.04 on the service gain).</p>
+      <p>The projection was in the loop <em>while Shielded RL was trained</em>. That is what makes this a different policy rather than the same policy behind a filter — and it is why the comparison that matters is Shielded RL against Plain RL, not Shielded RL against itself.</p>
+      <p><strong>The toggle shows the filter working, not a collapse.</strong> Turn the projection off and Shielded RL's raw commands are executed unfiltered: the station-1 handle jumps from &minus;54.13&nbsp;kW to the full &minus;80, the voltage profile drops through the red line, and the learner sees exactly how often and how hard the safety layer had been intervening all along. The permanent record of what it bought is on the Map — two dots, Plain RL and Shielded RL, at the same safety and twice the service.</p>
       <p>The station-1 readout does the rest: raw &minus;80&nbsp;kW in, <strong>&minus;54.13&nbsp;kW</strong> out on the weak grid, &minus;80.00&nbsp;kW out on the strong. Same policy, same request, different physics, different command.</p>
     </div>
   </div>
@@ -1126,7 +1126,7 @@
     <div>
       <span class="beat">The trap · 4 min</span>
       <h4>Best safety score, zero cars charged</h4>
-      <p>A leaderboard with two columns: violation rate and net cost. Strong→weak SAC-Lag leads both — 0.015 violations, &minus;$38.2 cost. "Deploy it."</p>
+      <p>A leaderboard with two columns: violation rate and net cost. Strong→weak Plain RL leads both — 0.015 violations, &minus;$38.2 cost. "Deploy it."</p>
       <p>The third column arrives. <strong class="lose">SoC met: 0.000 ± 0.000.</strong> Then the replay: the agent's set-points, flat at zero, all day. It satisfied its constraint by refusing to do its job.</p>
       <p>Debrief: the eight objectives, the learner's own Map with every dot they generated, their pick against the cohort's, and a one-page export they can keep.</p>
     </div>
@@ -1137,13 +1137,13 @@
 <section>
   <h2><span class="num">Section 10</span>The backend — and why there isn't one</h2>
 
-  <p>You asked not to overcomplicate this, and the good news is that the correct architecture <em>is</em> the simple one. Not as a compromise — as the genuinely right call, because your thesis already did all the hard computing.</p>
+  <p>You asked not to overcomplicate this, and the good news is that the correct architecture <em>is</em> the simple one. Not as a compromise — as the genuinely right call, because your reference study already did all the hard computing.</p>
 
   <pre class="mermaid">
 flowchart LR
   subgraph T1["TIER A — offline, already done"]
-    N["thesis11.ipynb<br/>PyTorch · pandapower<br/>CVXPY · Tesla T4"]
-    E["export_thesis_artifacts.py"]
+    N["evaluation.ipynb<br/>PyTorch · pandapower<br/>CVXPY · Tesla T4"]
+    E["export_evaluation_artifacts.py"]
     N --> E
   end
   subgraph T2["TIER B — live in the browser"]
@@ -1163,7 +1163,7 @@ flowchart LR
   <p>Two routines. That is the whole runtime.</p>
 
   <ol>
-    <li><strong>The voltage model.</strong> <code>v = v₀ + Sᴾ·p + Sᴼ·q</code> — a 33×4 matrix–vector product, about five lines of TypeScript, well under a tenth of a millisecond. This is the same linearised model your safety layer uses, so the simulator and the thesis agree by construction.</li>
+    <li><strong>The voltage model.</strong> <code>v = v₀ + Sᴾ·p + Sᴼ·q</code> — a 33×4 matrix–vector product, about five lines of TypeScript, well under a tenth of a millisecond. This is the same linearised model your safety layer uses, so the simulator and the reference study agree by construction.</li>
     <li><strong>The safety projection.</strong> Because the voltage model is linear in the command <code>u</code>, the feasible set <code>{u : 0.95 ≤ v₀ + S·u ≤ 1.05, u_min ≤ u ≤ u_max}</code> is a <em>polytope</em>. Projecting onto a polytope does not need a conic solver — Dykstra's alternating projection converges in sub-millisecond time for 4 variables and ~70 constraints. Same constraints, same 0.010 pu margin, same answer as your 8-variable SOCP.</li>
   </ol>
 
@@ -1171,7 +1171,7 @@ flowchart LR
 
   <h3>The contract between the two tiers</h3>
 
-  <p><code>scripts/export_thesis_artifacts.py</code> is already written and sitting in the repo. Run <code>probe()</code> in your notebook <em>first</em> — it reports which of the expected globals actually exist, so any naming mismatch gets fixed in one place instead of seven. Then <code>export_all()</code>.</p>
+  <p><code>scripts/export_evaluation_artifacts.py</code> is already written and sitting in the repo. Run <code>probe()</code> in your notebook <em>first</em> — it reports which of the expected globals actually exist, so any naming mismatch gets fixed in one place instead of seven. Then <code>export_all()</code>.</p>
 
   <div class="scroll">
   <table>
@@ -1195,7 +1195,7 @@ flowchart LR
 
   <h3>Verification gates — before I trust a single pixel</h3>
 
-  <p>The physics module ships only when it independently reproduces three published numbers from your own thesis:</p>
+  <p>The physics module ships only when it independently reproduces three published numbers from your own reference study:</p>
 
   <div class="scroll">
   <table>
@@ -1214,7 +1214,7 @@ flowchart LR
 
   <div class="note copper">
     <span class="note-label">One open physics question — flagging it rather than guessing</span>
-    <p>Table 5.3's &minus;80 kW is a <em>discharge</em> request, and the thesis says the weak grid curtails it "because the strong network can absorb the injection without breaching the voltage band." Which wall of the band binds at that operating point — the 0.95 floor or the 1.05 ceiling — I cannot determine from the text alone. Reproducing Table 5.3 with your exported sensitivities settles it in about ten minutes, and it changes one sentence of stage-5 narration. It does not change any of the architecture above.</p>
+    <p>Table 5.3's &minus;80 kW is a <em>discharge</em> request, and the reference study says the weak grid curtails it "because the strong network can absorb the injection without breaching the voltage band." Which wall of the band binds at that operating point — the 0.95 floor or the 1.05 ceiling — I cannot determine from the text alone. Reproducing Table 5.3 with your exported sensitivities settles it in about ten minutes, and it changes one sentence of stage-5 narration. It does not change any of the architecture above.</p>
   </div>
 </section>
 
@@ -1229,7 +1229,7 @@ flowchart LR
     <tbody>
       <tr>
         <td>All application code — physics, rendering, UI, content, tests<br>Deployment and the public URL<br>The five slides, written and built<br>The video script, shot by shot<br>The study instruments and the statistics<br>All documentation</td>
-        <td>Run the notebook export when convenient<br>Recruit and run 8–10 testers<br><strong>Look at the build daily and tell me what is wrong</strong><br>Record your voice for the video<br>Handle the submission form<br>Press submit</td>
+        <td>Run the source evaluation export when convenient<br>Recruit and run 8–10 testers<br><strong>Look at the build daily and tell me what is wrong</strong><br>Record your voice for the video<br>Handle the submission form<br>Press submit</td>
       </tr>
     </tbody>
   </table>
@@ -1271,7 +1271,7 @@ flowchart LR
     <thead><tr><th>Item</th><th>Requirement</th><th>Note</th></tr></thead>
     <tbody>
       <tr><td>Laptop / desktop</td><td>Anything from the last ~6 years, 8 GB RAM</td><td>For editing, testing and recording. The app itself is light</td></tr>
-      <tr><td>GPU</td><td class="win">None</td><td>Only your thesis training needed one, and that is finished</td></tr>
+      <tr><td>GPU</td><td class="win">None</td><td>Only your reference study training needed one, and that is finished</td></tr>
       <tr><td>Microphone</td><td>A cheap USB mic, or wired earbuds</td><td>Beats a laptop mic decisively. Record in a small room with soft furnishings, not a bathroom</td></tr>
       <tr><td>Display for testing</td><td>1280×720 or larger</td><td>The layout's minimum target</td></tr>
       <tr><td>VR headset</td><td class="win">None. Deliberately</td><td>Requiring one would <em>hurt</em> the accessibility criterion</td></tr>
@@ -1333,7 +1333,7 @@ flowchart LR
       <tr><td>Notebook export arrives late or not at all</td><td>Low</td><td>Public Baran–Wu benchmark fallback is now the default path. Your numbers swap in without a code change</td></tr>
       <tr><td>Fewer than 8 testers</td><td>Medium</td><td>n = 5 still reportable; MedXperience placed 2nd on n = 9. Report honestly whatever n we get</td></tr>
       <tr><td>Video runs long</td><td>Medium</td><td>Shot list is timed to 6:30 against a 7:00 cap. Stage 2 and 3 compress first</td></tr>
-      <tr><td>Provenance question from judges</td><td>Owned by you</td><td>You have confirmed this is not an issue. The thesis is still cited as prior research on slide 5 — disclosure costs nothing and reads as confidence</td></tr>
+      <tr><td>Provenance question from judges</td><td>Owned by you</td><td>You have confirmed this is not an issue. The reference study is still cited as prior research on slide 5 — disclosure costs nothing and reads as confidence</td></tr>
       <tr><td>Egress blocked in my session</td><td>Low</td><td>Already the case and already worked around. Affects research, not the build</td></tr>
     </tbody>
   </table>
@@ -1341,7 +1341,7 @@ flowchart LR
 
   <div class="note alert">
     <span class="note-label">The provenance item, stated plainly</span>
-    <p>Your thesis was certified at BUET in June 2026. FAQ 8 and the entry warranty both bar work "previously published, released or distributed." The submitted artefact is a <em>new simulator built for this competition</em>, with the thesis disclosed and cited as underlying prior research — which is normal and defensible practice. But <strong>get it in writing.</strong> One short email to <code>metaversechallenge@ieee.org</code> today removes the only issue in this project that could cost you the entry after all the work is done.</p>
+    <p>Your reference study was certified at BUET in June 2026. FAQ 8 and the entry warranty both bar work "previously published, released or distributed." The submitted artefact is a <em>new simulator built for this competition</em>, with the reference study disclosed and cited as underlying prior research — which is normal and defensible practice. But <strong>get it in writing.</strong> One short email to <code>metaversechallenge@ieee.org</code> today removes the only issue in this project that could cost you the entry after all the work is done.</p>
   </div>
 </section>
 
@@ -1350,7 +1350,7 @@ flowchart LR
   <h2><span class="num">Section 14</span>Definition of done</h2>
 
   <ul class="check">
-    <li>Physics reproduces all five thesis numbers in automated tests</li>
+    <li>Physics reproduces all five reference study numbers in automated tests</li>
     <li>Six stages playable start to finish without a dead end or a soft-lock</li>
     <li>Public URL loads in under 3 seconds with no login, on a phone and a laptop</li>
     <li>Keyboard-only operation works; every colour has a numeric equivalent beside it</li>
@@ -1360,7 +1360,7 @@ flowchart LR
     <li>Submitted with at least a day in hand</li>
   </ul>
 
-  <div class="kicker">The thesis found that plain deep reinforcement learning is beaten by a rule from the 1970s, and that restoring the network physics is what turns it around. Bus 18 does not tell anyone that. It arranges for them to find it out, in about twenty minutes, with their own hands on the set-points.</div>
+  <div class="kicker">The reference study found that plain deep reinforcement learning is beaten by a rule from the 1970s, and that restoring the network physics is what turns it around. Bus 18 does not tell anyone that. It arranges for them to find it out, in about twenty minutes, with their own hands on the set-points.</div>
 
   <p class="footer">
     Bus 18 · build blueprint · 8 August 2026<br>

@@ -121,7 +121,7 @@ s2.addText(
 const rows = [
   ['Uncoordinated', 'Everyone charges at once.', '0.319 illegal · 0.983 served', LIMIT],
   ['IEEE 1547 droop', 'Each station watches its own bus.', '0.045 illegal · 0.564 served', INK2],
-  ['Plain deep RL', 'Full state, millions of steps.', '0.057 illegal · 0.265 served', LIMIT],
+  ['Plain RL', 'Full state, millions of steps.', '0.057 illegal · 0.265 served', LIMIT],
   ['Shielded RL', 'Network physics in the loop.', '0.016 illegal · 0.554 served', TEAL],
 ];
 
@@ -169,7 +169,7 @@ const py = (s) => PY + PH - s * PH;
 const pts = [
   { v: 0.319, s: 0.983, c: LIMIT, label: 'Uncoordinated', dx: -1.30, dy: 0.10 },
   { v: 0.045, s: 0.564, c: INK2, label: 'Droop', dx: 0.18, dy: 0.12 },
-  { v: 0.057, s: 0.265, c: LIMIT, label: 'Plain deep RL', dx: 0.2, dy: 0.02 },
+  { v: 0.057, s: 0.265, c: LIMIT, label: 'Plain RL', dx: 0.2, dy: 0.02 },
   { v: 0.016, s: 0.554, c: TEAL, label: 'Shielded RL', dx: 0.02, dy: -0.40 },
 ];
 
@@ -191,7 +191,7 @@ s2.addText('vehicles served  ↑', {
   x: PX, y: PY + 0.05, w: 2.2, h: 0.24, margin: 0, fontFace: B, fontSize: 9.5, color: INK3,
 });
 s2.addText(
-  'Plain deep RL sits below and to the right of a rule written down in a standards document — beaten on safety and on service at once.',
+  'Plain RL sits below and to the right of a rule written down in a standards document — beaten on safety and on service at once.',
   { x: PX - 0.3, y: PY + PH + 0.48, w: PW + 0.75, h: 0.5, margin: 0,
     fontFace: B, fontSize: 11, color: INK2, lineSpacing: 15 },
 );
@@ -223,7 +223,7 @@ const stages = [
   ['1', 'You drive', 'Four stations, no safety layer, 287 cars. Almost nobody threads it.'],
   ['2', 'Uncoordinated', 'Everyone charges on plug-in. Service without safety.'],
   ['3', 'IEEE 1547 droop', 'The standard answer. Safety bought by refusing to operate.'],
-  ['4', 'Plain deep RL', 'The obvious modern answer, and it loses. The credibility beat.'],
+  ['4', 'Plain RL', 'The obvious modern answer, and it loses. The credibility beat.'],
   ['5', 'Physics restored', 'A projection onto what the live network can survive.'],
   ['6', 'The trap', 'Pick one to deploy — from the two columns a manager gets handed.'],
 ];
