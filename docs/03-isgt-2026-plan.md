@@ -174,6 +174,44 @@ Infeasibility is **0.0000 at refresh 288 everywhere** — the signature of the i
 stale base point makes the constraint look satisfied, the pre-check skips the solve, and the
 raw request passes through untouched. That is the mechanism, and it is directly measured.
 
+### The cliff is a property of the safety layer, not the controller — `learned_source.py`
+
+3 seeds × 200 episodes trained on Kaggle at Z = 6 %, then walked along the same refresh
+axis. Violation step rate:
+
+| source | Z | raw | 1 | 12 | 48 | 288 |
+|---|---|---|---|---|---|---|
+| uncoordinated | 6 % | 0.0613 | 0.0000 | 0.0000 | 0.0595 | 0.0613 |
+| **SAC-Lag** | 6 % | 0.0414 | **0.0000** | **0.0000** | 0.0383 | 0.0410 |
+| uncoordinated | 8 % | 0.1054 | 0.0000 | 0.0000 | 0.0885 | 0.1054 |
+| **SAC-Lag** | 8 % | 0.0769 | **0.0000** | **0.0002** | 0.0601 | 0.0762 |
+
+**Same cliff, same location, three unrelated request sources.** Never-refreshed recovers
+**100.0 %** of the raw rate for the heuristic and **99.0 %** for the learned policy; refresh
+48 recovers 78–97 %. The finding is about the safety layer, which is what the paper claims.
+
+**And the learned arm is honestly weak — report it, do not hide it.**
+
+- Service at Z = 6 %: **0.0915** against uncoordinated's **0.8435**.
+- Its lower *raw* violation rate (0.0414 vs 0.0613) is bought by charging less, exactly as
+  droop does. It is an expensive droop.
+- **It sits 6.3× below the heuristic mixture line.** A coin flip between "charge everything"
+  and IEEE 1547 droop reaches SoC **0.5717** at the same 0.0414 violation rate. This is
+  precisely the baseline the mixture line was added to expose, and it fires on our own arm.
+
+Training diagnostics, for the record — the fixes work even though the policy does not:
+
+| seed | final λ | α | violation steps, first 20 → last 20 ep |
+|---|---|---|---|
+| 0 | 1.943 | 0.0030 | 12.60 → 2.50 |
+| 1 | 1.885 | 0.0030 | 8.50 → 6.45 |
+| 2 | 4.605 | 0.0030 | 9.00 → **19.25** |
+
+λ engages in every seed (1.89–4.61, never pinned at the floor — audit A2 and N1 hold) and α
+stays exactly at the configured 0.003 (N2 holds). But there is **no consistent improvement**:
+seed 2 gets worse, and episode reward declines in all three. The learner is not converging to
+a good policy, which is consistent with G0 and is the reason the paper does not claim one.
+
 ---
 
 ## 2. Category placement
@@ -230,8 +268,8 @@ raw request passes through untouched. That is the mechanism, and it is directly 
 | **T11** | **Model-error vs base-point split** (`frozen_mode`) | The correction. Jacobian error is free; base-point staleness is fatal | ✅ **done + pinned by test** |
 | **T12** | **Staleness cliff sweep** | The headline | ✅ **done at 12 ep** |
 | **T13** | Re-run T12 at 25 episodes, refresh axis {1,3,12,24,48,288} | The non-monotonicity replicated across both request sources; cliff refined to 24-48 steps | ✅ **done** |
-| T4 | Train 3–5 seeds, `autotune_alpha=False` | Supporting row: the findings hold for a *learned* request source too | ⬜ ~2 h Kaggle |
-| T5 | Learned policy across the **refresh** axis at Z ∈ {6, 8} % | Completes the request-source set | ⬜ ~1 h |
+| **T4** | Train 3 seeds on Kaggle, `autotune_alpha=False` | Done: same cliff for a learned request; λ engages, α holds, policy still weak | ✅ **done** |
+| **T5** | Learned policy across the refresh axis at Z ∈ {6, 8} % | Complete — three request sources, one cliff | ✅ **done** |
 | T6 | CVXPY `Solution may be inaccurate` warnings | Outcomes are measured from AC power flow, not the solver's claim, so results stand — but this must not ship in a released artifact | ⬜ 2 h |
 | T7 | Tests for the stiffness axis + staleness invariants | Keeps the suite the credibility anchor | ⬜ 2 h |
 | T10 | A5 infeasibility across the refresh axis | The method's own failure mode, with a number | ⬜ free — already collected |
