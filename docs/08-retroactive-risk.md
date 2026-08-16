@@ -263,6 +263,73 @@ is the irreversible one, so it goes first.
 
 ---
 
+## 7b. Residual audit after the second feeder — what is *still* untested
+
+Re-derived once R2 came back, because "the gate passed" is not the same as
+"nothing can go wrong."
+
+### Closed by measurement — cannot be reopened
+
+| Risk | How it closed |
+|---|---|
+| R2 second feeder | 12/12 cells, two unrelated feeders |
+| R6 faster-refresh | claim removed; sign is feeder-dependent |
+| "refresh within 2 h" | withdrawn before publication |
+
+### Open, but cannot falsify the conference *if the scoping edits go in*
+
+| Risk | Why it cannot | Required wording |
+|---|---|---|
+| R1 real cadences | measurements at stated intervals stay true regardless of who operates where | motivate on *"the refresh requirement is unreported"*; state the cadence question as **open** |
+| R4 a better policy later | G0 swept six cells and found none | *"on this testbed, at this budget"* — never *"RL cannot help"* |
+| R5 model error on a wider axis | measured over a 1.16x Jacobian range | quote the range **in the claim sentence** |
+| **R7 (new)** — the learned request source ran on `case33bw` only; `kerber` has the two heuristics | nothing claims otherwise yet | say *"three sources on `case33bw`, two on `kerber`"*, not *"three sources"* flat |
+| R8 point estimates, no per-episode variance | the effect is 0.0000 against 0.0642 — not a statistical question | report as measured rates, claim no interval |
+
+### Open **and** genuinely weak — these need a decision, not wording
+
+**R5 is safe but nearly vacuous.** "Carrying the wrong network's Jacobian costs
+nothing" was measured across a range where the Jacobians differ by **1.16x**.
+Correctly scoped it cannot be falsified — and a reviewer can fairly answer that
+a 1.16x perturbation is not a test of model error. It survives as a sentence and
+dies as a contribution.
+
+It is now cheaply fixable. A second feeder is not needed and would not even
+work — the Jacobians have different dimensions (34 vs 117) so one cannot be
+transplanted into the other. The right axis is **perturbing the line impedances
+of a single feeder**: same dimensions, genuine model error, and a range of
+1.5x / 2x / 5x instead of 1.16x. That either turns the claim into a real result
+with a located threshold, or bounds it — and both are better than the present
+sentence.
+
+**R9 (new): we do not know what sets the cliff location.** Last clean interval:
+
+| feeder | Z | last clean |
+|---|---|---|
+| `case33bw` | 6 % | 24 steps |
+| `case33bw` | 8 % | 3–12 steps |
+| `case33bw` | 10 % | none |
+| `kerber` | 1 %, 2 %, 3 % | **12 steps, identically** |
+
+On `case33bw` the cliff tracks substation stiffness. On `kerber` it does not
+move at all across a 3x stiffness range and two request sources. Something
+exogenous — most plausibly the timescale on which net load changes, which is
+shared between the two studies because both use the same scenario generator —
+may be setting it on the LV feeder.
+
+**Consequence for wording.** Do not write *"the cliff location is
+feeder-specific"*. We have not established that, and if the journal later shows
+it is set by load dynamics, the conference sentence was wrong. Write instead:
+
+> *the cliff location varies across feeders and operating points and must be
+> measured for a given deployment*
+
+— which is exactly what the data supports, and which the journal's drift-bound
+work would **extend** rather than correct. It also makes the mechanism question
+an explicit open one, which is where it belongs.
+
+---
+
 ## 8. Bottom line
 
 Of four gates, **two cannot touch the conference at all** (R3), **two are
