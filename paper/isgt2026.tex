@@ -1,0 +1,600 @@
+% ---------------------------------------------------------------------------
+% When a Safety Layer Stops Being One
+% IEEE PES ISGT submission -- DRAFT
+%
+% Every number in this manuscript is produced by scripts/make_paper_tables.py
+% from the JSON in results/. Do not type numbers into this file by hand: a
+% transcription error in a table passes every check this repository runs.
+%
+% Claims are frozen in docs/00-state-of-play.md Sec. 2b. Do not strengthen them
+% while drafting -- each is scoped to exactly what was measured, and the scoping
+% is what makes them survive the journal work that follows.
+% ---------------------------------------------------------------------------
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{url}
+\usepackage[hidelinks]{hyperref}
+
+\begin{document}
+
+\title{When a Safety Layer Stops Being One:\\
+Base-Point Currency and Silent Failure in\\
+Voltage-Constrained EV Charging}
+
+\author{\IEEEauthorblockN{Md.\ Rifat Rahman}
+\IEEEauthorblockA{Department of Electrical and Electronic Engineering\\
+Bangladesh University of Engineering and Technology\\
+Dhaka, Bangladesh\\
+rifatarafat1020@gmail.com}
+% TODO co-authors and affiliations to be settled before submission
+}
+
+\maketitle
+
+\begin{abstract}
+Sensitivity-based action projection has become the default way to enforce
+voltage limits on a learned or heuristic EV charging controller: a linearised
+power-flow model turns each request into the nearest request that keeps every
+bus inside the band. The mechanism is widely reused and its \emph{refresh
+requirement} is not reported anywhere. We measure it. On two unrelated radial
+feeders---an IEEE 33-bus medium-voltage testbed and a 117-bus low-voltage
+village benchmark---a projection whose linearisation base point is never
+refreshed reproduces the \emph{unprojected} violation rate to within 3\,\%
+(96.9--100.0\,\%, 12 of 12 cells) while reporting an infeasibility rate of
+exactly zero. The layer does not degrade as its model ages; it becomes inert,
+silently. The transition is a cliff rather than a slope, and its location is not
+a universal constant: it sits at two hours on one feeder and one hour on the
+other. Separately, we decompose the linearisation into its Jacobian and its base
+point and perturb each independently. Across a station-bus Jacobian error
+spanning $0.20\times$ to $5.67\times$, a network model wrong by up to a factor
+of two costs nothing on either feeder, while under-estimating line impedance
+drives the projection infeasible on 8.3\,\% of steps and latches stations to
+zero on 6.9\,\%---producing a \emph{perfect} violation rate that the fallback,
+not the projection, paid for. Both failure modes defeat the same check, from
+opposite directions: a violation rate on its own cannot tell an operator whether
+a safety layer is working. We give the resulting runtime diagnostic, the
+measured tolerance bands, and the operating envelope.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Electric vehicle charging, voltage control, safe reinforcement learning, action
+projection, voltage sensitivity, distribution networks.
+\end{IEEEkeywords}
+
+% ===========================================================================
+\section{Introduction}
+% ===========================================================================
+
+Uncoordinated EV charging depresses voltage at the ends of weak radial feeders,
+and on low-voltage networks the effect appears at very low penetration. A large
+recent literature responds by wrapping a controller---increasingly a
+reinforcement learning agent---in a \emph{safety layer}: a small optimisation
+that projects each requested set-point onto the nearest point satisfying a
+linearised voltage constraint~\cite{dalal2018,aamas2023,kou2022,gan2023,bigat2026,evsafe2024}.
+The construction descends from Dalal \emph{et al.}~\cite{dalal2018} and is now
+one of the two top-level categories in the field's own taxonomy of safe
+reinforcement learning for power systems~\cite{saferlreview}.
+
+The linearisation at the heart of this mechanism has two parts that are almost
+always treated as one. The \emph{Jacobian} $\partial V/\partial P$,
+$\partial V/\partial Q$ requires a network model. The \emph{base point}---the
+operating point about which that Jacobian was taken---requires a measurement.
+They fail differently, they cost differently to maintain, and no published work
+we are aware of separates them.
+
+Nor does any of the work above state how often its linearisation is refreshed.
+That is not a small omission. Distribution systems are described in their own
+state-estimation literature as ``practically unobservable in real
+time''~\cite{dsse_survey}, measurement-scarce, with heterogeneous reporting
+rates, and readily rendered unobservable by communication failure or delay.
+Distribution state estimation runs on 1--15\,minute cycles and AMI on 15\,minutes
+to an hour; telemetry is concentrated at the substation rather than at the
+station buses over which the constraint is written. A stale base point is not an
+edge case on a distribution feeder. It is the ordinary condition.
+
+\subsection{What is, and is not, new here}
+
+We are explicit about the part that is not ours. That measurement feedback
+substitutes for model accuracy is an established principle in at least three
+literatures: incremental, sensor-based flight control replaces model terms with
+direct measurements and is robust to model uncertainty as a
+result~\cite{indi}; measurement-based (``model-less'') voltage control estimates
+sensitivity coefficients from data precisely because model-based ones are
+unreliable~\cite{modelless}; and online feedback-based linearised power flow
+updates its parameters from instantaneous measurements and already reports
+robustness to measurement error, communication failure and update
+frequency~\cite{bai2022}. We reconfirm that principle rather than claim it.
+
+What is not established is the \emph{closed-loop consequence}. The metric in
+\cite{bai2022} is voltage estimation error---an open-loop accuracy measure. Ours
+is whether a safety filter still refuses an unsafe action. These do not follow
+from one another: a model can be badly wrong and still refuse unsafe requests,
+or mildly wrong and pass everything. A linearisation that grows gradually less
+accurate does not imply a filter that grows gradually less protective, and we
+find it does not.
+
+Our contributions:
+
+\begin{enumerate}
+\item \textbf{A silent-failure characterisation.} A never-refreshed projection
+      reproduces the unprojected violation rate while reporting zero
+      infeasibilities. The failure is total, and it raises no alarm on the
+      channel an operator would watch (Sec.~\ref{sec:staleness}).
+\item \textbf{A decomposition of the linearisation into Jacobian and base
+      point}, each perturbed independently. The artefact that is expensive to
+      obtain tolerates a factor-of-two error; the one constrained by metering
+      infrastructure carries the protection (Sec.~\ref{sec:modelerror}).
+\item \textbf{A runtime diagnostic.} Two unrelated failure modes each produce a
+      clean violation rate. We give the telemetry that distinguishes a working
+      layer from a broken one, as a one-line assertion
+      (Sec.~\ref{sec:diagnostic}).
+\item \textbf{Measured tolerance bands and an operating envelope}, on two
+      feeders sharing no topology, voltage level or impedance scale.
+\end{enumerate}
+
+We also report, and do not hide, that on this testbed the projection rather than
+the learned policy is what delivers safe service (Sec.~\ref{sec:layer}). That
+result motivates studying the layer rather than the learner, and it is the
+reason a learned controller appears here only as one of several request sources.
+
+% ===========================================================================
+\section{Related Work}
+% ===========================================================================
+
+\textbf{Safety layers for distribution voltage control.} Dalal \emph{et
+al.}~\cite{dalal2018} introduce a layer that analytically corrects an action to
+satisfy linearised constraints. The construction has been carried into
+distribution voltage control in multi-agent~\cite{aamas2023}, Volt-VAR
+\cite{kou2022}, communication-delayed~\cite{gan2023}, physics-regularised
+\cite{bigat2026} and EV-charging~\cite{evsafe2024} settings. Two of these make
+directly opposing claims about model sensitivity---\cite{aamas2023} advertises
+that approximate sensitivity information suffices, \cite{bigat2026} motivates
+itself by projection being sensitive to parameter error---and neither reports
+the experiment that would settle it. Sec.~\ref{sec:modelerror} does.
+
+\textbf{Sensitivity computation and currency.} Analytic sensitivity coefficients
+for radial networks are standard~\cite{christakou2013}. Measurement-based
+estimation~\cite{modelless} and online feedback linearisation~\cite{bai2022}
+address model unavailability directly; \cite{bai2022} is the closest prior work
+to ours and the distinction is the one drawn in Sec.~I: it measures how accurate
+a linearisation remains, we measure whether a filter built on one still refuses
+unsafe actions.
+
+\textbf{Delay and staleness.} Communication delay has been treated as a
+millisecond-scale synchronisation problem to be imputed away~\cite{gan2023}.
+Age of information has been used as a formal staleness metric in power systems,
+for transmission-level load frequency control~\cite{aoi_lfc}. We treat
+hour-scale base-point age as a design variable for distribution constraint
+enforcement, where the failure is inertness rather than instability.
+
+% ===========================================================================
+\section{System Model and Safety Projection}
+% ===========================================================================
+
+\subsection{Feeder and fleet}
+
+A radial feeder carries $N_b$ buses, of which four host bidirectional charging
+stations rated $S^{\mathrm{rat}}$. AC power flow is solved every control step by
+a backward--forward sweep validated against Newton--Raphson to $10^{-9}$\,p.u.
+The control step is five minutes over a 288-step day. Vehicles arrive from a
+bimodal profile with log-normal dwell times and per-vehicle energy targets; a
+station's set-point is distributed across its connected vehicles in proportion
+to energy still owed. We use the sign convention of the underlying
+solver: $p>0$ denotes injection into the bus (V2G discharge) and $p<0$ denotes
+charging.
+
+The operational requirement is $\underline{v} \le v_i \le \overline{v}$ for all
+$i$, with $[\underline{v},\overline{v}] = [0.95, 1.05]$\,p.u.
+
+\subsection{The projection}
+
+Let $u = (p^{\mathrm{req}}, q^{\mathrm{req}})$ be the requested station
+set-points. The safety layer returns
+%
+\begin{align}
+\min_{p,q} \quad & \lVert p - p^{\mathrm{req}} \rVert_2^2
+                 + \lVert q - q^{\mathrm{req}} \rVert_2^2 \label{eq:proj}\\
+\text{s.t.}\quad
+& \underline{v} + \varepsilon \le \hat v(p,q) \le \overline{v} - \varepsilon
+  \nonumber\\
+& \lVert (p_j, q_j) \rVert_2 \le S^{\mathrm{rat}}_j, \quad
+  \lvert p_j - p_j^{-} \rvert \le \Delta^{\max} \nonumber
+\end{align}
+%
+where $\varepsilon$ is a tightening margin, $p^{-}$ the previous set-point, and
+the predicted voltage is the linearisation
+%
+\begin{equation}
+\hat v(p,q) = \underbrace{v^{0}}_{\text{base point}}
+  + \underbrace{\frac{\partial V}{\partial P}}_{\text{Jacobian}}(p - p^{0})
+  + \frac{\partial V}{\partial Q}(q - q^{0}).
+\label{eq:lin}
+\end{equation}
+%
+Problem~\eqref{eq:proj} is a second-order cone program, solved with CLARABEL
+through a DPP-compliant parametrisation so the problem is compiled once and
+re-solved with new parameters each step. A solution is accepted on its
+\emph{measured} constraint residual rather than on the solver's status label,
+because a hedged-but-feasible point is common and discarding it would freeze
+stations for nothing.
+
+\subsection{The two halves of the linearisation}
+\label{sec:twohalves}
+
+Equation~\eqref{eq:lin} is the object of this paper. The Jacobian
+$\partial V/\partial P$, $\partial V/\partial Q$ is a property of the network:
+obtaining it requires an admittance model, and it changes only when the network
+does. The base point $(v^{0}, p^{0}, q^{0})$ is a property of the present
+operating condition: obtaining it requires a \emph{measurement}, and it changes
+continuously.
+
+This asymmetry is the reason the decomposition matters in deployment. The
+Jacobian can be computed offline as often as one likes---we compute it
+analytically from a single LU factorisation of the power-flow Jacobian, in
+0.662\,ms against 447.6\,ms for finite differences. A current base point cannot
+be computed at all. It must be observed, at whatever cadence the metering
+infrastructure provides. A designer therefore cannot buy base-point currency
+with compute, which is exactly why its requirement needs to be known.
+
+We denote by $\tau$ the \emph{base-point age}: the number of control steps since
+the linearisation was last taken. Throughout, ``refresh interval $\tau$'' means
+the Jacobian and base point are recomputed every $\tau$ steps and held constant
+in between, which is what a controller with periodic state updates does.
+
+\subsection{Infeasibility fallback}
+
+When~\eqref{eq:proj} is infeasible the station holds its previous set-point;
+after three consecutive failures it latches to zero. This is disclosed rather
+than defended---Sec.~\ref{sec:diagnostic} shows it becoming the dominant
+mechanism under model error, which is a finding about the design, not an
+endorsement of it.
+
+% ===========================================================================
+\section{Experimental Design}
+% ===========================================================================
+
+\subsection{Two feeders}
+
+Generality cannot be claimed from one set of line impedances, so every result
+below is measured on two networks that share nothing (Table~\ref{tab:testbeds}).
+The MV testbed is the IEEE 33-bus Baran--Wu feeder with a Th\'evenin source
+impedance $Z_{\mathrm{sub}}$ added upstream of the slack, giving 34 buses. The
+LV testbed is the Kerber \emph{Dorfnetz} German village benchmark: 116 buses,
+six laterals, 57 households behind a 400\,kVA transformer at 0.4\,kV, with line
+impedances an order of magnitude smaller. Its distribution transformer is folded
+into an equivalent series line---exact for a fixed tap---and line shunt
+capacitance is neglected, which we measured to move $V_{\min}$ by
+$2.2\times10^{-5}$\,p.u., three orders of magnitude below the margin
+$\varepsilon$.
+
+\begin{table}[t]
+\caption{The two testbeds. Nothing is shared.}
+\label{tab:testbeds}
+\centering\small
+\input{tables/testbeds}
+\end{table}
+
+\subsection{Operating point, chosen by measurement}
+
+An operating point selected for convenience can trivialise a study in either
+direction, so both feeders' operating points are measured against two
+requirements: the \emph{idle} feeder must be strictly inside the band, so that
+every violation is attributable to a charging decision; and an uncoordinated
+charger must break the band, so the layer has something to do. On the LV feeder
+we swept 36 combinations of substation stiffness, background load and fleet
+size, and selected the cell closest to the MV feeder's uncoordinated behaviour
+on \emph{both} axes simultaneously---a second feeder tuned harder would inflate
+the effect and one tuned easier would hide it.
+
+\subsection{Request sources}
+
+A claim about a safety layer should not depend on what is upstream of it. We
+therefore drive the layer from unrelated sources: an uncoordinated greedy
+charger, a deadline-aware heuristic that defers non-urgent stations, and (on the
+MV feeder) a trained soft actor--critic agent with an augmented-Lagrangian cost
+constraint.
+
+\subsection{Metrics}
+
+We report the \emph{voltage violation step rate}---the fraction of control steps
+with any bus outside the band---and \emph{service}, the fraction of vehicles
+meeting their energy target at departure. Crucially we also report the layer's
+own telemetry: the fraction of steps on which~\eqref{eq:proj} was infeasible and
+the fraction on which a station was latched to zero. Sec.~\ref{sec:diagnostic}
+is about why the first two are not sufficient.
+
+Seeds are derived by hashing run labels, with disjoint training and evaluation
+bands. The implementation carries 90 tests and reproduces the reference results
+of the underlying testbed exactly.
+
+% ===========================================================================
+\section{Results}
+% ===========================================================================
+
+\subsection{The layer, not the learner}
+\label{sec:layer}
+
+Before asking what the layer requires, we establish that it---rather than the
+policy above it---is what delivers safe service. The projection is usually
+composed only with a learned policy, which conflates two questions: whether the
+layer makes actions safe, and whether learning adds anything on top of it.
+Applying the identical projection to a zero-intelligence greedy charger
+separates them (Table~\ref{tab:layer}).
+
+\begin{table}[t]
+\caption{The same projection, different controllers (MV feeder).}
+\label{tab:layer}
+\centering\small
+\input{tables/layer_not_learner}
+\end{table}
+
+The projection applied to a controller with no learning at all delivers
+$8.0\times$ the service of the projection applied to the trained agent, at
+identical zero violations. A sweep over background load and EV penetration found
+no cell in which deferring non-urgent stations improved on charging everything:
+on this testbed deferred energy is never recovered, so the binding resource is
+energy over the day rather than its allocation across stations, and there is no
+scheduling structure for a policy to exploit. \emph{This is a statement about
+this testbed at this training budget, not a claim that learning cannot help.} It
+is why the remainder of the paper studies the layer, and why a learned policy
+appears below only as one request source among several.
+
+\subsection{Base-point staleness}
+\label{sec:staleness}
+
+We now hold the network model correct and vary only $\tau$
+(Table~\ref{tab:staleness}).
+
+\begin{table}[t]
+\caption{Violation step rate against base-point age. Correct network model
+throughout; only the linearisation's currency varies. Bold marks zero.}
+\label{tab:staleness}
+\centering\scriptsize
+\input{tables/staleness}
+\end{table}
+
+Three things stand out.
+
+\textbf{The layer switches off rather than degrading.} At $\tau = 288$---one
+refresh per day, i.e.\ never after the first solve---the violation rate is the
+\emph{unprojected} rate, recovering 96.9--100.0\,\% of it across all twelve
+cells and both request sources. A base point captured on an idle feeder makes
+the constraint appear slack at every subsequent step, the feasibility pre-check
+skips every solve, and every request passes through untouched.
+
+\textbf{It is silent while doing so.} The infeasibility rate at $\tau=288$ is
+$0.0000$ in every cell. The layer is not failing to solve; it never solves. An
+operator monitoring the component's own fault channel sees nothing.
+
+\textbf{The transition is a cliff, and its location is not a constant.} Between
+one interval and the next, protection goes from complete to essentially absent.
+On the MV feeder at $Z_{\mathrm{sub}}=6\,\%$ the last clean interval is 24 steps
+(two hours); on the LV feeder it is 12 steps (one hour), identically across a
+threefold stiffness range and both request sources. We therefore do not offer a
+universal refresh figure. \emph{The cliff exists everywhere we looked; its
+location varies with the deployment and must be measured for one.} We also do
+not claim to know what sets it: on the MV feeder it tracks substation stiffness,
+on the LV feeder it does not move at all.
+
+\subsection{Model error}
+\label{sec:modelerror}
+
+We now hold the base point current---measured on the real feeder at every
+step---and corrupt only the Jacobian, by computing it on a feeder whose line
+impedances are scaled by a factor $k$. This is the arrangement a deployed
+controller with an out-of-date network model but live telemetry actually
+occupies. Scaling impedances, rather than changing feeders, keeps the Jacobian's
+dimensions matched while moving its magnitude over
+$0.20\times$--$5.67\times$ (Table~\ref{tab:modelerror}).
+
+\begin{table}[t]
+\caption{Violation step rate against Jacobian error, base point measured
+throughout. Bold marks zero.}
+\label{tab:modelerror}
+\centering\scriptsize
+\input{tables/model_error}
+\end{table}
+
+A Jacobian wrong by up to roughly a factor of two costs nothing: violations are
+zero across $0.80\times$--$2.06\times$ on both feeders and both request sources.
+Set against Sec.~\ref{sec:staleness}, the asymmetry is the paper's central
+practical point. The half of the linearisation that is expensive to obtain, and
+that a utility may not have, tolerates substantial error. The half that cannot
+be computed at all---only measured---carries the protection.
+
+Outside the tolerance band the failure is directional, and which direction is
+feeder-dependent: the LV feeder leaks violations when impedance is
+under-estimated, the MV feeder when it is over-estimated. Over-estimation is the
+conservative side, and it is not free either---on the LV feeder a $5.5\times$
+Jacobian holds violations at zero but costs 12 percentage points of service.
+
+\subsection{Zero is not evidence: a runtime diagnostic}
+\label{sec:diagnostic}
+
+The two failure modes above are mirror images, and Table~\ref{tab:diagnostic}
+puts them side by side.
+
+\begin{table}[t]
+\caption{Two failure modes. Neither is visible in the column an operator
+watches.}
+\label{tab:diagnostic}
+\centering\small
+\input{tables/diagnostic}
+\end{table}
+
+A stale base point produces a clean \emph{infeasibility} rate while the feeder
+is entirely unprotected. An under-estimated impedance produces a clean
+\emph{violation} rate---on the MV feeder, exactly zero, apparently
+perfect---while the projection is infeasible on 8.3\,\% of steps and the
+fallback has latched stations to zero on 6.9\,\%, costing four percentage points
+of service. In the second case the layer is not protecting the feeder; it is
+switching the load off and being credited for the result.
+
+Neither is detectable from the outcome alone. We therefore recommend that a
+deployed projection expose, and an operator alarm on, three quantities rather
+than one:
+
+\begin{enumerate}
+\item \textbf{Base-point age $\tau$}, alarmed against a threshold measured for
+      that feeder rather than assumed.
+\item \textbf{Solve rate.} A projection reporting zero infeasibilities
+      \emph{and} a near-zero solve rate on a loaded feeder has stopped binding;
+      it is not succeeding, it is absent.
+\item \textbf{Fallback activation.} Non-trivial latch rates mean the reported
+      violation rate is being paid for by curtailment, not by projection.
+\end{enumerate}
+
+The first two together are a one-line assertion any of the works in
+Sec.~II could adopt.
+
+\subsection{Cost}
+
+The analytic sensitivity computation runs in 0.662\,ms against 447.6\,ms for
+finite differences, and a full projection step costs on the order of
+milliseconds against a 300\,s control interval---a duty cycle of roughly
+0.004\,\%. Every refresh interval examined here is computationally free. The
+constraint on base-point currency is metering, not computation, which is the
+practical reading of Sec.~\ref{sec:modelerror}.
+
+% ===========================================================================
+\section{Discussion and Limitations}
+% ===========================================================================
+
+\textbf{Scope.} These results are for weak, low-short-circuit-ratio radial
+feeders, where voltage rather than thermal loading is the binding constraint.
+On robustly built distribution networks the reported impact of EV charging on
+voltage is small and transformer thermal limits bind first; we do not claim
+otherwise, and our testbeds are chosen accordingly---the LV feeder sits at
+$V_{\min}=0.9550$\,p.u.\ before any vehicle is connected.
+
+\textbf{What ``refresh'' means here.} We simulate base-point age by recomputing
+the power flow at interval $\tau$, not by simulating a metering and
+communication pipeline. The axis is the \emph{age of the base point}, agnostic
+to what produces it. Whether real deployments occupy the unsafe region is an
+open question this paper does not answer; we note only that the LV feeder's
+cliff at one hour coincides with typical AMI reporting intervals.
+
+\textbf{Statistics.} We report measured rates over 25 evaluation episodes per
+cell and do not claim confidence intervals. The effects reported are of the form
+$0.0000$ against $0.0642$; the sub-percentage-point differences we observed
+between short refresh intervals were of opposite sign on the two feeders, and we
+therefore make no claim about them.
+
+\textbf{Request sources.} Three sources were used on the MV feeder and two on
+the LV feeder.
+
+\textbf{Future work.} The natural next step is to make $\tau$ an explicit
+argument of the constraint, tightening the band by a data-driven bound on net
+load drift over $\tau$ so that protection degrades continuously instead of
+switching off. The construction exists in the control literature for systems
+with sporadic measurements~\cite{sporadiccbf}; adapting it to an AC power-flow
+band, with a drift bound estimated from measured load rather than assumed
+adversarial, is the subject of ongoing work.
+
+% ===========================================================================
+\section{Conclusion}
+% ===========================================================================
+
+A sensitivity-based safety layer's protection rests on the currency of its
+linearisation base point rather than the accuracy of its network model. Wrong by
+a factor of two, the model costs nothing; a base point that stops being
+refreshed removes the protection entirely, reproducing the unprojected violation
+rate while reporting no fault. The transition is a cliff whose location varies
+between deployments, and two distinct failure modes both present as a clean
+number in the column an operator would watch. The remedy is not a faster refresh
+rate---every interval we examined is computationally free---but instrumentation:
+measure the base-point age, the solve rate and the fallback activation, and
+alarm on all three.
+
+% ===========================================================================
+\section*{Acknowledgment}
+% ===========================================================================
+
+% TODO
+
+\begin{thebibliography}{00}
+% NOTE: bibliographic details below are drawn from indexing services and must be
+% verified against the papers themselves before submission. Ref. [7] in
+% particular is the nearest prior work and should be read in full.
+
+\bibitem{dalal2018} G.~Dalal, K.~Dvijotham, M.~Vecerik, T.~Hester, C.~Paduraru,
+and Y.~Tassa, ``Safe exploration in continuous action spaces,''
+\emph{arXiv:1801.08757}, 2018.
+
+\bibitem{aamas2023} Y.~Liu \emph{et al.}, ``Multi-agent reinforcement learning
+with safety layer for active voltage control,'' in \emph{Proc. AAMAS}, 2023,
+pp.~1533--1541.
+
+\bibitem{kou2022} P.~Kou \emph{et al.}, ``Model-augmented safe reinforcement
+learning for Volt-VAR control in power distribution networks,'' \emph{Applied
+Energy}, vol.~313, 2022.
+
+\bibitem{gan2023} L.~Gan \emph{et al.}, ``Safe multi-agent deep reinforcement
+learning for real-time decentralized control of inverter based renewable energy
+resources considering communication delay,'' \emph{Applied Energy}, vol.~349,
+2023.
+
+\bibitem{bigat2026} ``Physics-regularized and safety-enhanced Bi-GAT
+reinforcement learning framework for voltage control,'' \emph{Energies}, 2026.
+
+\bibitem{evsafe2024} ``Safety-aware reinforcement learning for electric vehicle
+charging station management in distribution network,''
+\emph{arXiv:2403.13236}, 2024.
+
+\bibitem{bai2022} X.~Bai, Z.~Wang \emph{et al.}, ``An online feedback-based
+linearized power flow model for unbalanced distribution networks,'' \emph{IEEE
+Trans. Power Syst.}, 2022.
+
+\bibitem{saferlreview} ``Safe reinforcement learning for power system control:
+A review,'' \emph{Renewable and Sustainable Energy Reviews}, 2025.
+
+\bibitem{dsse_survey} ``A survey on state estimation techniques and challenges
+in smart distribution systems,'' \emph{arXiv:1809.00057}, 2018.
+
+\bibitem{indi} P.~van~Gils, E.-J.~van~Kampen \emph{et al.}, ``Stability and
+robustness analysis and improvements for incremental nonlinear dynamic inversion
+control,'' in \emph{AIAA Guidance, Navigation, and Control Conf.}, 2018.
+
+\bibitem{modelless} ``Model-less robust voltage control in active distribution
+networks using sensitivity coefficients estimated from measurements,''
+\emph{Electric Power Systems Research}, 2022.
+
+\bibitem{christakou2013} K.~Christakou, J.-Y.~LeBoudec, M.~Paolone, and
+D.-C.~Tomozei, ``Efficient computation of sensitivity coefficients of node
+voltages and line currents in unbalanced radial electrical distribution
+networks,'' \emph{IEEE Trans. Smart Grid}, vol.~4, no.~2, pp.~741--750, 2013.
+
+\bibitem{aoi_lfc} ``Age-of-information-aware PI controller for load frequency
+control,'' \emph{Protection and Control of Modern Power Systems}, 2023.
+
+\bibitem{sporadiccbf} ``Robust safety-critical control for systems with sporadic
+measurements and dwell time constraints,'' \emph{arXiv:2403.03663}, 2024.
+
+\bibitem{baranwu1989} M.~E.~Baran and F.~F.~Wu, ``Network reconfiguration in
+distribution systems for loss reduction and load balancing,'' \emph{IEEE Trans.
+Power Del.}, vol.~4, no.~2, pp.~1401--1407, 1989.
+
+\bibitem{kerber} G.~Kerber, ``Aufnahmef\"ahigkeit von
+Niederspannungsverteilnetzen f\"ur die Einspeisung aus Photovoltaikkleinanlagen,''
+Ph.D. dissertation, TU M\"unchen, 2011.
+
+\bibitem{pandapower} L.~Thurner \emph{et al.}, ``pandapower---an open-source
+Python tool for convenient modeling, analysis, and optimization of electric power
+systems,'' \emph{IEEE Trans. Power Syst.}, vol.~33, no.~6, pp.~6510--6521, 2018.
+
+\bibitem{sac} T.~Haarnoja, A.~Zhou, P.~Abbeel, and S.~Levine, ``Soft
+actor-critic: Off-policy maximum entropy deep reinforcement learning with a
+stochastic actor,'' in \emph{Proc. ICML}, 2018.
+
+\bibitem{ieee1547} \emph{IEEE Standard for Interconnection and Interoperability
+of Distributed Energy Resources with Associated Electric Power Systems
+Interfaces}, IEEE Std 1547-2018.
+
+\end{thebibliography}
+
+\end{document}
