@@ -565,3 +565,86 @@ def test_a_never_refreshed_projection_is_inert_on_the_second_feeder_too():
         raw["voltage_violation_step_rate_mean"], abs=1e-9
     )
     assert agent.stats.summary()["projection_infeasible_rate"] == 0.0
+
+
+def test_a_jacobian_wrong_by_a_factor_of_two_is_still_safe():
+    """R5. The model-error claim, on a range wide enough to be a test.
+
+    Substation stiffness moved the station-bus Jacobian by 1.16x, which is not
+    a perturbation anyone should be convinced by. Scaling line impedances moves
+    it by a factor of five in either direction, on the same feeder, so the
+    Jacobian can be wrong while its dimensions still match.
+
+    Measured window, both feeders and both request sources: zero violations for
+    a Jacobian wrong by 0.80x to 2.06x. This asserts the middle of it.
+    """
+    from safesac.agents import UncoordinatedAgent
+    from safesac.evaluate import evaluate
+    from safesac.projected import ProjectedAgent
+    from safesac.projection import SensitivityCache
+
+    cfg = ExperimentConfig.stiffness(6.0)
+
+    def model_at(scale):
+        c = replace(cfg, feeder=replace(cfg.feeder, line_z_scale=scale))
+        env = ChargingFeederEnv(c)
+        env.reset(seed=0)
+        cache = SensitivityCache(c, env.feeder, env._pf_solver)
+        cache.maybe_refresh(0)
+        return cache.sens, cache.loading
+
+    true_sens, _ = model_at(1.0)
+    wrong_sens, wrong_loading = model_at(2.0)
+
+    ratio = np.abs(wrong_sens.dv_dp).max() / np.abs(true_sens.dv_dp).max()
+    assert ratio > 1.8, f"perturbation too small to be a test: {ratio:.2f}x"
+
+    env = ChargingFeederEnv(cfg)
+    agent = ProjectedAgent(UncoordinatedAgent(env), env, cfg,
+                           frozen_sensitivities=wrong_sens,
+                           frozen_loading=wrong_loading,
+                           frozen_mode="jacobian")
+    agg = evaluate(agent, env, cfg, n_episodes=3,
+                   run_label="transfer_eval")["aggregate"]
+
+    assert agent.stats.n_solved > 0
+    assert agg["voltage_violation_step_rate_mean"] == 0.0
+
+
+def test_zero_violations_can_mean_the_fallback_did_the_work():
+    """The same lesson as the headline, arriving from the opposite direction.
+
+    A stale base point gives zero infeasibilities while the layer is entirely
+    unprotected. A Jacobian that *under*-estimates the line impedance gives the
+    reverse: zero violations, but bought by driving the QP infeasible and
+    latching the stations to zero rather than by projecting anything.
+
+    Both say the same thing, which is why the paper ships a runtime diagnostic:
+    a violation rate on its own cannot tell you whether a safety layer is
+    working. This test asserts the second failure mode exists and is visible in
+    the telemetry that the violation rate hides.
+    """
+    from safesac.agents import UncoordinatedAgent
+    from safesac.evaluate import evaluate
+    from safesac.projected import ProjectedAgent
+    from safesac.projection import SensitivityCache
+
+    cfg = ExperimentConfig.stiffness(6.0)
+    under = replace(cfg, feeder=replace(cfg.feeder, line_z_scale=0.2))
+    env = ChargingFeederEnv(under)
+    env.reset(seed=0)
+    cache = SensitivityCache(under, env.feeder, env._pf_solver)
+    cache.maybe_refresh(0)
+
+    env = ChargingFeederEnv(cfg)
+    agent = ProjectedAgent(UncoordinatedAgent(env), env, cfg,
+                           frozen_sensitivities=cache.sens,
+                           frozen_loading=cache.loading,
+                           frozen_mode="jacobian")
+    agg = evaluate(agent, env, cfg, n_episodes=3,
+                   run_label="transfer_eval")["aggregate"]
+    s = agent.stats.summary()
+
+    assert agg["voltage_violation_step_rate_mean"] == 0.0    # looks perfect
+    assert s["projection_infeasible_rate"] > 0.01            # is not
+    assert s["projection_frozen_step_rate"] > 0.0

@@ -37,6 +37,15 @@ class FeederConfig:
     # docs/08-retroactive-risk.md, the one risk that wording cannot cover.
     network: str = "case33bw"
 
+    # Multiplies every line's R and X. At 1.0 this is the real feeder; at
+    # anything else it is a *wrong model* of it. Substation stiffness turned out
+    # to be a weak model-mismatch axis -- station-bus Jacobians move only 1.16x
+    # across Z in [0.5 %, 12 %], because dV/dP there is set by the radial path
+    # impedance, which the Thevenin does not touch. This scales that path
+    # impedance directly, which is the quantity a utility is actually uncertain
+    # about: conductor type, run length, temperature.
+    line_z_scale: float = 1.0
+
     base_kv: float = 12.66
     base_mva: float = 10.0
 
@@ -175,6 +184,13 @@ def build_feeder(config: FeederConfig) -> Feeder:
             max_i_ka=10.0,
             name="substation_thevenin",
         )
+
+    if config.line_z_scale != 1.0:
+        # Applied after the Thevenin so the whole series path is scaled: the
+        # error is "this controller's impedance data is wrong by a factor k",
+        # not "wrong about the feeder but right about the substation".
+        net.line["r_ohm_per_km"] *= config.line_z_scale
+        net.line["x_ohm_per_km"] *= config.line_z_scale
 
     ev_buses = [resolve(net, n) for n in config.ev_station_nodes]
     pv_buses = [resolve(net, n) for n in config.pv_nodes]

@@ -302,6 +302,63 @@ of a single feeder**: same dimensions, genuine model error, and a range of
 with a located threshold, or bounds it — and both are better than the present
 sentence.
 
+### R5 — RUN. The claim is now a result, and the failure mode is the paper's own thesis
+
+`results/model_error_case33bw.json`, `results/model_error_kerber.json`. Line
+impedances scaled by k, Jacobian taken from the scaled feeder, deployed on the
+true one with the base point measured (`frozen_mode="jacobian"`). Station-bus
+Jacobian error actually spanned **0.20x to 5.67x** — against 1.16x for the
+stiffness axis.
+
+**A ±2x wrong Jacobian costs nothing, on both feeders and both request sources:**
+
+| Jacobian error | `case33bw` | `kerber` | verdict |
+|---|---|---|---|
+| 0.20x | 0.0000 | **0.0315** | fails |
+| 0.33x | 0.0000 | **0.0164** | fails |
+| 0.49x | 0.0000 | **0.0014** | fails |
+| **0.80x** | **0.0000** | **0.0000** | **safe** |
+| **1.26x** | **0.0000** | **0.0000** | **safe** |
+| **2.05x** | **0.0000** | **0.0000** | **safe** |
+| 3.15x | **0.0014** | 0.0000 | fails |
+| 5.5x | **0.0014** | 0.0000 | fails |
+
+That is a genuine tolerance band, measured over a 29x range on two unrelated
+feeders. It replaces a sentence that could not be falsified because it had
+barely been tested.
+
+**And the failure outside the band is the paper's own thesis, arriving from the
+opposite direction.** On `case33bw` at 0.20x the violation rate is **0.0000** —
+apparently perfect. The telemetry says otherwise:
+
+| k | violations | infeasible | **frozen** | service |
+|---|---|---|---|---|
+| correct | 0.0000 | 0.0016 | 0.0000 | 0.7698 |
+| 0.20x | **0.0000** | **0.0833** | **0.0694** | 0.7309 |
+
+The zeros are not the projection working. They are the QP going infeasible on
+8.3 % of steps and the **freeze-to-zero latch shutting the stations off on
+6.9 %**, costing 4 pp of service. The layer is not protecting the feeder; it is
+switching the load off and getting credit for it.
+
+So the two failure modes are mirror images, and both defeat the same naive
+check:
+
+* **stale base point** — zero *infeasibilities* while completely unprotected;
+* **under-estimated impedance** — zero *violations* while the fallback does all
+  the work.
+
+**A violation rate on its own cannot tell you whether a safety layer is
+functioning.** That was already the paper's runtime diagnostic; it is now
+demonstrated twice, independently, from opposite directions, and it is the
+strongest thing in the work.
+
+Direction matters and is asymmetric: **under-estimating the line impedance is
+the dangerous side** on both feeders (infeasibility and latching on both,
+plus 0.0315 violations on `kerber`), while over-estimating is conservative —
+`kerber` stays at 0.0000 all the way to 5.5x but pays 12 pp of service
+(0.7073 -> 0.5935).
+
 **R9 (new): we do not know what sets the cliff location.** Last clean interval:
 
 | feeder | Z | last clean |
