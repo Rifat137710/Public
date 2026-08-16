@@ -249,8 +249,10 @@ def fig_trace() -> float:
     a1.set_ylabel("min. bus voltage (p.u.)")
     a1.set_ylim(v_all.min() - 0.004, v_all.max() + 0.011)
     a1.text(23.6, lo + 0.0018, "0.95 p.u.", fontsize=6, color=LV, ha="right")
-    a1.legend(loc="lower left", ncol=1, handlelength=1.7, borderpad=0.1,
-              labelspacing=0.16, handletextpad=0.4)
+    # Opaque: the 0.95 limit line runs straight through this corner.
+    a1.legend(loc="lower left", ncol=1, handlelength=1.7, borderpad=0.25,
+              labelspacing=0.16, handletextpad=0.4, frameon=True,
+              framealpha=1.0, edgecolor="none", facecolor="white")
     _tidy(a1)
 
     a2.plot(t, runs["unprojected"]["p_kw"], color=GREY, linewidth=2.8,

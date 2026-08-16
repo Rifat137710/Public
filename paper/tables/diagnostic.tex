@@ -1,13 +1,13 @@
 \begin{tabular}{llrrrr}
 \toprule
-& Condition & Viol. & Infeas. & Frozen & Service \\
+& Condition & Viol. & Infeas. & Frozen & Serv. \\
 \midrule
-MV & No projection at all & 0.0560 & --- & --- & 0.8642 \\
-MV & Correct model, $\tau = 1$ & 0.0000 & 0.0016 & 0.0000 & 0.7698 \\
-MV & Jacobian under-estimated $5\times$ & 0.0000 & 0.0833 & 0.0694 & 0.7309 \\
+MV & No projection & 0.0560 & --- & --- & 0.8642 \\
+MV & Correct model, $\tau\!=\!1$ & 0.0000 & 0.0016 & 0.0000 & 0.7698 \\
+MV & Jacobian $0.2\times$ truth & 0.0000 & 0.0833 & 0.0694 & 0.7309 \\
 \addlinespace[1.5pt]
-LV & No projection at all & 0.0642 & --- & --- & 0.7535 \\
-LV & Correct model, $\tau = 12$ & 0.0000 & 0.0000 & 0.0000 & 0.7304 \\
-LV & Base point never refreshed & 0.0642 & 0.0000 & 0.0000 & 0.7535 \\
+LV & No projection & 0.0642 & --- & --- & 0.7535 \\
+LV & Correct model, $\tau\!=\!12$ & 0.0000 & 0.0000 & 0.0000 & 0.7304 \\
+LV & Never refreshed, $\tau\!=\!288$ & 0.0642 & 0.0000 & 0.0000 & 0.7535 \\
 \bottomrule
 \end{tabular}

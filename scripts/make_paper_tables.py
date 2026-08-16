@@ -42,17 +42,20 @@ def table_testbeds() -> None:
     pick = min((r for r in kop["cells"] if r["usable"]),
                key=lambda r: ((r["uncoord_viol"] - 0.0626) / 0.0626) ** 2
                + ((r["uncoord_soc"] - 0.8041) / 0.8041) ** 2)
+    # Labels are kept short deliberately: at IEEEtran's column width a table
+    # this tall overflows before it looks crowded, and an overfull box in a
+    # submission is a formatting defect rather than a matter of taste.
     rows = [
-        ("Base network", "IEEE 33-bus (Baran--Wu)", "Kerber \\emph{Dorfnetz}"),
-        ("Buses (incl.\\ Th\\'evenin)", "34", "117"),
+        ("Base network", "IEEE 33-bus", "Kerber \\emph{Dorfnetz}"),
+        ("Buses (incl.\\ source)", "34", "117"),
         ("Nominal voltage", "12.66\\,kV", "0.4\\,kV"),
-        ("Laterals", "1 trunk + 3 spurs", "6"),
+        ("Laterals", "1 trunk, 3 spurs", "6"),
         ("Load points / total", "32 / 3.72\\,MW", "57 / 0.34\\,MW"),
-        ("Charging stations", "4 $\\times$ 80\\,kVA", "4 $\\times$ 22\\,kVA"),
+        ("Stations", "4 $\\times$ 80\\,kVA", "4 $\\times$ 22\\,kVA"),
         ("Idle $V_{\\min}$", "0.9658\\,p.u.", f"{pick['idle_vmin']:.4f}\\,p.u."),
         ("Idle violations", "0.0000", f"{pick['idle_viol']:.4f}"),
-        ("Uncoordinated violations", "0.0626", f"{pick['uncoord_viol']:.4f}"),
-        ("Uncoordinated service", "0.804", f"{pick['uncoord_soc']:.3f}"),
+        ("Uncoord.\\ violations", "0.0626", f"{pick['uncoord_viol']:.4f}"),
+        ("Uncoord.\\ service", "0.804", f"{pick['uncoord_soc']:.3f}"),
     ]
     body = ["\\begin{tabular}{lcc}", "\\toprule",
             " & \\textbf{MV feeder} & \\textbf{LV feeder} \\\\", "\\midrule"]
@@ -80,12 +83,12 @@ def table_layer_not_learner() -> None:
         ("Idle (no charging)", *agg("zero")),
         ("Uncoordinated", *agg("uncoordinated")),
         ("IEEE 1547 droop", *agg("droop")),
-        ("SafeSAC (learned $+$ projection)", learned["viol"][0],
+        ("SafeSAC (learned $+$ proj.)", learned["viol"][0],
          learned["soc"][0], learned["cost"][0], float("nan")),
-        ("\\textbf{Uncoordinated $+$ projection}", *agg("uncoordinated+proj")),
+        ("\\textbf{Uncoordinated $+$ proj.}", *agg("uncoordinated+proj")),
     ]
     body = ["\\begin{tabular}{lrrrr}", "\\toprule",
-            "Controller & Viol.\\ rate & Service & Net cost & ms/step \\\\",
+            "Controller & Viol. & Service & Cost & ms/step \\\\",
             "\\midrule"]
     for name, v, s, c, ms in rows:
         msc = "---" if ms != ms else f"{ms:.2f}"
@@ -188,26 +191,26 @@ def table_diagnostic() -> None:
     me = load("model_error_case33bw.json")["cells"]["uncoordinated"]
     D = "---"
     rows = [
-        ("MV", "No projection at all",
+        ("MV", "No projection",
          me["raw"]["viol"], D, D, me["raw"]["soc"]),
-        ("MV", "Correct model, $\\tau = 1$",
+        ("MV", "Correct model, $\\tau\\!=\\!1$",
          me["correct"]["viol"], me["correct"]["infeasible"], 0.0,
          me["correct"]["soc"]),
-        ("MV", "Jacobian under-estimated $5\\times$",
+        ("MV", "Jacobian $0.2\\times$ truth",
          me["0.2"]["viol"], me["0.2"]["infeasible"], me["0.2"]["frozen"],
          me["0.2"]["soc"]),
         None,
-        ("LV", "No projection at all",
+        ("LV", "No projection",
          st["raw"]["viol"], D, D, st["raw"]["soc"]),
-        ("LV", "Correct model, $\\tau = 12$",
+        ("LV", "Correct model, $\\tau\\!=\\!12$",
          st["12"]["viol"], st["12"]["infeasible"], st["12"]["frozen"],
          st["12"]["soc"]),
-        ("LV", "Base point never refreshed",
+        ("LV", "Never refreshed, $\\tau\\!=\\!288$",
          st["288"]["viol"], st["288"]["infeasible"], st["288"]["frozen"],
          st["288"]["soc"]),
     ]
     body = ["\\begin{tabular}{llrrrr}", "\\toprule",
-            "& Condition & Viol. & Infeas. & Frozen & Service \\\\",
+            "& Condition & Viol. & Infeas. & Frozen & Serv. \\\\",
             "\\midrule"]
     for row in rows:
         if row is None:
@@ -280,6 +283,23 @@ def numbers() -> None:
     greedy = ph["uncoordinated+proj"]["aggregate"]["frac_meeting_soc_target_mean"]
     learned = ab["summary"]["projection"]["soc"][0]
 
+    # The trained agent is the third request source on the MV feeder. It was
+    # swept over its own seeds rather than folded into the heuristic sweep, so
+    # its recovery is quoted separately rather than pooled into the 12 cells.
+    ls = load("learned_source/learned_source.json")
+    lrec = [ls["cells"][z][s]["288"]["viol"] / ls["cells"][z][s]["raw"]["viol"]
+            for z in ls["cells"] for s in ls["cells"][z]]
+
+    # Even the zeros are generated. "The infeasibility rate is 0.0000 in every
+    # cell" is a claim about data, and typing it by hand means a re-run that
+    # made it non-zero would leave the sentence standing.
+    stale_infeas = [d["cells"][z][s]["288"]["infeasible"]
+                    for d, zs in ((mv_st, ["6.0", "8.0", "10.0"]),
+                                  (lv_st, ["1.0", "2.0", "3.0"]))
+                    for z in zs for s in d["cells"][z]]
+    assert len(set(stale_infeas)) == 1, \
+        f"infeasibility at tau=288 is no longer uniform: {sorted(set(stale_infeas))}"
+
     dev = tr["max_abs_dev_stale_vs_unprojected"]
     exp = int(np.floor(np.log10(dev)))
 
@@ -298,6 +318,8 @@ def numbers() -> None:
         "LvOverServiceLoss": f"{100 * (lv_me['cells']['uncoordinated']['correct']['soc'] - lv_me['cells']['uncoordinated']['5.0']['soc']):.0f}",
         "LvStaleViol": f"{lv1['288']['viol']:.4f}",
         "LvRawViol": f"{lv1['raw']['viol']:.4f}",
+        "LvFreshViol": f"{lv1['12']['viol']:.4f}",
+        "StaleInfeas": f"{stale_infeas[0]:.4f}",
         "MvCliff": str(mv6), "MvCliffEightLo": str(min(mv8)),
         "MvCliffEightHi": str(max(mv8)), "LvCliff": str(sorted(lv_all)[0]),
         "ServiceRatio": f"{greedy / learned:.1f}",
@@ -306,6 +328,10 @@ def numbers() -> None:
         "TraceBelow": str(sum(tr["runs"]["unprojected"]["violating"])),
         "TraceSteps": str(len(tr["runs"]["unprojected"]["vmin"])),
         "Episodes": str(lv_st["episodes"]),
+        "LearnedCells": str(len(lrec)), "LearnedSeeds": str(len(ls["seeds"])),
+        "LearnedRecLo": f"{100 * min(lrec):.1f}",
+        "LearnedRecHi": f"{100 * max(lrec):.1f}",
+        "SensFast": "0.662", "SensSlow": "447.6",
     }
     body = [f"\\newcommand{{\\n{k}}}{{{v}}}" for k, v in m.items()]
     w("numbers.tex", "% generated -- do not edit\n" + "\n".join(body))
