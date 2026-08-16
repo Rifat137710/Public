@@ -37,12 +37,19 @@ Uddin and Sad Sami before submission, not after.**
 
 | Result | Numbers | Strength |
 |---|---|---|
-| Never-refreshed ≈ completely unprotected | recovers **97.9–100 %** of raw violation rate | 6/6 cells, solid |
-| The failure is **silent** | infeasibility rate **0.0000** while fully unprotected | 6/6 cells, solid |
-| Cliff, not slope | 0.0000 at 2 h → near-full raw rate at 4 h | 6/6 heuristic + 6/6 learned, solid |
+| Never-refreshed ≈ completely unprotected | recovers **96.9–100 %** of raw violation rate | **12/12 cells on two unrelated feeders**, solid |
+| The failure is **silent** | infeasibility rate **0.0000** while fully unprotected | 12/12 cells, solid |
+| Cliff, not slope | zero violations, then near-full raw rate one interval later | 12/12 heuristic + 6/6 learned, solid |
 | Wrong Jacobian is free | 0.0000 vs 0.0000 | 2 deploy points × 2 modes, solid |
 | Safety layer carries the service | uncoordinated+projection **0.7094 SoC at 0.0000 viol**, vs droop 0.0067 | solid |
-| ~~"Faster refresh is worse"~~ | +0.003 mean, 4/6 cells | **DEMOTED — not established** |
+| ~~"Refresh within 2 h" as a design rule~~ | `case33bw` 2 h, `kerber` **1 h** | **WITHDRAWN — feeder-specific** |
+| ~~"Faster refresh is worse"~~ | 6/6 helps on `case33bw`, **0/6 on `kerber`** | **DEAD — opposite sign per feeder** |
+
+**Second feeder run (`kerber_dorfnetz`, 116-bus German village LV benchmark).**
+The qualitative claim replicates in full; the *quantitative* design rule does
+not — the cliff sits at 1 h there, not 2 h. Publishing "refresh within 2 hours"
+would have been contradicted by our own journal work. See
+`08-retroactive-risk.md` §3.
 
 Envelope: **Z ≤ 8 %**. Past it, freeze-to-zero fallback becomes the dominant
 failure mode (0.1171 at Z = 10 %, r48). Compute: **0.004 %** duty against a

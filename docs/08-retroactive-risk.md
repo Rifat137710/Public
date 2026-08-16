@@ -106,6 +106,73 @@ two is real external validity rather than a restatement.
 Fall back to `ieee_european_lv_asymmetric` for the journal, where unbalanced
 three-phase is worth the extra solver work.
 
+### R2 — RUN. Result: gate passed, and one claim has to change
+
+`results/staleness_kerber.json`, 3 stiffness points x 2 request sources x 6
+refresh intervals x 25 episodes, the identical protocol to `case33bw`.
+
+**The core claim replicates.** A never-refreshed projection reproduces the
+unprojected violation rate on a feeder sharing nothing with the thesis testbed:
+
+| feeder | cells | recovery of raw violation rate at r = 288 |
+|---|---|---|
+| `case33bw` | 6/6 | 100.0 % – 100.0 % |
+| `kerber_dorfnetz` | 6/6 | **96.9 % – 100.0 %** |
+
+and it is silent on both: infeasibility rate 0.0000 in every never-refreshed
+cell. **R2 is retired. The finding is not a property of `case33bw`'s line
+impedances.**
+
+**But the design rule does not transfer, and that is the whole reason to have
+run this first.** Last refresh interval with zero violations:
+
+| feeder | Z | last clean interval |
+|---|---|---|
+| `case33bw` | 6 % | 24 steps — **2 h** |
+| `case33bw` | 8 % | 3–12 steps — 15 min – 1 h |
+| `kerber` | 1 % | 12 steps — **1 h** |
+| `kerber` | 2 % | 12 steps — **1 h** |
+| `kerber` | 3 % | 12 steps — **1 h** |
+
+On the LV feeder the cliff sits at 1 h, identically across all three stiffness
+levels and both request sources. **"Refresh within 2 hours" cannot be
+published.** Had it been, the journal's second feeder would have contradicted a
+published number — precisely the failure this document exists to prevent.
+
+The claim that survives is better anyway: *the cliff is universal, its location
+is feeder-specific, and it must be measured per feeder.* That is a stronger
+statement about the mechanism and it hands the journal an obvious question —
+predict the cliff location from feeder properties — instead of a correction.
+
+**R6 is now settled too, and not as "noise".** Service change from refresh 1 to
+refresh 48:
+
+| feeder | cells where waiting *helps* service | mean |
+|---|---|---|
+| `case33bw` | **6/6** | +0.0684 |
+| `kerber` | **0/6** | −0.0238 |
+
+Internally consistent on each feeder, exactly opposite between them. So
+"faster refresh is worse" is not a weak effect — it is a **real effect with
+feeder-dependent sign**, which is far firmer grounds for keeping it out of the
+paper than the sample-size argument in `04` §4.6.
+
+### What the second feeder found that no amount of care would have
+
+`N_BUS_CANONICAL` was pinned at 34 — `case33bw`'s weak bus count — and used as
+the width of the projection's voltage band. On the 117-bus feeder every bus past
+the 34th fell out of the constraint, and on a radial feeder those are exactly
+the deep buses where the band breaks.
+
+The projection then **reported zero infeasibilities, solved nothing, and
+returned the raw action unchanged at every refresh interval.**
+
+That is the same signature as the staleness failure this paper is about, which
+is why it survived 84 tests, an exact reproduction gate and a published thesis:
+on one feeder there was nothing to compare against. It is now covered by four
+tests, including one that asserts equality with the unprojected run is a
+*failure* signature rather than a success.
+
 ---
 
 ## 4. R3 — G2 / G3 fail

@@ -448,3 +448,120 @@ def test_an_inaccurate_solve_is_accepted_on_its_residual_not_its_label():
     assert s["projection_inaccurate_rate"] > 0.1, s      # droop does trigger it
     assert s["projection_max_residual"] <= cfg.safety.projection_residual_tol
     assert agg["voltage_violation_step_rate_mean"] == 0.0
+
+
+# --- R2: the second feeder, and the bug only a second feeder could find ------
+
+
+def test_the_second_feeder_solves_like_pandapower():
+    """`kerber_dorfnetz` has to be a real feeder, not a plausible-looking one.
+
+    Two liberties are taken to fit the fast solver: the distribution
+    transformer is folded into a series line, and line shunt capacitance is
+    dropped. Both are defensible in prose and neither is trusted here -- the
+    flattened 117-bus feeder is checked against pandapower's Newton-Raphson on
+    the network actually built, and the analytic Jacobian against finite
+    differences, to the same tolerances `case33bw` is held to.
+    """
+    from safesac.powerflow import finite_difference_sensitivities, run_pf_reference
+
+    feeder = build_feeder(ExperimentConfig.kerber().feeder)
+    assert feeder.n_bus == 117, feeder.n_bus
+    assert len(feeder.net.trafo) == 0            # folded into a line
+
+    res = RadialPowerFlow(feeder).solve()
+    ref = run_pf_reference(feeder)
+    assert np.abs(res.v_pu - ref.v_pu).max() < 1e-7
+
+    analytic = JacobianSensitivities(feeder).compute(res)
+    fd = finite_difference_sensitivities(feeder)
+    assert np.abs(analytic.dv_dp - fd.dv_dp).max() < 1e-6
+
+
+def test_the_projection_constrains_every_bus_of_whatever_feeder_it_is_given():
+    """The regression test for a bug that hid for the whole study.
+
+    The band constraint's width came from a module constant pinned at 34 --
+    `case33bw`'s weak bus count. On the 117-bus feeder that silently dropped
+    every bus past the 34th, and on a radial feeder those are exactly the deep
+    buses where the band breaks. The projection then reported no infeasibility,
+    solved nothing, and returned the raw action unchanged at *every* refresh
+    interval: the identical signature to the staleness failure this work is
+    about, which is why it was invisible until a second feeder existed.
+
+    `case33bw` must stay pinned at 34 so its weak and strong variants share an
+    observation vector; everything else must use its own bus count.
+    """
+    from safesac.agents import UncoordinatedAgent
+    from safesac.env import N_BUS_CANONICAL, canonical_bus_count
+    from safesac.projected import ProjectedAgent
+
+    for variant in ("weak", "strong"):
+        feeder = build_feeder(ExperimentConfig.stage1(variant).feeder)
+        assert canonical_bus_count(feeder) == N_BUS_CANONICAL
+
+    kerber = build_feeder(ExperimentConfig.kerber().feeder)
+    assert canonical_bus_count(kerber) == kerber.n_bus == 117
+
+    env = ChargingFeederEnv(ExperimentConfig.kerber())
+    env.reset(seed=11)
+    agent = ProjectedAgent(UncoordinatedAgent(env), env, env.cfg)
+    assert agent.projector.n_bus == kerber.n_bus
+
+
+def test_the_projection_actually_binds_on_the_second_feeder():
+    """A projection that never solves is indistinguishable from no projection.
+
+    The bug above produced violations identical to the unprojected run, so
+    equality with `raw` is the failure signature, not the success one. Refreshed
+    every step, the second feeder's projection must drive violations to zero and
+    pay for it in service -- both, or it is not doing anything.
+    """
+    from safesac.agents import UncoordinatedAgent
+    from safesac.evaluate import evaluate
+    from safesac.projected import ProjectedAgent
+
+    cfg = ExperimentConfig.kerber()
+    env = ChargingFeederEnv(cfg)
+    raw = evaluate(UncoordinatedAgent(env), env, cfg, n_episodes=2,
+                   run_label="transfer_eval")["aggregate"]
+    assert raw["voltage_violation_step_rate_mean"] > 0.01, "feeder proves nothing"
+
+    env = ChargingFeederEnv(cfg)
+    agent = ProjectedAgent(UncoordinatedAgent(env), env, cfg)
+    fresh = evaluate(agent, env, cfg, n_episodes=2,
+                     run_label="transfer_eval")["aggregate"]
+
+    assert agent.stats.n_solved > 0, "projection never solved"
+    assert fresh["voltage_violation_step_rate_mean"] == 0.0
+    assert (fresh["frac_meeting_soc_target_mean"]
+            < raw["frac_meeting_soc_target_mean"])
+
+
+def test_a_never_refreshed_projection_is_inert_on_the_second_feeder_too():
+    """R2. The headline claim, on a feeder sharing nothing with the thesis one.
+
+    Different topology, voltage level, impedance scale and lateral structure.
+    If the cliff were a property of `case33bw`'s line impedances this is where
+    it would fail, and no wording in the paper could have covered that.
+    """
+    from safesac.agents import UncoordinatedAgent
+    from safesac.evaluate import evaluate
+    from safesac.projected import ProjectedAgent
+
+    cfg = ExperimentConfig.kerber()
+    env = ChargingFeederEnv(cfg)
+    raw = evaluate(UncoordinatedAgent(env), env, cfg, n_episodes=2,
+                   run_label="transfer_eval")["aggregate"]
+
+    stale_cfg = replace(cfg, safety=replace(cfg.safety,
+                                            sensitivity_refresh_steps=288))
+    env = ChargingFeederEnv(stale_cfg)
+    agent = ProjectedAgent(UncoordinatedAgent(env), env, stale_cfg)
+    stale = evaluate(agent, env, stale_cfg, n_episodes=2,
+                     run_label="transfer_eval")["aggregate"]
+
+    assert stale["voltage_violation_step_rate_mean"] == pytest.approx(
+        raw["voltage_violation_step_rate_mean"], abs=1e-9
+    )
+    assert agent.stats.summary()["projection_infeasible_rate"] == 0.0
