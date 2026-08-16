@@ -57,6 +57,56 @@ failure mode (0.1171 at Z = 10 %, r48). Compute: **0.004 %** duty against a
 
 ---
 
+## 2b. FROZEN CLAIM SET — conference
+
+Every sentence below is measured, scoped to what was measured, and cannot be
+falsified by any of the remaining open gates. **Write from these; do not
+strengthen them.**
+
+**C1 — the headline.** On two unrelated radial feeders, a sensitivity-based
+voltage safety projection whose linearisation base point is never refreshed
+reproduces the **unprojected** violation rate to within 3 % (96.9–100.0 %,
+12/12 cells) while reporting an infeasibility rate of **0.0000**. The failure is
+total and silent.
+
+**C2 — the shape, not a number.** The transition is a cliff, not a slope: zero
+violations at one refresh interval, near-full unprojected rate at the next. Its
+**location varies across feeders and operating points** — 24 steps on
+`case33bw` at Z = 6 %, 12 steps on `kerber` across a 3× stiffness range and two
+request sources — and must be measured for a given deployment. *We do not claim
+to know what sets it.*
+
+**C3 — model error, bounded.** Across a station-bus Jacobian error spanning
+0.20×–5.67×, a wrong network model costs nothing within **0.80×–2.06×** on both
+feeders and both request sources. Outside that band the failure is asymmetric:
+under-estimating line impedance drives the QP infeasible (8.3 % of steps) and
+latches stations to zero (6.9 %); over-estimating is conservative, costing up to
+12 pp of service on `kerber` at 5.5×.
+
+**C4 — the diagnostic, and the strongest thing here.** A clean violation rate
+does not mean the layer is working. Two independent failure modes both produce
+one: a stale base point (unprotected, zero infeasibilities) and an
+under-estimated impedance (fallback doing the work). **A safety layer must be
+instrumented, not outcome-checked** — a projection reporting zero
+infeasibilities on a loaded feeder has stopped binding.
+
+**C5 — layer, not learner.** *At this operating point, on this testbed, at this
+training budget*: the projection applied to a zero-intelligence greedy charger
+delivers **8.0×** the service of the same projection on the trained policy, at
+identical zero violations. G0 swept six cells and found none where sequencing
+helps. **Not** a claim that RL cannot help.
+
+**C6 — cost.** 0.004 % duty against a 300 s control interval; analytic
+sensitivities at 0.662 ms against 447.6 ms.
+
+**Reporting rules that go with the set.** Three request sources on `case33bw`,
+two on `kerber` — never "three sources" flat. Point estimates, no intervals
+claimed. Weak, low-SCR feeders only; no generalisation to well-built
+distribution. Refresh is simulated by recomputing power flow, not by a metering
+pipeline.
+
+---
+
 ## 3. Does it matter? Evidence, not opinion.
 
 | Question | Answer |
