@@ -22,11 +22,20 @@ import pandapower as pp
 import pandapower.networks as ppn
 
 
+NETWORKS = ("case33bw", "kerber_dorfnetz")
+
+
 @dataclass(frozen=True)
 class FeederConfig:
     """Everything needed to build one feeder."""
 
     variant: str = "weak"  # "weak" | "strong"
+
+    # Which base network to build on. `case33bw` is the thesis testbed. The
+    # second entry exists so a finding measured here can be shown not to be a
+    # property of one arbitrary set of line impedances -- see
+    # docs/08-retroactive-risk.md, the one risk that wording cannot cover.
+    network: str = "case33bw"
 
     base_kv: float = 12.66
     base_mva: float = 10.0
@@ -47,6 +56,10 @@ class FeederConfig:
     def __post_init__(self):
         if self.variant not in ("weak", "strong"):
             raise ValueError(f"unknown feeder variant {self.variant!r}")
+        if self.network not in NETWORKS:
+            raise ValueError(
+                f"unknown network {self.network!r}; expected one of {NETWORKS}"
+            )
 
 
 @dataclass
@@ -83,8 +96,61 @@ def _resolve_bus(net, node_number: int) -> int:
     return int(node_number - 1)
 
 
+def _build_kerber_dorfnetz():
+    """A 116-bus German village LV feeder, flattened to one voltage level.
+
+    `RadialPowerFlow` is line-only and single-voltage-level, so the distribution
+    transformer cannot survive as a `trafo` element. Folding it into a series
+    line is exact for a fixed-tap transformer: it is a series impedance plus an
+    ideal turns ratio, and the ratio vanishes once both sides are expressed in
+    per-unit on their own base. Bus 0 -- the transformer's HV terminal, with
+    nothing else attached to it -- is re-used as the source terminal referred to
+    the LV side, so the bus count and every downstream index are untouched.
+    """
+    net = ppn.create_kerber_dorfnetz()
+    t = net.trafo.iloc[0]
+    hv, lv = int(t.hv_bus), int(t.lv_bus)
+
+    z_base = float(t.vn_lv_kv) ** 2 / float(t.sn_mva)
+    z_ohm = float(t.vk_percent) / 100.0 * z_base
+    r_ohm = float(t.vkr_percent) / 100.0 * z_base
+    x_ohm = math.sqrt(max(z_ohm * z_ohm - r_ohm * r_ohm, 0.0))
+
+    net.trafo.drop(net.trafo.index, inplace=True)
+    net.bus.at[hv, "vn_kv"] = float(t.vn_lv_kv)
+    net.bus.at[hv, "name"] = "transformer_source"
+
+    # Kerber's LV cables carry up to 830 nF/km, which the radial solver does not
+    # model. Measured rather than assumed: dropping it moves Vmin by 2.16e-05 pu
+    # and total loss by 1.2 mW, against a 0.010 pu projection margin -- three
+    # orders of magnitude below anything this study resolves. The lines are short
+    # and the voltage is low, so the charging current is negligible.
+    net.line["c_nf_per_km"] = 0.0
+    pp.create_line_from_parameters(
+        net,
+        from_bus=hv,
+        to_bus=lv,
+        length_km=1.0,
+        r_ohm_per_km=r_ohm,
+        x_ohm_per_km=x_ohm,
+        c_nf_per_km=0.0,
+        max_i_ka=10.0,
+        name="substation_transformer",
+    )
+    return net
+
+
 def build_feeder(config: FeederConfig) -> Feeder:
-    net = ppn.case33bw()
+    if config.network == "case33bw":
+        net = ppn.case33bw()
+        resolve = _resolve_bus
+    else:
+        net = _build_kerber_dorfnetz()
+        # Kerber bus names ("loadbus_3_16") end in digits that collide across
+        # laterals, so name matching would silently pick the wrong bus. These
+        # node numbers are pandapower bus indices already.
+        resolve = lambda _net, n: int(n)  # noqa: E731
+
     slack_bus = int(net.ext_grid.bus.values[0])
 
     if config.variant == "weak":
@@ -110,8 +176,8 @@ def build_feeder(config: FeederConfig) -> Feeder:
             name="substation_thevenin",
         )
 
-    ev_buses = [_resolve_bus(net, n) for n in config.ev_station_nodes]
-    pv_buses = [_resolve_bus(net, n) for n in config.pv_nodes]
+    ev_buses = [resolve(net, n) for n in config.ev_station_nodes]
+    pv_buses = [resolve(net, n) for n in config.pv_nodes]
 
     ev_sgen_idx = [
         int(

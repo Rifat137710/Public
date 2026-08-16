@@ -31,6 +31,23 @@ from .scenario import EV, Scenario, sample_scenario, v2g_buyback_price
 N_BUS_CANONICAL = 34  # weak-grid bus count; strong is padded with V = 1.0
 
 
+def canonical_bus_count(feeder: Feeder) -> int:
+    """Width of the voltage observation, and of the projection's band constraint.
+
+    `case33bw` is pinned at 34 so its weak (34-bus) and strong (33-bus) variants
+    share one observation vector, the strong one padded with V = 1.0. That pin
+    must not leak onto any other network. Truncating a 117-bus feeder to 34
+    drops every bus past the 34th out of the voltage constraint, and on a radial
+    feeder those are precisely the deep buses where the band actually breaks --
+    so the projection reports no infeasibility, solves nothing, and returns the
+    unprojected action. It fails silently, in exactly the way this study is
+    about, which is how it survived unnoticed until a second feeder was added.
+    """
+    if feeder.config.network == "case33bw":
+        return N_BUS_CANONICAL
+    return feeder.n_bus
+
+
 class StateNormalizer:
     """Welford online mean/variance per dimension, with a freeze switch."""
 
@@ -218,9 +235,11 @@ class ChargingFeederEnv:
         self.n_stations = probe.n_stations
         self.n_loads = len(probe.net.load)
         self.n_pv = len(probe.pv_buses)
+        self.n_bus_canonical = canonical_bus_count(probe)
 
         self.obs_dim = (
-            N_BUS_CANONICAL + 1 + self.n_loads + 4 * self.n_stations + self.n_pv + 1 + 1 + 6 + 1
+            self.n_bus_canonical + 1 + self.n_loads + 4 * self.n_stations
+            + self.n_pv + 1 + 1 + 6 + 1
         )
         self.action_dim = 2 * self.n_stations
 
@@ -339,9 +358,10 @@ class ChargingFeederEnv:
 
     def _voltage_obs(self, pf: PFResult) -> np.ndarray:
         v = pf.v_pu
-        if len(v) < N_BUS_CANONICAL:
-            return np.concatenate([v, np.ones(N_BUS_CANONICAL - len(v))])
-        return v[:N_BUS_CANONICAL]
+        n = self.n_bus_canonical
+        if len(v) < n:
+            return np.concatenate([v, np.ones(n - len(v))])
+        return v[:n]
 
     def _build_observation(self, pf: PFResult) -> np.ndarray:
         sc = self.scenario

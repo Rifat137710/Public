@@ -297,6 +297,79 @@ class ExperimentConfig:
         )
 
     @classmethod
+    def kerber(
+        cls,
+        *,
+        substation_z_pct: float = 1.0,
+        rx_ratio: float = 2.0,
+        evs_per_station: float = 8.0,
+        load_scale: float = 0.60,
+        station_kva: float = 22.0,
+    ) -> "ExperimentConfig":
+        """The same experiment on a second, unrelated feeder.
+
+        `kerber_dorfnetz` is a published German village LV benchmark: 116 buses,
+        114 lines, 57 households at 6 kW, 0.4 kV, fed through a 400 kVA
+        transformer. Nothing about it resembles `case33bw` -- different topology,
+        different voltage level, line impedances an order of magnitude smaller,
+        six laterals instead of one trunk. Agreement between the two is external
+        validity; a result that appears on only one of them was a property of
+        that one network's impedances.
+
+        Choices that are not arbitrary:
+
+        * **Stations at the electrically farthest load bus of each of the four
+          largest laterals** (buses 17, 35, 69, 93). Voltage support is a
+          question about feeder ends; placing stations near the busbar would
+          make the constraint inert and prove nothing.
+        * **PV mid-lateral** (buses 9, 27, 53), same reasoning inverted.
+        * **22 kVA per station** -- a three-phase AC charge point, not a
+          scaled-down copy of the 80 kVA hub `case33bw` carries. Four of them is
+          88 kVA against 342 kW of household load.
+
+        The remaining defaults were **measured, not chosen**
+        (`scripts/characterize_kerber.py`, 36 cells x 5 episodes). The
+        requirement is a *like-for-like* replication: a second feeder tuned
+        harder would inflate the effect and one tuned easier would hide it. So
+        the operating point is the cell closest to `case33bw`'s uncoordinated
+        behaviour on **both** axes at once --
+
+            case33bw  uncoordinated  violations 0.0626   SoC met 0.8041
+            kerber    uncoordinated  violations 0.0667   SoC met 0.779
+
+        -- reached at Z = 1.0 %, load 0.60, 8 EVs per station, with the idle
+        feeder at Vmin 0.9686 and **zero** idle violations, so the attribution
+        audit survives here exactly as it does on `case33bw`.
+
+        Matching the violation rate alone would not have been enough. At 4 EVs
+        the feeder reproduces 0.0639 -- nearer the reference than the cell
+        chosen -- while meeting 98.7 % of SoC targets, leaving the projection no
+        service to trade away and the retention measurement no dynamic range.
+        """
+        return cls(
+            feeder=FeederConfig(
+                variant="weak",
+                network="kerber_dorfnetz",
+                base_kv=0.4,
+                base_mva=0.4,
+                substation_z_pct=substation_z_pct,
+                substation_rx_ratio=rx_ratio,
+                ev_station_nodes=(17, 35, 69, 93),
+                pv_nodes=(9, 27, 53),
+                ev_station_kva=station_kva,
+                pv_rated_kw=(6.0, 6.0, 6.0),
+            ),
+            fleet=FleetConfig(
+                size_per_station_mean=evs_per_station,
+                size_per_station_std=evs_per_station * 0.20,
+            ),
+            scenario=ScenarioConfig(load_scale=load_scale),
+            reward=RewardConfig(
+                include_loss_term=False, reward_scale=100.0, shaping_weight=1.0
+            ),
+        )
+
+    @classmethod
     def stiffness(
         cls,
         substation_z_pct: float,

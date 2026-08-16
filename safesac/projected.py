@@ -70,7 +70,7 @@ class ProjectedAgent(BaseAgent):
         self.base = base
         self.env = env
         self.cfg = cfg or env.cfg
-        self.projector = SensitivityProjector(self.cfg, env.n_stations, N_BUS_CANONICAL)
+        self.projector = SensitivityProjector(self.cfg, env.n_stations, env.n_bus_canonical)
         self.cache: Optional[SensitivityCache] = None
         self.stats = ProjectionStats()
         self.skip_when_feasible = skip_when_feasible

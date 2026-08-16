@@ -588,7 +588,7 @@ class SafeSACLagAgent(SACLagAgent):
         super().__init__(obs_dim, action_dim, hp=hp, device=device, seed=seed)
         self.env = env
         self.cfg = cfg or env.cfg
-        self.projector = SensitivityProjector(self.cfg, env.n_stations, N_BUS_CANONICAL)
+        self.projector = SensitivityProjector(self.cfg, env.n_stations, env.n_bus_canonical)
         self.cache: Optional[SensitivityCache] = None
         self.stats = ProjectionStats()
         self._last_raw_action: Optional[np.ndarray] = None

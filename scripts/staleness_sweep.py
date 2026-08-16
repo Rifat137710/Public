@@ -43,28 +43,54 @@ from safesac.projected import ProjectedAgent
 EVAL_LABEL = "transfer_eval"
 SOURCES = {"uncoordinated": UncoordinatedAgent, "urgency": UrgencyAgent}
 
+# Two unrelated feeders. `case33bw` is the thesis testbed: 33 buses, one trunk,
+# 12.66 kV, 3.7 MW. `kerber_dorfnetz` is a German village LV benchmark: 116
+# buses, six laterals, 0.4 kV, 342 kW of households behind a 400 kVA
+# transformer, with line impedances an order of magnitude smaller. Nothing about
+# them is shared. A cliff that appears on only one was a property of that one
+# network's impedances, not of sensitivity-based projection -- and no wording in
+# the paper can cover that (docs/08-retroactive-risk.md, R2).
+FEEDERS = {
+    "case33bw": lambda z, evs, load: ExperimentConfig.stiffness(
+        z, evs_per_station=evs, load_scale=load),
+    "kerber": lambda z, evs, load: ExperimentConfig.kerber(
+        substation_z_pct=z, evs_per_station=evs, load_scale=load),
+}
+DEFAULT_Z = {"case33bw": [6.0, 8.0, 10.0], "kerber": [1.0, 2.0, 3.0]}
+DEFAULT_OP = {"case33bw": (30.0, 0.40), "kerber": (8.0, 0.60)}
+
 
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--episodes", type=int, default=12)
-    ap.add_argument("--z", type=float, nargs="+", default=[6.0, 8.0, 10.0])
+    ap.add_argument("--feeder", choices=sorted(FEEDERS), default="case33bw")
+    ap.add_argument("--z", type=float, nargs="+", default=None)
     # 1 = every control step; 12 = hourly, the thesis's actual setting;
     # 288 = once per episode, i.e. never refreshed after the first solve.
     ap.add_argument("--refresh", type=int, nargs="+", default=[1, 3, 12, 48, 288])
-    ap.add_argument("--load", type=float, default=0.40)
-    ap.add_argument("--evs", type=float, default=30.0)
-    ap.add_argument("--out", type=Path, default=Path("results/staleness_sweep.json"))
+    ap.add_argument("--load", type=float, default=None)
+    ap.add_argument("--evs", type=float, default=None)
+    ap.add_argument("--out", type=Path, default=None)
     args = ap.parse_args()
 
-    print(f"staleness sweep | Z={args.z}% | refresh every {args.refresh} steps")
-    print(f"load {args.load} | {args.evs:.0f} EVs/station | {args.episodes} episodes")
+    default_evs, default_load = DEFAULT_OP[args.feeder]
+    z_list = args.z if args.z is not None else DEFAULT_Z[args.feeder]
+    evs = args.evs if args.evs is not None else default_evs
+    load = args.load if args.load is not None else default_load
+    out_path = args.out or Path(f"results/staleness_{args.feeder}.json")
+    build = FEEDERS[args.feeder]
+
+    print(f"staleness sweep | {args.feeder} | Z={z_list}% "
+          f"| refresh every {args.refresh} steps")
+    print(f"load {load} | {evs:.0f} EVs/station | {args.episodes} episodes")
     print("correct network model throughout; only the base point ages\n")
 
-    t0, out = time.perf_counter(), {"z": args.z, "refresh": args.refresh, "cells": {}}
+    t0 = time.perf_counter()
+    out = {"feeder": args.feeder, "z": z_list, "refresh": args.refresh,
+           "evs": evs, "load": load, "episodes": args.episodes, "cells": {}}
 
-    for z in args.z:
-        base_cfg = ExperimentConfig.stiffness(z, evs_per_station=args.evs,
-                                              load_scale=args.load)
+    for z in z_list:
+        base_cfg = build(z, evs, load)
         print(f"Z={z:4.1f}%")
         for sname, scls in SOURCES.items():
             env = ChargingFeederEnv(base_cfg)
@@ -99,20 +125,20 @@ def main() -> int:
             out["cells"].setdefault(str(z), {})[sname] = row
             print(line)
 
-    args.out.parent.mkdir(parents=True, exist_ok=True)
-    args.out.write_text(json.dumps(out, indent=2, default=float))
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(out, indent=2, default=float))
 
     print("\n" + "=" * 78)
     print("Violation step rate against refresh interval (correct model throughout)")
     print("=" * 78)
     hdr = "".join(f"{('every ' + str(r)):>12}" for r in args.refresh)
     print(f"{'Z%':>5}{'source':>16}{'raw':>10}{hdr}")
-    for z in args.z:
+    for z in z_list:
         for sname in SOURCES:
             row = out["cells"][str(z)][sname]
             print(f"{z:>5.1f}{sname:>16}{row['raw']['viol']:>10.4f}"
                   + "".join(f"{row[str(r)]['viol']:>12.4f}" for r in args.refresh))
-    print(f"\n({time.perf_counter() - t0:.0f}s)  wrote {args.out}")
+    print(f"\n({time.perf_counter() - t0:.0f}s)  wrote {out_path}")
     return 0
 
 
