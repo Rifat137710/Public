@@ -178,7 +178,8 @@ def E0_calibration(n_scen=3):
         for tag, peak in [("mild", CFG["peak_mild"]), ("aggr", CFG["peak_aggr"])]:
             scens = make_scenarios(n_scen, peak, seed0=0)
             rs = [rollout_static(env, s, "baseline")[0] for s in scens]
-            agg = M.aggregate(rs, ["VMean", "VMin", "ViolMean", "ViolBus", "ViolPh", "IntViol"])
+            agg = M.aggregate(rs, ["VMean", "VMin", "ViolMean", "ViolBus", "ViolPh",
+                                   "IntViol", "VphMax"])
             rows.append([cm, tag,
                          f"{agg['VMean']['mean']:.3f}",
                          f"{agg['VMin']['mean']:.3f}",
@@ -223,13 +224,15 @@ def E1_reproduction(control_mode="OFF", steps=20000, n_scen=5, seed=0):
                 a = M.aggregate(rs)
                 rows.append([f"{tag}/{name}",
                              f"{a['VMean']['mean']:.3f}", f"{a['VMin']['mean']:.3f}",
+                             f"{a['VphMax']['mean']:.3f}",
                              f"{a['ViolMean']['mean']:.1f}", f"{a['ViolBus']['mean']:.1f}",
-                             f"{a['ViolPh']['mean']:.1f}", f"{a['IntViol']['mean']:.2f}",
+                             f"{a['ViolPh']['mean']:.1f}", f"{a['ViolHi']['mean']:.1f}",
+                             f"{a['IntViol']['mean']:.2f}",
                              f"{a['Thru']['mean']:.0f}", f"{a['SOCend']['mean']:.3f}"])
                 out[f"{scope}/{tag}/{name}"] = rs
         M.fmt_table(f"E1  {scope}-hub reproduction  (ControlMode={control_mode}, {n_scen} paired scenarios)",
-                    ["case", "VMean", "VMin", "ViolMean", "ViolBus", "ViolPh",
-                     "IntViol", "Thru", "SOCend"], rows)
+                    ["case", "VMean", "VMin", "VphMax", "ViolMean", "ViolBus",
+                     "ViolPh", "ViolHi", "IntViol", "Thru", "SOCend"], rows)
         del env, pol
     return out
 
@@ -262,13 +265,14 @@ def E2_multihub_constrained(control_mode="OFF", steps=20000, n_scen=5, seeds=(0,
             a = M.aggregate(rs)
             rows.append([name,
                          f"{a['VMean']['mean']:.3f}", f"{a['VMin']['mean']:.3f}",
+                         f"{a['VphMax']['mean']:.3f}",
                          f"{a['ViolMean']['mean']:.1f}", f"{a['ViolBus']['mean']:.1f}",
-                         f"{a['ViolPh']['mean']:.1f}",
+                         f"{a['ViolPh']['mean']:.1f}", f"{a['ViolHi']['mean']:.1f}",
                          f"{a['IntViol']['mean']:.2f}±{a['IntViol']['ci95']:.2f}",
                          f"{a['Thru']['mean']:.0f}", f"{a['SOCend']['mean']:.3f}"])
         M.fmt_table(f"E2  multi-hub, EV-CONSTRAINED  ({tag}, {n_scen} paired scenarios x {len(seeds)} seeds)",
-                    ["controller", "VMean", "VMin", "ViolMean", "ViolBus", "ViolPh",
-                     "IntViol(±ci)", "Thru", "SOCend"], rows)
+                    ["controller", "VMean", "VMin", "VphMax", "ViolMean", "ViolBus",
+                     "ViolPh", "ViolHi", "IntViol(±ci)", "Thru", "SOCend"], rows)
         # paired deltas vs droop, the statistically meaningful comparison
         for key in ["IntViol", "ViolBus", "Thru"]:
             d = M.paired_delta(store["RL closed-loop"][:n_scen], store["Droop"], key)
@@ -295,9 +299,10 @@ def E3_degradation_frontier(peak, weights=(0.0, 1.0, 3.0, 10.0, 30.0, 100.0),
     dr = [rollout_static(env0, s, "droop", True)[0] for s in scens]
     a = M.aggregate(dr)
     rows.append(["droop (reference)", "-",
-                 f"{a['IntViol']['mean']:.2f}", f"{a['Thru']['mean']:.0f}",
-                 f"{a['ViolBus']['mean']:.1f}", f"{a['SOCend']['mean']:.3f}",
-                 f"{a['MaxDoD']['mean']:.3f}"])
+                 f"{a['IntViol']['mean']:.2f}", f"{a['IntHi']['mean']:.2f}",
+                 f"{a['Thru']['mean']:.0f}",
+                 f"{a['ViolBus']['mean']:.1f}", f"{a['VphMax']['mean']:.3f}",
+                 f"{a['SOCend']['mean']:.3f}", f"{a['MaxDoD']['mean']:.3f}"])
     pts.append(dict(w="droop", IntViol=a["IntViol"]["mean"], Thru=a["Thru"]["mean"],
                     ViolBus=a["ViolBus"]["mean"]))
     del env0
@@ -310,16 +315,17 @@ def E3_degradation_frontier(peak, weights=(0.0, 1.0, 3.0, 10.0, 30.0, 100.0),
         rs = [rollout_policy(env, pol, s, True)[0] for s in scens]
         a = M.aggregate(rs)
         rows.append([f"RL w_deg={w:g}", f"{w:g}",
-                     f"{a['IntViol']['mean']:.2f}", f"{a['Thru']['mean']:.0f}",
-                     f"{a['ViolBus']['mean']:.1f}", f"{a['SOCend']['mean']:.3f}",
-                     f"{a['MaxDoD']['mean']:.3f}"])
+                     f"{a['IntViol']['mean']:.2f}", f"{a['IntHi']['mean']:.2f}",
+                     f"{a['Thru']['mean']:.0f}",
+                     f"{a['ViolBus']['mean']:.1f}", f"{a['VphMax']['mean']:.3f}",
+                     f"{a['SOCend']['mean']:.3f}", f"{a['MaxDoD']['mean']:.3f}"])
         pts.append(dict(w=w, IntViol=a["IntViol"]["mean"], Thru=a["Thru"]["mean"],
                         ViolBus=a["ViolBus"]["mean"]))
         del env, pol
 
     M.fmt_table(f"E3  violation / wear frontier  (peak={peak}, {n_scen} paired scenarios)",
-                ["controller", "w_deg", "IntViol", "Thru(kWh)", "ViolBus",
-                 "SOCend", "MaxDoD"], rows)
+                ["controller", "w_deg", "IntViol", "IntHi", "Thru(kWh)", "ViolBus",
+                 "VphMax", "SOCend", "MaxDoD"], rows)
     print("\n  Read it as a frontier: IntViol should rise as Thru falls. Where droop sits")
     print("  relative to the RL frontier is the result -- above, on, or below it.")
     return pts
@@ -363,13 +369,14 @@ def E4_stress(control_mode="OFF", steps=20000, n_scen=5, seeds=(0, 1, 2)):
         a = M.aggregate(rs)
         rows.append([name,
                      f"{a['VMean']['mean']:.3f}", f"{a['VMin']['mean']:.3f}",
+                     f"{a['VphMax']['mean']:.3f}",
                      f"{a['ViolMean']['mean']:.1f}", f"{a['ViolBus']['mean']:.1f}",
-                     f"{a['ViolPh']['mean']:.1f}",
+                     f"{a['ViolPh']['mean']:.1f}", f"{a['ViolHi']['mean']:.1f}",
                      f"{a['IntViol']['mean']:.2f}±{a['IntViol']['ci95']:.2f}",
                      f"{a['Thru']['mean']:.0f}"])
     M.fmt_table(f"E4  multi-hub AGGRESSIVE stress  ({n_scen} paired scenarios x {len(seeds)} seeds)",
-                ["controller", "VMean", "VMin", "ViolMean", "ViolBus", "ViolPh",
-                 "IntViol(±ci)", "Thru"], rows)
+                ["controller", "VMean", "VMin", "VphMax", "ViolMean", "ViolBus",
+                 "ViolPh", "ViolHi", "IntViol(±ci)", "Thru"], rows)
     return store
 
 

@@ -147,9 +147,14 @@ def droop_pq(v, P_rated, Q_rated, db=0.02, sat_lo=0.90, sat_hi=1.10):
 class EVFleet:
     """Aggregate hub fleet: availability-limited power, SOC state, throughput log."""
 
-    def __init__(self, cfg=CFG, avail_scale=1.0):
+    def __init__(self, cfg=CFG, avail_scale=1.0, soc_on="S"):
+        """soc_on: "S" drains the battery on APPARENT power, per the paper's Eq. (4)
+        (P_fleet = S_req / eta_inv). "P" drains on real power only -- which leaves
+        reactive support free and unlimited, and lets a learned policy hold voltage
+        with Q at zero SOC cost. Kept as a switch so the sensitivity can be reported."""
         self.c = cfg
         self.avail_scale = avail_scale
+        self.soc_on = soc_on
         self.reset()
 
     def reset(self, n_avail_day=None, soc_init=None):
@@ -186,13 +191,16 @@ class EVFleet:
 
         n = self.n_avail(hour)
         cap_tot = n * self.c["ev_capacity"] * self.soh
-        if p_sup >= 0:                                     # discharge
-            p_batt = abs(p_sup) / self.c["eta_inv"]
-            dsoc = -p_batt / cap_tot
-        else:                                              # charge
-            p_batt = abs(p_sup) * self.c["eta_inv"]
-            dsoc = p_batt / cap_tot
-        self.throughput += abs(p_batt) * 1.0               # kWh over the 1-h step
+        eta = self.c["eta_inv"]
+        s_sup = float(np.hypot(p_sup, q_sup))
+        if p_sup >= 0:                       # net real-power export -> discharging
+            e_out = (s_sup if self.soc_on == "S" else abs(p_sup)) / eta
+            e_in = 0.0
+        else:                                # charging; reactive support still costs
+            e_in = abs(p_sup) * eta
+            e_out = (abs(q_sup) / eta) if self.soc_on == "S" else 0.0
+        dsoc = (e_in - e_out) / cap_tot
+        self.throughput += (e_in + e_out) * 1.0            # battery kWh moved this hour
         self.soc = float(np.clip(self.soc + dsoc, self.c["soc_min"], self.c["soc_max"]))
         self.soc_series.append(self.soc)
         return p_sup, q_sup, rho, n

@@ -4,24 +4,38 @@ Metric set for the V2G gap study.
 Reports the paper's metric *and* the standard-compliant ones side by side, so the
 two can be compared directly rather than argued about:
 
-  ViolMean  hours where the FEEDER-MEAN voltage < 0.95      <- the paper's metric
-  ViolBus   hours where ANY bus (phase-averaged) < 0.95
-  ViolPh    hours where ANY energized phase < 0.95           <- ANSI C84.1
-  IntViol   integrated violation magnitude, p.u.-hours       <- continuous, no saturation
+  ViolMean  hours where the FEEDER-MEAN voltage is out of band   <- the paper's metric
+  ViolBus   hours where ANY bus (phase-averaged) is out of band
+  ViolPh    hours where ANY energized phase is out of band       <- ANSI C84.1
+  ViolHi    hours with an OVERvoltage specifically
+  IntViol   integrated violation magnitude, p.u.-hours (= IntLo + IntHi)
+  IntLo/IntHi   the under- and over-voltage halves of IntViol
   VMean/VMin/VMax   feeder-mean voltage stats, matching the paper's table columns
-  VphMin    worst single-phase voltage over the day
+  VphMin/VphMax     worst single-phase voltage extremes over the day
 
-Counts saturate (every controller can tie at "all 18 hours violated"); IntViol does
-not, so it is the metric that still separates controllers when the counts agree.
+Two properties this set is built for:
+
+1. ALL VIOLATION METRICS ARE TWO-SIDED. A one-sided (undervoltage-only) metric scores an
+   agent that shoves the feeder above 1.05 as violation-free -- which is exactly what an
+   unconstrained learned policy will do when reactive power is cheap.
+2. Counts saturate (every controller can tie at "all 18 hours violated"); IntViol does
+   not, so it still separates controllers when the counts agree.
 """
 import numpy as np
 
 V_MIN, V_MAX = 0.95, 1.05
+# Buses can sit exactly on a limit (e.g. a regulated bus pinned at 1.05 p.u.). Without a
+# tolerance, floating-point noise flags every such hour as a violation while the integrated
+# magnitude stays 0.0 -- a visibly self-contradictory pair. 1e-4 p.u. is far below any
+# real measurement resolution.
+V_TOL = 1e-4
 
 
 def hourly_record():
-    return {"hour": [], "vmean": [], "vbus_min": [], "vph_min": [],
-            "int_viol": [], "disch": [], "soc": [], "n_ev": [], "rho": [],
+    return {"hour": [], "vmean": [], "vbus_min": [], "vbus_max": [],
+            "vph_min": [], "vph_max": [],
+            "int_viol": [], "int_lo": [], "int_hi": [],
+            "disch": [], "soc": [], "n_ev": [], "rho": [],
             "throughput": [], "taps": []}
 
 
@@ -31,9 +45,16 @@ def log_hour(rec, hour, feeder, disch, soc, n_ev, rho, throughput, taps=None):
     rec["hour"].append(hour)
     rec["vmean"].append(float(np.mean(vbus)))
     rec["vbus_min"].append(float(vbus.min()))
+    rec["vbus_max"].append(float(vbus.max()))
     rec["vph_min"].append(float(vph.min()))
-    # integrated magnitude over per-phase undervoltage, p.u. summed across nodes
-    rec["int_viol"].append(float(np.clip(V_MIN - vph, 0, None).sum()))
+    rec["vph_max"].append(float(vph.max()))
+    # Integrated magnitude is TWO-SIDED: over- and undervoltage both count. A one-sided
+    # version scores an agent that pushes the feeder above 1.05 as violation-free.
+    lo = float(np.clip(V_MIN - V_TOL - vph, 0, None).sum())
+    hi = float(np.clip(vph - V_MAX - V_TOL, 0, None).sum())
+    rec["int_lo"].append(lo)
+    rec["int_hi"].append(hi)
+    rec["int_viol"].append(lo + hi)
     rec["disch"].append(float(disch))
     rec["soc"].append(float(soc))
     rec["n_ev"].append(float(n_ev))
@@ -75,8 +96,8 @@ def rainflow_depths(soc_series):
 
 def summarize(rec, soc_series=None):
     vm = np.asarray(rec["vmean"])
-    vb = np.asarray(rec["vbus_min"])
-    vp = np.asarray(rec["vph_min"])
+    vb, vbx = np.asarray(rec["vbus_min"]), np.asarray(rec["vbus_max"])
+    vp, vpx = np.asarray(rec["vph_min"]), np.asarray(rec["vph_max"])
     depths = rainflow_depths(soc_series) if soc_series is not None else []
     n_taps = 0
     prev = None
@@ -88,11 +109,16 @@ def summarize(rec, soc_series=None):
         VMean=round(float(vm.mean()), 3),
         VMin=round(float(vm.min()), 3),
         VMax=round(float(vm.max()), 3),
-        ViolMean=int((vm < V_MIN).sum()),
-        ViolBus=int((vb < V_MIN).sum()),
-        ViolPh=int((vp < V_MIN).sum()),
+        # two-sided: an hour counts if anything is outside [V_MIN, V_MAX]
+        ViolMean=int(((vm < V_MIN - V_TOL) | (vm > V_MAX + V_TOL)).sum()),
+        ViolBus=int(((vb < V_MIN - V_TOL) | (vbx > V_MAX + V_TOL)).sum()),
+        ViolPh=int(((vp < V_MIN - V_TOL) | (vpx > V_MAX + V_TOL)).sum()),
+        ViolHi=int((vpx > V_MAX + V_TOL).sum()),
         VphMin=round(float(vp.min()), 3),
+        VphMax=round(float(vpx.max()), 3),
         IntViol=round(float(np.sum(rec["int_viol"])), 2),
+        IntLo=round(float(np.sum(rec["int_lo"])), 2),
+        IntHi=round(float(np.sum(rec["int_hi"])), 2),
         Energy=round(float(np.sum(rec["disch"])), 1),
         Thru=round(float(rec["throughput"][-1]) if rec["throughput"] else 0.0, 1),
         SOCend=round(float(rec["soc"][-1]), 3),
