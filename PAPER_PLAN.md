@@ -1,15 +1,24 @@
-# Research plan — feasibility before learning
+# Research plan — V2G voltage support on IEEE-34
 
-Target venue: an IEEE PES conference (ISGT Asia / PES GM) for the carved-out slice, with the
-full program aimed at a journal (Trans. Smart Grid / Sustainable Energy, or Applied Energy).
-Recommended conference track: **Electric Vehicle–Grid Integration and Smart Charging**, *not*
-the AI track — the contribution is deliberately not a new learning algorithm, and AI-track
-reviewers score for algorithmic novelty.
+**Two tiers. Read §6 first if you are working on the conference paper.**
 
-Working title: *Feasibility Before Learning: A Power–Energy Adequacy Framework for V2G
-Voltage Support.*
+| tier | scope | labels | working title |
+|---|---|---|---|
+| **Conference** (§6–8) | Execute the future work the target paper names; report the behaviour descriptively | **A1–A3** | *Degradation-Aware Multi-Hub V2G Voltage Regulation under Realistic Fleet Constraints* |
+| **Journal** (§1–5) | The full research thesis: feasibility characterization, oracle bounds, second feeder | **C1–C5, J1–J8** | *Feasibility Before Learning: A Power–Energy Adequacy Framework for V2G Voltage Support* |
+
+The conference paper deliberately does **not** argue the §1 thesis. It adds the named gaps to
+the system, measures what happens, and reports it — the same descriptive mode the target paper
+uses. The §1–5 framework is the journal contribution and stays out of the conference version.
+
+Target venues: PES GM 2027 (submission 10 Nov 2026) for the conference paper; Trans. Smart
+Grid / Sustainable Energy or Applied Energy for the journal. Recommended conference track:
+**Electric Vehicle–Grid Integration and Smart Charging**, *not* the AI track — neither tier
+offers a new learning algorithm, and AI-track reviewers score for algorithmic novelty.
 
 ---
+
+# Journal program — the research thesis (§1–5)
 
 ## 1. The reframe
 
@@ -157,31 +166,63 @@ negative result into a measurement against a bound. **Do not submit without it.*
 | Reads as an attack on the target paper | Frame as explaining and generalizing their finding; cite generously; note their own observation that fleet availability, not inverter rating, is the single-hub bottleneck |
 | Seed variance (already observed: +20.2% vs −2.0% across two runs) | ≥10 seeds with CIs on every headline number — blocking for any submission |
 
-## 6. Scope split
+# Conference paper — what to build now (§6–8)
 
-**Journal program (full):** two feeders, oracle bound, two algorithms, ≥10 seeds, adequacy
-maps, regulator interaction.
+## 6. Scope and contributions
 
-**Conference slice that stands alone:** C1 + C2 + single-feeder C3 — the two-constraint
-framework, the necessary condition, the undertraining artifact, and the crossover on IEEE-34.
-Roughly 5–6 pages, a real result, and it does not spend the journal paper's novelty.
+The conference paper is deliberately narrow: **execute the future work the paper names, and
+report the behaviour**, in the descriptive mode the original uses. It does not argue a thesis.
 
-Sequencing: build the full program; carve the conference paper out once the oracle and
-multi-seed results are in. Venue follows readiness rather than driving it.
+| # | Conference contribution | Source in the target paper |
+|---|---|---|
+| **A1** | Multi-hub coordination **with realistic fleet constraints** (45–85% availability, SOC/SOH dynamics) | §III-A: *"assuming sufficient EV capacity at each hub"* — never tested |
+| **A2** | **Degradation-aware objective** — Ah-throughput term in the reward, weight swept to a violation/wear frontier | Conclusion: *"battery-degradation-aware optimization"* |
+| **A3** | **Multi-hub aggressive stress**, day-structured vs paper-style training | Table II: droop **2** viol-hours vs RL **15**; conclusion concedes it |
 
-## 7. Immediate next step
+Added because the literature expects them, not as novelty claims: per-phase ANSI C84.1
+evaluation alongside the feeder mean; weighted-Ah cost in the reward with rainflow depth as
+an evaluation-only metric; a per-hour optimal-dispatch reference so droop is not the sole
+baseline; ≥10 seeds with CIs.
 
-Build the **measurement layer**, which requires no RL training at all:
+Three design rules that make the numbers readable regardless of outcome:
 
-1. `P_req(h)` by bisection on the AC power flow, with Q optimally deployed.
-2. `E_avl` from the existing fleet model.
-3. The α statistic and the per-hour power-feasibility classifier.
-4. A quadrant plot placing every configuration already measured in `RESULTS.md`.
+1. **Common random numbers** — every controller sees the identical availability realisation,
+   initial SOC and load peak; differences are paired.
+2. **Integrated violation magnitude** (`IntViol`, p.u.·h) alongside hour counts, because
+   counts saturate at "all 18 hours violated" and stop discriminating.
+3. **Per-step floor language only.** `a = 0` reproduces droop at each step; it does **not**
+   give a day-level performance guarantee, since discharging early leaves less later.
+   Measured evidence: aggressive single-hub gave RL 18 worst-bus violation-hours vs droop 17.
 
-That foundation is shared by C1, C3 and C4, and it will show which quadrant each existing
-result actually occupies.
+**Journal extension:** J1–J8 from §5 — oracle bound, IEEE-123, LTC interaction, the adequacy
+criterion with a formal proposition, coordination architectures, stochastic availability, the
+planning bridge. All new relative to A1–A3.
 
-## 8. Publication status of the reproduction target
+## 7. Verified during environment setup
+
+Established by running the calibration and wiring tests, not assumed:
+
+- **`ControlMode=OFF` is the paper's setting.** No-V2G baseline worst-case feeder-mean voltage
+  came out 0.903 (mild) / 0.800 (aggressive) against their reported 0.907 / 0.807 — within
+  0.004–0.007 p.u. With regulators active (STATIC) mild gives 0.983, off by 0.076. The
+  residual violation-hour gap (10 vs 13, 16 vs 17) is the reconstructed load shape.
+- **The mean metric hides violations, quantified.** Multi-hub unconstrained droop at mild
+  load reports **ViolMean = 0** — matching the paper's headline — while the same rollout has
+  **ViolBus = 4** and **ViolPh = 7**.
+- **The fleet constraint is the binding limit, quantified.** Multi-hub mild: unconstrained
+  droop wants 14 013 kWh and clears violations (IntViol 0.14); constrained droop delivers
+  1 351 kWh (9.6%) and IntViol rises to 41.79. Single-hub mild is starker: 5 475 kWh wanted,
+  262 kWh delivered (4.8%). This is the paper's *"availability rather than inverter rating"*
+  observation as a number.
+- **`IntViol` discriminates where counts tie.** Single-hub mild baseline and constrained droop
+  both show ViolMean 10, but IntViol 45.69 vs 45.32.
+
+## 8. Immediate next step
+
+Run `V2G_gaps_study.ipynb` with `QUICK = True` to confirm wiring on the target machine, then
+`QUICK = False` for the real numbers (~26 trainings × 20k steps, roughly 2 hours on CPU).
+
+## 9. Publication status of the reproduction target
 
 As of 2026-08-17, no published version of arXiv:2603.07237 was found — no DOI, no journal
 reference, no conference venue surfaced by search. It appears to be an arXiv-only preprint,
