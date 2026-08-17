@@ -1,5 +1,5 @@
 """
-SAFE-PATH driver: single-hub, the degradation/SOC axis (the guaranteed win).
+SAFE-PATH driver: single-hub, the degradation/SOC axis.
 
 Compares, on an IDENTICAL feeder/day, two COMPLETE controllers:
   (1) closed-loop droop         -- the paper's proper baseline (damped fixed point)
@@ -9,9 +9,16 @@ Logs BOTH axes consistently for each:
   * voltage support : violation-hours (feeder-mean AND worst-bus), worst-bus min voltage
   * battery wear    : total energy discharged (kWh), end-of-day mean SOC
 
-The claim we want: residual-RL holds voltage support >= droop while discharging
-LESS energy (higher end SOC) -- a capability droop lacks by construction, because
-droop discharges greedily on local voltage even for cosmetic (in-band) sags.
+Hypothesis under test: residual-RL holds voltage support >= droop while discharging
+LESS energy (higher end SOC) -- droop is memoryless, so it discharges greedily on local
+voltage even for cosmetic (in-band) sags.
+
+MEASURED OUTCOME: the hypothesis FAILS at a single hub. The worst bus never enters the
+voltage band there, so there is no in-band slack to withhold and the voltage penalty
+(30-100+/hr) dwarfs the SOC cost (max 0.5/hr) ~100:1 -- the optimal policy is maximal
+discharge, and the agent converges to it. Because a=0 is exactly droop, the agent cannot
+be handicapped, which is what makes the null informative: the binding constraint is hub
+energy/siting, not control. See RESULTS.md.
 """
 import sys, time, numpy as np
 import torch

@@ -1,27 +1,44 @@
-# V2G voltage support on IEEE-34 — reproduction + one improvement over droop
+# V2G voltage support on IEEE-34 — reproduction, and where control stops helping
 
-A faithful reproduction of an EV-charging-hub voltage-support study on the IEEE-34
-distribution feeder (OpenDSS + fleet-constrained droop + SAC), plus **one deliberate
-change** that gives the RL agent a capability droop lacks by construction.
+An independent reproduction of an EV-charging-hub voltage-support study on the IEEE-34
+distribution feeder (OpenDSS + fleet-constrained droop + SAC), plus a deliberate test of
+whether giving the agent **foresight** lets it beat droop.
 
-## The idea in one line
-Make the agent **see energy and train against it**: put aggregate fleet **SOC,
-availability, and hour-of-day** in the observation, and shape the action as a
-**bounded residual over droop** — `P = clip(droop_P + a·P_rated, 0, P_rated)` — so
-`a = 0` *is* droop (a guaranteed performance floor) and the agent can only *withhold*
-wasteful discharge or *add* support, timed intertemporally.
+Reproduction target: Wang, Jacob, Kaushik & Zhang, *"Reinforcement Learning for
+Vehicle-to-Grid Voltage Regulation: Single-Hub to Multi-Hub Coordination with
+Battery-Aware Constraints,"* [arXiv:2603.07237](https://arxiv.org/abs/2603.07237)
+(UT Dallas, March 2026).
 
-## The result we target (single-hub)
-Droop is memoryless: it discharges on instantaneous local voltage, even for cosmetic
-(in-band) sags, and drains the fleet to its SOC floor. The SOC-aware residual agent
-holds **equal voltage support** (same violation-hours, same worst-bus voltage) while
-discharging **materially less energy** and **retaining more end-of-day charge** — the
-"same support, less battery wear" result droop cannot produce. An availability sweep
-(40–70%) locates the regime where foresight *also* opens a violation-hour gap.
+## The extension tested
+Give the agent what droop lacks — aggregate fleet **SOC, availability and hour-of-day**
+in the observation — and shape the action as a **bounded residual over droop**,
+`P = clip(droop_P + a·P_rated, 0, P_rated)`, so `a = 0` *is* droop. That makes droop a
+guaranteed performance floor: the agent can only *withhold* wasteful discharge or *add*
+support, and it cannot be handicapped by exploration or tuning.
 
-> Status: code complete and wiring-tested end-to-end. Full-scale training numbers are
-> produced by running the notebook (see below); a short dev run already shows the
-> single-hub-mild energy/SOC gap in the expected direction.
+## What actually happened: it does not beat droop
+
+At a single hub the agent ties droop on worst-bus violation-hours at mild load, is
+**worse** at aggressive load, and shows no energy saving that survives seed variance.
+The availability sweep (40–70%) finds no level where a gap opens. Full tables in
+**[`RESULTS.md`](RESULTS.md)**.
+
+The reason is structural, not a training failure. The worst bus sits near 0.72 p.u.
+against a 0.95 limit and never enters the band, so there is no in-band slack to withhold
+and the voltage penalty outweighs the SOC cost roughly 100:1 — under that reward,
+maximal discharge *is* optimal. Because `a = 0` reproduces droop exactly, the null
+localizes the bottleneck in the **physics of hub siting and capacity**, not the
+controller.
+
+> One caution recorded in `RESULTS.md`: at 3k training steps the agent appeared to save
+> 12.8% energy at equal support; at 20k steps the same setup used 20.2% *more*. The
+> apparent "battery-aware" benefit was an undertraining artifact that inverted on
+> convergence.
+
+## Where this is going
+The follow-on work splits feasibility into two independent constraints — per-hour **power
+adequacy** and daily **energy adequacy** — and characterizes the regime in which foresight
+can pay at all. See **[`PAPER_PLAN.md`](PAPER_PLAN.md)**.
 
 ## Run it
 Open **`V2G_safe_path.ipynb`** and *Run All* (Kaggle or local, CPU is fine, ~15–20 min).
