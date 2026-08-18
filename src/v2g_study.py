@@ -567,6 +567,11 @@ def E11_policy_pq(control_mode="OFF", steps=20000, n_scen=5, seed=0):
     return out
 
 
-def runtime_estimate(steps, n_trainings, sec_per_20k=240):
+def runtime_estimate(steps, n_trainings, sec_per_20k=440, overhead=1.25):
+    """sec_per_20k=440 is MEASURED on the target machine (4000 steps took 85-92 s across
+    22 trainings, so ~438 s per 20k). The earlier default of 240 was taken from a faster
+    box and under-predicted a full run by a factor of ~1.8. `overhead` covers the droop and
+    policy rollouts, which scale with n_scen and are not free at 200 droop iterations."""
     mins = n_trainings * steps / 20000 * sec_per_20k / 60
     print(f"  ~{n_trainings} trainings x {steps} steps  ->  approx {mins:.0f} min of training")
+    print(f"  with rollout overhead: approx {mins * overhead / 60:.1f} h wall clock")
