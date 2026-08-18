@@ -468,11 +468,21 @@ def E10_ablations(control_mode="OFF", steps=20000, n_scen=5, seeds=(0, 1),
 # --------------------------------------------------------------------------- #
 # E11 -- what P/Q split does the trained policy actually choose?
 # --------------------------------------------------------------------------- #
-def policy_pq_angles(env, policy, scens, ev_constrained=True, s_floor=10.0):
-    """Per-hour injection angle atan2(Q, P) actually commanded, in degrees.
+def policy_pq_angles(env, policy, scens, ev_constrained=False, s_floor=25.0):
+    """Per-hour (angle, S) pairs actually commanded by the policy. Angle in degrees.
 
-    Costs nothing extra: it reads the setpoints the policy already committed. Hours where
-    the hub is essentially idle (S < s_floor kVA) carry no meaningful angle and are skipped.
+    Costs nothing extra: it reads the setpoints the policy already committed.
+
+    ev_constrained defaults to FALSE, and that matters. Under the fleet constraint the
+    battery reaches soc_min by hour 8 or 9, so from then on every hub is idle and there is
+    no allocation left to measure -- a first version of this run produced 9 usable samples
+    out of a possible 180. The reference it is compared against (E7b) is also computed
+    without a fleet limit, so unconstrained is the like-for-like setting.
+
+    Sign convention: atan2(Q, P) with P > 0 lies in (-90, 90]. NEGATIVE means the hub is
+    ABSORBING reactive power, which is a different action from supplying it, not a smaller
+    amount of it. Those samples are returned too and counted separately rather than being
+    averaged in.
     """
     saved, saved_iid = env.ev_in_loop, env.iid_lambda
     env.ev_in_loop, env.iid_lambda = ev_constrained, False
@@ -486,7 +496,8 @@ def policy_pq_angles(env, policy, scens, ev_constrained=True, s_floor=10.0):
             for (p, q) in info["pq"].values():
                 s = float(np.hypot(p, q))
                 if s >= s_floor and p > 0:            # supporting, not charging
-                    per_hour[info["hour"]].append(float(np.degrees(np.arctan2(q, p))))
+                    per_hour[info["hour"]].append(
+                        (float(np.degrees(np.arctan2(q, p))), s))
             if done:
                 break
     env.ev_in_loop, env.iid_lambda = saved, saved_iid
@@ -501,6 +512,7 @@ def E11_policy_pq(control_mode="OFF", steps=20000, n_scen=5, seed=0):
     regardless of loading, it has not learned the allocation -- it is just scaling a fixed
     power factor.
     """
+    from v2g_ref import angle_sweep          # local: v2g_ref imports this module
     out = {}
     for tag, peak in [("mild", CFG["peak_mild"]), ("aggr", CFG["peak_aggr"])]:
         scens = make_scenarios(n_scen, peak, seed0=0)
@@ -510,19 +522,46 @@ def E11_policy_pq(control_mode="OFF", steps=20000, n_scen=5, seed=0):
         print(f"\n  [E11/{tag}] training direct-action agent")
         pol = train_on(env, steps, seed=seed, label=f"E11-{tag}")
         ang = policy_pq_angles(env, pol, scens)
+        lam = lam_profile(peak)
+        s_max = float(np.hypot(CFG["P_rated"], CFG["Q_rated"]))
+
         rows = []
         for h in env.hours:
             v = ang[h]
-            rows.append([h, len(v),
-                         f"{np.mean(v):.1f}" if v else "-",
-                         f"{np.std(v):.1f}" if v else "-"])
-        M.fmt_table(f"E11  policy P/Q angle by hour -- {tag}  (deg; 0=pure P, 90=pure Q)",
-                    ["h", "n", "mean_deg", "sd_deg"], rows)
+            if not v:
+                rows.append([h, 0, "-", "-", "-", "-", "-"])
+                continue
+            a = np.array([x for x, _ in v])
+            s = np.array([y for _, y in v])
+            n_abs = int((a < 0).sum())                 # absorbing reactive, not supplying
+            # S-weighted: a hub at 600 kVA should not count the same as one at 26 kVA
+            a_w = float(np.average(a, weights=s))
+            s_mean = float(s.mean())
+            # what WAS optimal at the injection level the agent actually chose
+            opt = angle_sweep(env, lam[h], s_frac=min(1.0, s_mean / s_max))
+            rows.append([h, len(v), f"{a_w:.1f}", f"{a.std():.1f}", n_abs,
+                         f"{s_mean:.0f}", f"{opt['best_deg']:.1f}"])
+        M.fmt_table(
+            f"E11  policy P/Q angle by hour -- {tag}  (deg; 0=pure P, 90=pure Q, <0=absorbing)",
+            ["h", "n", "angle_Swtd", "sd", "n_absorb", "S_mean kVA", "optimal_deg"], rows)
+
         allv = [x for v in ang.values() for x in v]
         if allv:
-            print(f"    day mean {np.mean(allv):.1f} deg   |   hub rating ratio 38.7 deg")
-            print(f"    E7b voltage-optimal: ~35-40 deg at half rating, "
-                  f"~15-25 deg at full rating")
+            a = np.array([x for x, _ in allv]); s = np.array([y for _, y in allv])
+            print(f"    samples {len(allv)} of {len(env.hours) * len(env.hubs) * len(scens)} "
+                  f"possible   |   absorbing reactive in {int((a < 0).sum())}")
+            print(f"    day S-weighted mean {np.average(a, weights=s):.1f} deg   |   "
+                  f"hub rating ratio 38.7 deg")
+            gaps = [abs(float(r[2]) - float(r[6])) for r in rows
+                    if r[1] and r[2] != "-" and r[6] != "-"]
+            if gaps:
+                print(f"    mean |agent - optimal| = {np.mean(gaps):.1f} deg over "
+                      f"{len(gaps)} hours")
+                print("    A small gap means the agent found the allocation. A gap that")
+                print("    tracks the rating ratio (38.7) means it is scaling a fixed")
+                print("    power factor rather than allocating.")
+        else:
+            print("    no usable samples -- every hub stayed below the reporting floor")
         out[tag] = ang
         del env, pol
     return out
