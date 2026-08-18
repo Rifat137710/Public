@@ -55,13 +55,51 @@ def _log(env, rec, h, disch, rho, n, thru_cum):
     M.log_hour(rec, h, env.fd, disch, soc, n, rho, thru_cum, env.fd.tap_positions())
 
 
-def rollout_static(env, scen, controller="droop", ev_constrained=True, damp=0.6, iters=25):
+def droop_equilibrium(env, h, ev_constrained, damp=0.3, iters=200, tol=1e-2,
+                      max_backoff=4):
+    """Damped Jacobi iteration to the droop fixed point, with a real convergence test.
+
+    A FIXED ITERATION COUNT HIDES NON-CONVERGENCE. At damp=0.6 the five-hub system does not
+    settle: it enters a period-2 limit cycle -- total active power alternating 1298 / 630 kW
+    at mild-load hour 18 -- so "iters=25" returns whichever branch iteration 25 lands on
+    rather than an equilibrium, and the answer flips with the parity of the iteration count.
+    Measured behaviour at that hour: damp 0.2 and 0.3 converge to 922 kW; 0.5 oscillates
+    1059/801; 0.6 oscillates 1298/630; 0.8 oscillates 1978/-110.
+
+    So: iterate to a residual test rather than a fixed count, and if the residual stalls,
+    halve the damping and restart. Returns (setpoints, converged, iters_used, damp_used).
+    """
+    cfg = env.cfg
+    for _ in range(max_backoff):
+        sp = {b: (0.0, 0.0) for b in env.hubs}
+        for k in range(iters):
+            delta = 0.0
+            for b in env.hubs:
+                v = env.fd.hub_vpu(b)
+                p, q = droop_pq(v, cfg["P_rated"], cfg["Q_rated"])
+                p0, q0 = sp[b]
+                pn, qn = (1 - damp) * p0 + damp * p, (1 - damp) * q0 + damp * q
+                delta = max(delta, abs(pn - p0), abs(qn - q0))
+                sp[b] = (pn, qn)
+            for b, (p, q) in sp.items():
+                if ev_constrained:
+                    p, q, _, _ = env.fleets[b].apply(p, q, h, commit=False)
+                env.fd.set_hub(b, p, q)
+            env.fd.solve()
+            if delta < tol:
+                return sp, True, k + 1, damp
+        damp *= 0.5                      # stalled -> back off and retry
+    return sp, False, iters, damp
+
+
+def rollout_static(env, scen, controller="droop", ev_constrained=True, damp=0.3, iters=200):
     """controller in {'baseline','droop'}. Returns summarize() dict."""
     cfg = env.cfg
     lam = lam_profile(scen.peak)
     _reset_fleets(env, scen)
     rec = M.hourly_record()
     thru_cum = 0.0
+    n_unconv = 0
     for h in env.hours:
         env.fd.set_load(lam[h]); env.fd.zero_hubs(); env.fd.solve()
         disch, rho, n = 0.0, 1.0, np.nan
@@ -69,19 +107,10 @@ def rollout_static(env, scen, controller="droop", ev_constrained=True, damp=0.6,
         if controller == "baseline":
             env.fd.solve()
 
-        else:  # closed-loop droop: damped fixed point, fleet previewed but not committed
-            sp = {b: (0.0, 0.0) for b in env.hubs}
-            for _ in range(iters):
-                for b in env.hubs:
-                    v = env.fd.hub_vpu(b)
-                    p, q = droop_pq(v, cfg["P_rated"], cfg["Q_rated"])
-                    p0, q0 = sp[b]
-                    sp[b] = ((1 - damp) * p0 + damp * p, (1 - damp) * q0 + damp * q)
-                for b, (p, q) in sp.items():
-                    if ev_constrained:
-                        p, q, _, _ = env.fleets[b].apply(p, q, h, commit=False)
-                    env.fd.set_hub(b, p, q)
-                env.fd.solve()
+        else:  # closed-loop droop: fixed point driven to a residual test, not a fixed count
+            sp, conv, _, _ = droop_equilibrium(env, h, ev_constrained,
+                                               damp=damp, iters=iters)
+            n_unconv += (not conv)
             for b, (p, q) in sp.items():
                 if ev_constrained:
                     p, q, rho, n = env.fleets[b].apply(p, q, h, commit=True)
@@ -96,7 +125,11 @@ def rollout_static(env, scen, controller="droop", ev_constrained=True, damp=0.6,
         _log(env, rec, h, disch, rho, n, thru_cum)
 
     socs = env.fleets[env.hubs[0]].soc_series
-    return M.summarize(rec, socs), rec
+    s = M.summarize(rec, socs)
+    # Surfaced, not swallowed: a droop row computed from a non-converged fixed point is not
+    # an equilibrium and must not be reported as one.
+    s["DroopUnconv"] = int(n_unconv)
+    return s, rec
 
 
 def rollout_policy(env, policy, scen, ev_constrained=True):

@@ -252,6 +252,142 @@ def report_E7(res):
 
 
 # --------------------------------------------------------------------------- #
+# E8 -- per-hub optimized dispatch (replaces the uniform-injection ceiling)
+# --------------------------------------------------------------------------- #
+def _intviol_now(fd):
+    vp = fd.phase_vpu()
+    lo = float(np.clip(M.V_MIN - M.V_TOL - vp, 0, None).sum())
+    hi = float(np.clip(vp - M.V_MAX - M.V_TOL, 0, None).sum())
+    return lo + hi
+
+
+def _apply_and_score(env, sp):
+    """Set every hub, solve, return two-sided violation. Non-convergence scores +inf so
+    the search treats it as infeasible rather than reading stale voltages."""
+    for b, (p, q) in sp.items():
+        env.fd.set_hub(b, p, q)
+    if not env.fd.solve():
+        return float("inf")
+    return _intviol_now(env.fd)
+
+
+def optimal_dispatch(env, lam_h, n_pass=3, n_s=9, n_th=5, refine=True):
+    """Per-hub (P, Q) minimizing two-sided violation, by coordinate descent on the AC flow.
+
+    WHY THIS EXISTS. The uniform-injection scan answers "what can all hubs do together at
+    EQUAL output", which is not the achievable ceiling. With five hubs at equal output,
+    lifting the far end of the feeder to 0.95 drives the near buses past 1.05, so hours
+    that are clearable by an uneven dispatch score as unclearable -- and the five-hub case
+    then scores worse than the single-hub case, which is impossible. Searching per hub
+    removes that artifact.
+
+    Coordinate descent rather than a gradient method because the objective is piecewise
+    linear with a kink at each voltage limit, and because every evaluation is a full AC
+    power flow whose derivative we do not have.
+    """
+    cfg = env.cfg
+    s_max = float(np.hypot(cfg["P_rated"], cfg["Q_rated"]))
+    env.fd.set_load(lam_h)
+
+    sp = {b: (0.0, 0.0) for b in env.hubs}
+    best = _apply_and_score(env, sp)
+    s_grid = np.linspace(0.0, s_max, n_s)
+    th_grid = np.linspace(0.0, np.pi / 2, n_th)
+    n_solve = 1
+
+    for _ in range(n_pass):
+        improved = False
+        for b in env.hubs:
+            keep, loc = sp[b], best
+            for s in s_grid:
+                for th in th_grid:
+                    sp[b] = (s * np.cos(th), s * np.sin(th))
+                    val = _apply_and_score(env, sp)
+                    n_solve += 1
+                    if val < loc - 1e-9:
+                        loc, keep = val, sp[b]
+            sp[b] = keep
+            if loc < best - 1e-9:
+                best, improved = loc, True
+        if not improved:
+            break
+
+    if refine:                       # local polish around the incumbent
+        for b in env.hubs:
+            p0, q0 = sp[b]
+            s0, th0 = float(np.hypot(p0, q0)), float(np.arctan2(q0, p0))
+            keep, loc = sp[b], best
+            ds = s_max / (n_s - 1) if n_s > 1 else s_max
+            for s in np.linspace(max(0.0, s0 - ds), min(s_max, s0 + ds), 7):
+                for th in np.linspace(max(0.0, th0 - 0.4), min(np.pi / 2, th0 + 0.4), 7):
+                    sp[b] = (s * np.cos(th), s * np.sin(th))
+                    val = _apply_and_score(env, sp)
+                    n_solve += 1
+                    if val < loc - 1e-9:
+                        loc, keep = val, sp[b]
+            sp[b] = keep
+            best = min(best, loc)
+
+    for b, (p, q) in sp.items():
+        env.fd.set_hub(b, p, q)
+    env.fd.solve()
+    vp = env.fd.phase_vpu()
+    s_tot = float(sum(np.hypot(p, q) for p, q in sp.values()))
+    env.fd.zero_hubs()
+    env.fd.solve()
+    return dict(IntViol=best, dispatch=dict(sp), S_total=s_tot, n_solve=n_solve,
+                Vmin=float(vp.min()), Vmax=float(vp.max()),
+                clearable=bool(best <= 1e-9))
+
+
+def E8_optimal_ceiling(control_mode="OFF", n_pass=3):
+    """True achievable ceiling per hour, and the value of coordinating hubs unevenly.
+
+    Reports optimized dispatch against the uniform-injection best, so the gap IS the value
+    of coordination -- independent of any controller. That is directly relevant to the
+    target paper's multi-hub claim: their RL coordinates hubs, droop is purely local.
+    """
+    res = {}
+    for tag, hubs in (("single", CFG["hub_bus_single"]), ("multi", CFG["hub_buses_multi"])):
+        env = build_env(hubs, control_mode=control_mode)
+        for pk_name, pk in (("mild", CFG["peak_mild"]), ("aggr", CFG["peak_aggr"])):
+            lam = lam_profile(pk)
+            rows, raw = [], {}
+            for h in env.hours:
+                uni = injection_scan(env, lam[h], n_grid=17)
+                u_best = float(np.nanmin(uni["PQ"]["IntViol"])) if np.any(
+                    np.isfinite(uni["PQ"]["IntViol"])) else float("nan")
+                opt = optimal_dispatch(env, lam[h], n_pass=n_pass)
+                raw[h] = opt
+                rows.append([h, round(lam[h], 2),
+                             round(u_best, 2), round(opt["IntViol"], 2),
+                             round(opt["Vmin"], 4), round(opt["Vmax"], 4),
+                             round(opt["S_total"], 0),
+                             "yes" if opt["clearable"] else "no"])
+            res[f"{tag}_{pk_name}"] = dict(rows=rows, raw=raw, n_hubs=len(env.hubs))
+        del env
+    return res
+
+
+def report_E8(res):
+    for key, d in res.items():
+        M.fmt_table(
+            f"E8 optimized per-hub dispatch -- {key}  ({d['n_hubs']} hub(s))",
+            ["h", "lam", "IntViol(uniform)", "IntViol(opt)", "Vmin", "Vmax",
+             "S_total kVA", "clearable"], d["rows"])
+        n_clear = sum(1 for r in d["rows"] if r[7] == "yes")
+        uni = np.array([r[2] for r in d["rows"]], dtype=float)
+        opt = np.array([r[3] for r in d["rows"]], dtype=float)
+        print(f"    clearable hours (optimized): {n_clear}/{len(d['rows'])}")
+        print(f"    day-total IntViol -- uniform {np.nansum(uni):.2f}   "
+              f"optimized {np.nansum(opt):.2f}")
+        if d["n_hubs"] > 1 and np.nansum(uni) > 1e-9:
+            gain = 1 - np.nansum(opt) / np.nansum(uni)
+            print(f"    value of uneven hub coordination: {gain:.1%} lower violation "
+                  f"at equal inverter rating")
+
+
+# --------------------------------------------------------------------------- #
 # E6 -- droop implementation variants
 # --------------------------------------------------------------------------- #
 def rollout_droop_openloop(env, scen, ev_constrained=True):
@@ -335,3 +471,67 @@ def report_E6(out):
                      "IntViol", "VphMax", "Thru"], rows)
         if key in paper:
             print(f"    {paper[key]}")
+
+
+# --------------------------------------------------------------------------- #
+# E9 -- droop convergence sweep
+# --------------------------------------------------------------------------- #
+def E9_droop_iters(control_mode="OFF", n_scen=3,
+                   iters=(1, 2, 3, 5, 10, 25), damp=0.6):
+    """How far the droop loop is driven, swept.
+
+    E6 showed neither pure variant reproduces both of the paper's Table II rows: closed-loop
+    matches mild (VMean 1.009 vs their 1.024, ViolMean 0 vs 0) while open-loop is wildly
+    over-injected there (VphMax 2.095); open-loop is closer at aggressive (1.011/0.944 vs
+    their 0.998/0.940) while closed-loop undershoots (0.961/0.925).
+
+    A PARTIALLY converged loop sits between the two. With damp=0.6 from a zero start, one
+    iteration injects 0.6x the open-loop response and the sequence then decays toward the
+    equilibrium, so this sweep spans the gap. If a single iteration count reproduces both
+    rows, that identifies their droop; if none does, the difference is elsewhere and the
+    paper reports it as a limitation rather than guessing.
+    """
+    from v2g_study import rollout_static
+    out = {}
+    for tag, hubs in (("multi", CFG["hub_buses_multi"]),
+                      ("single", CFG["hub_bus_single"])):
+        env = build_env(hubs, control_mode=control_mode)
+        for pk_name, pk in (("mild", CFG["peak_mild"]), ("aggr", CFG["peak_aggr"])):
+            scens = make_scenarios(n_scen, pk, seed0=0)
+            rows = []
+            for it in iters:
+                acc = [rollout_static(env, sc, controller="droop", ev_constrained=False,
+                                      damp=damp, iters=it)[0] for sc in scens]
+                a = M.aggregate(acc)
+                rows.append([f"iters={it}", round(a["VMean"]["mean"], 3),
+                             round(a["VMin"]["mean"], 3),
+                             round(a["ViolMean"]["mean"], 1),
+                             round(a["ViolPh"]["mean"], 1),
+                             round(a["IntViol"]["mean"], 2),
+                             round(a["VphMax"]["mean"], 3),
+                             round(a["Thru"]["mean"], 0)])
+            acc = [rollout_droop_openloop(env, sc, ev_constrained=False)[0] for sc in scens]
+            a = M.aggregate(acc)
+            rows.append(["open-loop", round(a["VMean"]["mean"], 3),
+                         round(a["VMin"]["mean"], 3), round(a["ViolMean"]["mean"], 1),
+                         round(a["ViolPh"]["mean"], 1), round(a["IntViol"]["mean"], 2),
+                         round(a["VphMax"]["mean"], 3), round(a["Thru"]["mean"], 0)])
+            out[f"{tag}_{pk_name}"] = rows
+        del env
+    return out
+
+
+def report_E9(out):
+    paper = {"multi_mild": (1.024, 1.004, 0.0), "multi_aggr": (0.998, 0.940, 2.0)}
+    for key, rows in out.items():
+        M.fmt_table(f"E9 droop convergence sweep -- {key}  (unconstrained)",
+                    ["setting", "VMean", "VMin", "ViolMean", "ViolPh", "IntViol",
+                     "VphMax", "Thru"], rows)
+        if key not in paper:
+            continue
+        pm, pv, pviol = paper[key]
+        print(f"    paper Table II: VMean {pm}  VMin {pv}  ViolMean {pviol:.0f}")
+        # closest row on the two voltage columns the paper actually reports
+        d = [(abs(r[1] - pm) + abs(r[2] - pv), r[0]) for r in rows]
+        d.sort()
+        print(f"    closest on (VMean, VMin): {d[0][1]}  |dVMean|+|dVMin| = {d[0][0]:.3f}")
