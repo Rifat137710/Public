@@ -420,6 +420,132 @@ def E4_stress(control_mode="OFF", steps=20000, n_scen=5, seeds=(0, 1, 2)):
 
 
 # --------------------------------------------------------------------------- #
+# E12 -- safety projection: does the gap survive once the agent stops overvolting?
+# --------------------------------------------------------------------------- #
+def _bisect_max_feasible(feas, iters=18):
+    """Largest lam in [0,1] with feas(lam) true. ASSUMES feas(0) is true.
+
+    Assumes monotonicity in lam -- less injection, lower voltage. That holds on this feeder
+    over the range we use, but the guarantee is only that the returned point IS feasible
+    (it is verified before return by the caller), not that it is the largest such point.
+    """
+    lo, hi = 0.0, 1.0
+    for _ in range(iters):
+        mid = 0.5 * (lo + hi)
+        if feas(mid):
+            lo = mid
+        else:
+            hi = mid
+    return lo
+
+
+def make_safety_filter(mode="scale", tol=1e-3, iters=18):
+    """Project commanded setpoints onto the OVERVOLTAGE-feasible set (all phases <= v_max).
+
+    A projection layer of this kind is standard practice in learning-based Volt-VAR control
+    (SAVER; model-augmented safe Volt-VAR; safety-constrained MARL) and our own runs show
+    the unprojected agent needs one: it exceeds 1.05 in every configuration, reaching 1.234
+    where droop stays at 1.050. Because IntViol is two-sided, part of the RL penalty IS that
+    overvoltage -- so without this layer we cannot separate "allocates worse" from "breaks
+    the upper bound and is charged for it".
+
+    modes
+      scale   : reduce P and Q together along the commanded ray. The plainest projection.
+      shed_q  : reduce REACTIVE power first, and touch active power only if shedding all Q
+                is still not enough. Motivated by our own E7 result -- at matched apparent
+                power Q buys 1.25-1.49x LESS voltage than P while costing the same stored
+                energy, so reactive is the right thing to give up first.
+    """
+    def _filter(env, h, raw):
+        vmax = env.cfg["v_max"]
+
+        def feas(sp, sq):
+            for b, (p, q) in raw.items():
+                env.fd.set_hub(b, p * sp, q * sq)
+            if not env.fd.solve():
+                return False
+            return float(env.fd.phase_vpu().max()) <= vmax + tol
+
+        if feas(1.0, 1.0):
+            return raw                                   # nothing to project
+
+        if mode == "shed_q":
+            if feas(1.0, 0.0):                           # shedding Q alone is enough
+                lam = _bisect_max_feasible(lambda l: feas(1.0, l), iters)
+                out = {b: (p, q * lam) for b, (p, q) in raw.items()}
+                return out if feas(1.0, lam) else {b: (p, 0.0) for b, (p, q) in raw.items()}
+            if feas(0.0, 0.0):                           # Q gone, now scale P
+                lam = _bisect_max_feasible(lambda l: feas(l, 0.0), iters)
+                if feas(lam, 0.0):
+                    return {b: (p * lam, 0.0) for b, (p, q) in raw.items()}
+            return {b: (0.0, 0.0) for b in raw}
+
+        if not feas(0.0, 0.0):
+            # Zero injection is already over the limit, so the overvoltage is not ours to
+            # fix -- back all the way off rather than pretending a projection exists.
+            return {b: (0.0, 0.0) for b in raw}
+        lam = _bisect_max_feasible(lambda l: feas(l, l), iters)
+        return ({b: (p * lam, q * lam) for b, (p, q) in raw.items()} if feas(lam, lam)
+                else {b: (0.0, 0.0) for b in raw})
+
+    return _filter
+
+
+def rollout_policy_safe(env, policy, scen, mode=None, ev_constrained=True):
+    """rollout_policy with a safety projection inserted before the fleet commits."""
+    saved = env.safety_filter
+    env.safety_filter = make_safety_filter(mode) if mode else None
+    try:
+        return rollout_policy(env, policy, scen, ev_constrained)
+    finally:
+        env.safety_filter = saved
+
+
+def E12_safety_projection(control_mode="OFF", steps=20000, n_scen=5, seeds=(0, 1, 2)):
+    """One training per seed, three evaluations -- raw, ray projection, reactive-first.
+
+    The question: our agent loses to droop on IntViol while also breaking the 1.05 limit
+    that droop respects. Once the overvoltage is projected away, does the gap close?
+    Either answer is reportable, and both pre-empt the obvious reviewer objection.
+    """
+    out, rows = {}, []
+    for tag, peak in [("mild", CFG["peak_mild"]), ("aggr", CFG["peak_aggr"])]:
+        scens = make_scenarios(n_scen, peak, seed0=0)
+        env = build_env(CFG["hub_buses_multi"], mode="residual", w_deg=0.0,
+                        control_mode=control_mode, peak_range=(peak * 0.8, peak * 1.2))
+        store = {"Droop": [rollout_static(env, s, "droop", True)[0] for s in scens]}
+        for mode, name in ((None, "RL raw"), ("scale", "RL + proj (scale)"),
+                           ("shed_q", "RL + proj (shed Q)")):
+            store[name] = []
+        for sd in seeds:
+            print(f"\n  [E12/{tag}] training seed={sd}")
+            pol = train_on(env, steps, seed=sd, label=f"E12-{tag}-s{sd}")
+            for mode, name in ((None, "RL raw"), ("scale", "RL + proj (scale)"),
+                               ("shed_q", "RL + proj (shed Q)")):
+                store[name] += [rollout_policy_safe(env, pol, s, mode)[0] for s in scens]
+            del pol
+        for name, rs in store.items():
+            a = M.aggregate(rs)
+            rows.append([f"{tag}/{name}", f"{a['IntViol']['mean']:.2f}",
+                         f"{a['IntViol']['ci95']:.2f}", f"{a['IntLo']['mean']:.2f}",
+                         f"{a['IntHi']['mean']:.2f}", f"{a['ViolPh']['mean']:.1f}",
+                         f"{a['VphMax']['mean']:.3f}", f"{a['Thru']['mean']:.0f}"])
+            out[f"{tag}/{name}"] = rs
+        for name in ("RL raw", "RL + proj (scale)", "RL + proj (shed Q)"):
+            d = M.paired_delta(store[name], store["Droop"], "IntViol")
+            print(f"    paired {name} - Droop  IntViol: {d['mean']:+.2f} +- {d['ci95']:.2f} "
+                  f"({name} better in {d['a_better']}/{d['n']})")
+        del env
+    M.fmt_table(f"E12  safety projection  (multi-hub, fleet-constrained, {len(seeds)} seeds "
+                f"x {n_scen} paired scenarios)",
+                ["case", "IntViol", "+-95%", "IntLo", "IntHi", "ViolPh", "VphMax",
+                 "Thru(kWh)"], rows)
+    print("\n  IntHi is the overvoltage half. If projection drives IntHi to ~0 and IntViol")
+    print("  still trails droop, the gap is real allocation, not a bound violation.")
+    return out
+
+
+# --------------------------------------------------------------------------- #
 # E10 -- ablations: does the agent use what we gave it?
 # --------------------------------------------------------------------------- #
 def E10_ablations(control_mode="OFF", steps=20000, n_scen=5, seeds=(0, 1),

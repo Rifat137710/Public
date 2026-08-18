@@ -53,6 +53,10 @@ class V2GDayEnv(gym.Env):
         # only the information content changes. This is the ablation that asks whether the
         # agent actually uses its battery state or only reacts to voltage.
         self.state_fleet = bool(state_fleet)
+        # Optional callable (env, hour, {bus: (p, q)}) -> {bus: (p, q)}, applied after the
+        # policy's setpoints are computed and before the fleet commits. None = passthrough,
+        # which reproduces the unfiltered dynamics exactly.
+        self.safety_filter = None
         self.w_deg = float(w_deg)
         self.peak_range = peak_range
         self.ev_in_loop = ev_in_loop
@@ -131,11 +135,25 @@ class V2GDayEnv(gym.Env):
         self.fd.set_load(self._lam_at(h)); self.fd.zero_hubs(); self.fd.solve()
 
         thru_before = sum(self.fleets[b].throughput for b in self.hubs)
+        a = np.asarray(action, dtype=float)
+
+        # Pass 1 -- all setpoints. In residual mode _setpoint reads hub_vpu, and no solve
+        # happens between hubs, so every hub reads the SAME zero-hub solve above. Computing
+        # them all up front is therefore identical to computing them inline, and it lets a
+        # safety layer see the whole commanded dispatch before any energy is committed.
+        raw = {b: self._setpoint(b, i, a) for i, b in enumerate(self.hubs)}
+
+        # Pass 2 -- optional projection onto the voltage-feasible set, BEFORE the fleet
+        # commits SOC, so a projected-away command costs no battery energy.
+        if self.safety_filter is not None:
+            raw = self.safety_filter(self, h, raw)
+
+        # Pass 3 -- commit
         p_sup_total = 0.0
         p_batt_uncapped = 0.0
         pq = {}                      # per-hub committed setpoints, for the P/Q angle study
-        for i, b in enumerate(self.hubs):
-            p, q = self._setpoint(b, i, np.asarray(action, dtype=float))
+        for b in self.hubs:
+            p, q = raw[b]
             if self.ev_in_loop:
                 p, q, _, _ = self.fleets[b].apply(p, q, h, commit=True)
             else:
