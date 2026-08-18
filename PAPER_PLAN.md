@@ -210,6 +210,7 @@ F2–F4 are deliberately held back: they are the journal's new material.
 | **X3** | Common random numbers + ≥5 seeds with CIs | Single-seed RL results are the most common technical objection in this literature |
 | **X4** | Per-hour optimal-dispatch reference (AC power-flow bisection) | The measuring stick: says how far **both** controllers sit from what any controller could do that hour. Droop alone is not a reference |
 | **X5** | Open-loop vs closed-loop droop variant | Our droop reaches 10 violation-hours where theirs reaches 2; most likely they evaluate droop open-loop. Report both rather than leave the gap unexplained |
+| **X6** | **P/Q allocation at matched apparent power** | Their Eq. (4) drains the battery on apparent power, so a kVAr costs exactly as much stored energy as a kW — and they never explore the consequence. Sweeping the injection angle at fixed S answers where a limited energy budget buys the most voltage |
 
 **Headline framing.** Not "RL vs droop." The paper reports what multi-hub V2G voltage support
 actually delivers once fleet availability binds — 9.3% of requested energy — and characterizes
@@ -249,10 +250,30 @@ Established by running the calibration and wiring tests, not assumed:
 - **`IntViol` discriminates where counts tie.** Single-hub mild baseline and constrained droop
   both show ViolMean 10, but IntViol 45.69 vs 45.32.
 
-## 8. Immediate next step
+## 8. Build order
 
-Run `V2G_gaps_study.ipynb` with `QUICK = True` to confirm wiring on the target machine, then
-`QUICK = False` for the real numbers (~26 trainings × 20k steps, roughly 2 hours on CPU).
+Work runs in two batches. Batch 2 depends on Batch 1 — the reference changes how the trained
+results should be read, and the P/Q result determines whether the RL-side allocation study is
+worth running at all — so they do not run concurrently.
+
+### Batch 1 — deterministic, no training (`V2G_reference_studies.ipynb`, minutes)
+
+| | Study | Adds |
+|---|---|---|
+| **E5** | Per-hour achievable ceiling: sweep injection 0 → full rating, record worst-phase voltage | X4 |
+| **E6** | Open-loop vs closed-loop droop against their Table II | X5 |
+| **E7/E7b** | P/Q allocation at matched apparent power; voltage-optimal split by angle sweep | X6 |
+
+Non-converged power flows are masked. At deep-sag hours the high-injection end of the sweep
+sits past the nose of the PV curve; OpenDSS leaves stale voltages in its arrays there, and
+reading them produces a spurious ceiling *and* a spurious collapse. Every scan reports the
+converged fraction.
+
+### Batch 2 — training runs (depends on Batch 1)
+
+Expanded mild weight sweep `(0,1,3,10,30,100,300)`; ablations (SOC-in-state on/off,
+degradation term on/off); the RL-side P/Q study; then the full run at `QUICK = False`
+(~26 trainings × 20k steps, roughly 2 hours on CPU) with ≥5 seeds.
 
 ## 9. Publication status of the reproduction target
 
