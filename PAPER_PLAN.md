@@ -170,19 +170,51 @@ negative result into a measurement against a bound. **Do not submit without it.*
 
 ## 6. Scope and contributions
 
-The conference paper is deliberately narrow: **execute the future work the paper names, and
-report the behaviour**, in the descriptive mode the original uses. It does not argue a thesis.
+The conference paper is deliberately narrow: **take the scope limitations the target paper
+states about itself, plus the first item of its named future work, add them to the system, and
+report the measured behaviour.** It does not argue a thesis and it does not need to beat droop.
 
-| # | Conference contribution | Source in the target paper |
+**The target paper does not win either, and says so.** Abstract: RL is *"comparable to the
+baseline"* and *"within 10% of the baseline"* under aggressive overloading. §IV-B: *"The RL
+controller does not match droop performance in this stress case."* Conclusion: *"a local droop
+baseline can still outperform it under aggressive stress."* Their Table II reports RL at 15
+violation-hours against droop's 2. The accepted currency here is a working system measured
+honestly with the regime characterized — not a leaderboard win.
+
+### Their stated scope limitations → our experiments
+
+| # | What they state about their own scope | Where | Our experiment |
+|---|---|---|---|
+| **L1** | *"assuming sufficient EV capacity at each hub, allowing the analysis to isolate the benefits of multi-hub coordination from availability constraints"* | §III-A | **E2** — multi-hub with the 45–85% availability + SOC/SOH model on |
+| **L2** | Phase 1 trains *"in an idealized environment with fixed hub power limits and no explicit fleet constraints"*; Phase 2 deploys with them | §II-D | **E2/E4** — fleet in the training loop, SOC + availability in the state |
+| **L3** | *"each episode comprises 100 discrete control steps with randomly sampled load multipliers λ ∈ [0.1, 4.0]"* — i.i.d., no temporal structure | §III | **E4** — day-structured vs paper-style (`iid_lambda`) training |
+| **L4** | Droop outperforms RL under aggressive stress | §IV-B, Concl. | **E4** — multi-hub aggressive, both training regimes |
+
+### Their stated future work → our experiments
+
+| # | Future work, verbatim | Conference | Journal |
+|---|---|---|---|
+| **F1** | *"battery-degradation-aware optimization"* | **E3** — Ah-throughput reward term, weight swept to a violation/wear frontier | Full Pareto, priced |
+| **F2** | *"extensions to larger feeders"* | ✗ deferred | IEEE-123, 8500-node |
+| **F3** | *"multi-agent coordination"* | ✗ deferred | MARL vs hierarchical |
+| **F4** | *"integration of vehicle travel and logistics constraints"* | ✗ deferred | Stochastic availability |
+
+F2–F4 are deliberately held back: they are the journal's new material.
+
+### Added on our own judgement, with justification
+
+| # | Addition | Why it is needed |
 |---|---|---|
-| **A1** | Multi-hub coordination **with realistic fleet constraints** (45–85% availability, SOC/SOH dynamics) | §III-A: *"assuming sufficient EV capacity at each hub"* — never tested |
-| **A2** | **Degradation-aware objective** — Ah-throughput term in the reward, weight swept to a violation/wear frontier | Conclusion: *"battery-degradation-aware optimization"* |
-| **A3** | **Multi-hub aggressive stress**, day-structured vs paper-style training | Table II: droop **2** viol-hours vs RL **15**; conclusion concedes it |
+| **X1** | Per-phase ANSI C84.1 evaluation alongside the feeder mean | Their metric is the feeder **mean**; ANSI limits are per-phase, and IEEE-34 is unbalanced |
+| **X2** | Integrated violation magnitude `IntViol` (p.u.·h) | Hour counts saturate at "all 18 violated" and stop discriminating |
+| **X3** | Common random numbers + ≥5 seeds with CIs | Single-seed RL results are the most common technical objection in this literature |
+| **X4** | Per-hour optimal-dispatch reference (AC power-flow bisection) | The measuring stick: says how far **both** controllers sit from what any controller could do that hour. Droop alone is not a reference |
+| **X5** | Open-loop vs closed-loop droop variant | Our droop reaches 10 violation-hours where theirs reaches 2; most likely they evaluate droop open-loop. Report both rather than leave the gap unexplained |
 
-Added because the literature expects them, not as novelty claims: per-phase ANSI C84.1
-evaluation alongside the feeder mean; weighted-Ah cost in the reward with rainflow depth as
-an evaluation-only metric; a per-hour optimal-dispatch reference so droop is not the sole
-baseline; ≥10 seeds with CIs.
+**Headline framing.** Not "RL vs droop." The paper reports what multi-hub V2G voltage support
+actually delivers once fleet availability binds — 9.3% of requested energy — and characterizes
+the resulting controller behaviour, including the fact that the unconstrained-case ranking does
+not survive the constraint.
 
 Three design rules that make the numbers readable regardless of outcome:
 
