@@ -477,7 +477,7 @@ def report_E6(out):
 # E9 -- droop convergence sweep
 # --------------------------------------------------------------------------- #
 def E9_droop_iters(control_mode="OFF", n_scen=3,
-                   iters=(1, 2, 3, 5, 10, 25), damp=0.6):
+                   iters=(1, 2, 3, 5, 10, 25, 50), damps=(0.3, 0.6)):
     """How far the droop loop is driven, swept.
 
     E6 showed neither pure variant reproduces both of the paper's Table II rows: closed-loop
@@ -499,17 +499,22 @@ def E9_droop_iters(control_mode="OFF", n_scen=3,
         for pk_name, pk in (("mild", CFG["peak_mild"]), ("aggr", CFG["peak_aggr"])):
             scens = make_scenarios(n_scen, pk, seed0=0)
             rows = []
-            for it in iters:
-                acc = [rollout_static(env, sc, controller="droop", ev_constrained=False,
-                                      damp=damp, iters=it)[0] for sc in scens]
-                a = M.aggregate(acc)
-                rows.append([f"iters={it}", round(a["VMean"]["mean"], 3),
-                             round(a["VMin"]["mean"], 3),
-                             round(a["ViolMean"]["mean"], 1),
-                             round(a["ViolPh"]["mean"], 1),
-                             round(a["IntViol"]["mean"], 2),
-                             round(a["VphMax"]["mean"], 3),
-                             round(a["Thru"]["mean"], 0)])
+            for dp in damps:
+                for it in iters:
+                    # backoff=False so `iters=k` means exactly k iterations at damping dp.
+                    # With backoff on, a small k silently becomes four restarts at halved
+                    # damping, which is not a partially converged loop.
+                    acc = [rollout_static(env, sc, controller="droop", ev_constrained=False,
+                                          damp=dp, iters=it, backoff=False)[0]
+                           for sc in scens]
+                    a = M.aggregate(acc)
+                    rows.append([f"d{dp}/i{it}", round(a["VMean"]["mean"], 3),
+                                 round(a["VMin"]["mean"], 3),
+                                 round(a["ViolMean"]["mean"], 1),
+                                 round(a["ViolPh"]["mean"], 1),
+                                 round(a["IntViol"]["mean"], 2),
+                                 round(a["VphMax"]["mean"], 3),
+                                 round(a["Thru"]["mean"], 0)])
             acc = [rollout_droop_openloop(env, sc, ev_constrained=False)[0] for sc in scens]
             a = M.aggregate(acc)
             rows.append(["open-loop", round(a["VMean"]["mean"], 3),
@@ -532,6 +537,15 @@ def report_E9(out):
         pm, pv, pviol = paper[key]
         print(f"    paper Table II: VMean {pm}  VMin {pv}  ViolMean {pviol:.0f}")
         # closest row on the two voltage columns the paper actually reports
-        d = [(abs(r[1] - pm) + abs(r[2] - pv), r[0]) for r in rows]
-        d.sort()
+        d = sorted((abs(r[1] - pm) + abs(r[2] - pv), r[0]) for r in rows)
         print(f"    closest on (VMean, VMin): {d[0][1]}  |dVMean|+|dVMin| = {d[0][0]:.3f}")
+        # Is the sweep even converging? Compare the two largest iteration counts per damping.
+        for dp in sorted({r[0].split("/")[0] for r in rows if "/" in r[0]}):
+            th = [(int(r[0].split("i")[1]), r[7]) for r in rows if r[0].startswith(dp + "/")]
+            th.sort()
+            if len(th) >= 2:
+                spread = abs(th[-1][1] - th[-2][1])
+                verdict = "converged" if spread < 0.02 * max(1.0, abs(th[-1][1])) \
+                    else "NOT converged (limit cycle)"
+                print(f"    {dp}: throughput at i={th[-2][0]} vs i={th[-1][0]} -> "
+                      f"{th[-2][1]:.0f} vs {th[-1][1]:.0f} kWh  [{verdict}]")

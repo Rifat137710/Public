@@ -42,10 +42,17 @@ class V2GDayEnv(gym.Env):
 
     def __init__(self, hub_buses, peak_range=(1.2, 3.3), mode="residual",
                  w_deg=0.0, control_mode="OFF", ev_in_loop=True,
-                 reward_on="bus", iid_lambda=False, seed=0, cfg=CFG):
+                 reward_on="bus", iid_lambda=False, seed=0, cfg=CFG,
+                 state_fleet=True):
         super().__init__()
         self.cfg = cfg
         self.mode = mode
+        # state_fleet=False blanks the SOC and availability entries, leaving the paper's
+        # state (bus voltages + load multiplier) plus the hour. The observation VECTOR keeps
+        # its width so a policy trained either way is loadable against the same space --
+        # only the information content changes. This is the ablation that asks whether the
+        # agent actually uses its battery state or only reacts to voltage.
+        self.state_fleet = bool(state_fleet)
         self.w_deg = float(w_deg)
         self.peak_range = peak_range
         self.ev_in_loop = ev_in_loop
@@ -75,9 +82,12 @@ class V2GDayEnv(gym.Env):
     def _obs(self, vbus, lam):
         lam_norm = (lam - 0.1) / (4.0 - 0.1)
         hour_norm = self._t / max(1, len(self.hours) - 1)
-        socs = [self.fleets[b].soc for b in self.hubs]
-        navs = [self.fleets[b].n_avail(self.hours[min(self._t, len(self.hours) - 1)])
-                / self.cfg["n_ev"] for b in self.hubs]
+        if self.state_fleet:
+            socs = [self.fleets[b].soc for b in self.hubs]
+            navs = [self.fleets[b].n_avail(self.hours[min(self._t, len(self.hours) - 1)])
+                    / self.cfg["n_ev"] for b in self.hubs]
+        else:
+            socs = navs = [0.0] * self.nh
         return np.concatenate([vbus, [lam_norm, hour_norm], socs, navs]).astype(np.float32)
 
     def _lam_at(self, h):
@@ -123,6 +133,7 @@ class V2GDayEnv(gym.Env):
         thru_before = sum(self.fleets[b].throughput for b in self.hubs)
         p_sup_total = 0.0
         p_batt_uncapped = 0.0
+        pq = {}                      # per-hub committed setpoints, for the P/Q angle study
         for i, b in enumerate(self.hubs):
             p, q = self._setpoint(b, i, np.asarray(action, dtype=float))
             if self.ev_in_loop:
@@ -132,6 +143,7 @@ class V2GDayEnv(gym.Env):
                 # battery energy the command implies, so energy columns stay comparable.
                 p_batt_uncapped += abs(p) / self.cfg["eta_inv"]
             self.fd.set_hub(b, p, q)
+            pq[b] = (float(p), float(q))
             p_sup_total += max(0.0, p)
         self.fd.solve()
         thru = (sum(self.fleets[b].throughput for b in self.hubs) - thru_before
@@ -145,4 +157,5 @@ class V2GDayEnv(gym.Env):
         done = self._t >= len(self.hours)
         nh = self.hours[min(self._t, len(self.hours) - 1)]
         obs = self._obs(self.fd.bus_vpu(), self._lam_at(nh))
-        return obs, float(r), bool(done), False, {"thru": thru, "p_sup": p_sup_total}
+        return obs, float(r), bool(done), False, {"thru": thru, "p_sup": p_sup_total,
+                                                  "pq": pq, "hour": h}

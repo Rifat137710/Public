@@ -56,7 +56,7 @@ def _log(env, rec, h, disch, rho, n, thru_cum):
 
 
 def droop_equilibrium(env, h, ev_constrained, damp=0.3, iters=200, tol=1e-2,
-                      max_backoff=4):
+                      max_backoff=4, backoff=True):
     """Damped Jacobi iteration to the droop fixed point, with a real convergence test.
 
     A FIXED ITERATION COUNT HIDES NON-CONVERGENCE. At damp=0.6 the five-hub system does not
@@ -68,9 +68,14 @@ def droop_equilibrium(env, h, ev_constrained, damp=0.3, iters=200, tol=1e-2,
 
     So: iterate to a residual test rather than a fixed count, and if the residual stalls,
     halve the damping and restart. Returns (setpoints, converged, iters_used, damp_used).
+
+    backoff=False disables the retry, so `iters` means EXACTLY that many iterations at the
+    given damping. E9 needs that: with backoff on, a small `iters` silently becomes four
+    restarts at successively halved damping, which is not "a partially converged loop" and
+    made the sweep read non-monotone (iters=25 landing below iters=10).
     """
     cfg = env.cfg
-    for _ in range(max_backoff):
+    for _ in range(max_backoff if backoff else 1):
         sp = {b: (0.0, 0.0) for b in env.hubs}
         for k in range(iters):
             delta = 0.0
@@ -92,7 +97,8 @@ def droop_equilibrium(env, h, ev_constrained, damp=0.3, iters=200, tol=1e-2,
     return sp, False, iters, damp
 
 
-def rollout_static(env, scen, controller="droop", ev_constrained=True, damp=0.3, iters=200):
+def rollout_static(env, scen, controller="droop", ev_constrained=True, damp=0.3, iters=200,
+                   backoff=True):
     """controller in {'baseline','droop'}. Returns summarize() dict."""
     cfg = env.cfg
     lam = lam_profile(scen.peak)
@@ -109,7 +115,7 @@ def rollout_static(env, scen, controller="droop", ev_constrained=True, damp=0.3,
 
         else:  # closed-loop droop: fixed point driven to a residual test, not a fixed count
             sp, conv, _, _ = droop_equilibrium(env, h, ev_constrained,
-                                               damp=damp, iters=iters)
+                                               damp=damp, iters=iters, backoff=backoff)
             n_unconv += (not conv)
             for b, (p, q) in sp.items():
                 if ev_constrained:
@@ -411,6 +417,115 @@ def E4_stress(control_mode="OFF", steps=20000, n_scen=5, seeds=(0, 1, 2)):
                 ["controller", "VMean", "VMin", "VphMax", "ViolMean", "ViolBus",
                  "ViolPh", "ViolHi", "IntViol(±ci)", "Thru"], rows)
     return store
+
+
+# --------------------------------------------------------------------------- #
+# E10 -- ablations: does the agent use what we gave it?
+# --------------------------------------------------------------------------- #
+def E10_ablations(control_mode="OFF", steps=20000, n_scen=5, seeds=(0, 1),
+                  w_deg_on=10.0):
+    """Two ablations on the multi-hub constrained case.
+
+    fleet-in-state   : the paper's agent sees bus voltages + load multiplier only. Ours also
+                       sees SOC, availability and the hour. Blanking those entries asks
+                       whether the agent uses its battery state or merely reacts to voltage.
+    degradation term : w_deg = 0 vs w_deg > 0, isolating the reward change from the state
+                       change so the two are not confounded in the headline result.
+    """
+    out, rows = {}, []
+    for tag, peak in [("mild", CFG["peak_mild"]), ("aggr", CFG["peak_aggr"])]:
+        scens = make_scenarios(n_scen, peak, seed0=0)
+        for st_fleet in (True, False):
+            for w in (0.0, w_deg_on):
+                acc = []
+                for sd in seeds:
+                    env = V2GDayEnv(CFG["hub_buses_multi"], mode="residual", w_deg=w,
+                                    control_mode=control_mode,
+                                    peak_range=(peak * 0.8, peak * 1.2),
+                                    state_fleet=st_fleet, seed=sd)
+                    lab = f"E10-{tag}-{'fleet' if st_fleet else 'nofleet'}-w{w:g}-s{sd}"
+                    print(f"\n  [{lab}]")
+                    pol = train_on(env, steps, seed=sd, label=lab)
+                    acc += [rollout_policy(env, pol, s, True)[0] for s in scens]
+                    del env, pol
+                a = M.aggregate(acc)
+                name = f"{tag}/state={'fleet' if st_fleet else 'voltage-only'}/w={w:g}"
+                out[name] = acc
+                rows.append([name, f"{a['IntViol']['mean']:.2f}",
+                             f"{a['IntViol']['ci95']:.2f}",
+                             f"{a['ViolPh']['mean']:.1f}", f"{a['Thru']['mean']:.0f}",
+                             f"{a['VphMax']['mean']:.3f}", f"{a['SOCend']['mean']:.3f}"])
+    M.fmt_table(f"E10  ablations  (multi-hub, fleet-constrained, {len(seeds)} seeds x "
+                f"{n_scen} paired scenarios)",
+                ["case", "IntViol", "+-95%", "ViolPh", "Thru(kWh)", "VphMax", "SOCend"],
+                rows)
+    print("\n  fleet-in-state pays only if 'state=fleet' beats 'state=voltage-only' by more")
+    print("  than the confidence interval. If it does not, say so -- the paper's simpler")
+    print("  state was sufficient, which is itself a reportable result.")
+    return out
+
+
+# --------------------------------------------------------------------------- #
+# E11 -- what P/Q split does the trained policy actually choose?
+# --------------------------------------------------------------------------- #
+def policy_pq_angles(env, policy, scens, ev_constrained=True, s_floor=10.0):
+    """Per-hour injection angle atan2(Q, P) actually commanded, in degrees.
+
+    Costs nothing extra: it reads the setpoints the policy already committed. Hours where
+    the hub is essentially idle (S < s_floor kVA) carry no meaningful angle and are skipped.
+    """
+    saved, saved_iid = env.ev_in_loop, env.iid_lambda
+    env.ev_in_loop, env.iid_lambda = ev_constrained, False
+    per_hour = {h: [] for h in env.hours}
+    for sc in scens:
+        obs, _ = env.reset(options=dict(peak=sc.peak, avail_day=sc.avail_day,
+                                        soc_init=sc.soc_init))
+        for _ in env.hours:
+            act, _ = policy.predict(obs, deterministic=True)
+            obs, _, done, _, info = env.step(act)
+            for (p, q) in info["pq"].values():
+                s = float(np.hypot(p, q))
+                if s >= s_floor and p > 0:            # supporting, not charging
+                    per_hour[info["hour"]].append(float(np.degrees(np.arctan2(q, p))))
+            if done:
+                break
+    env.ev_in_loop, env.iid_lambda = saved, saved_iid
+    return per_hour
+
+
+def E11_policy_pq(control_mode="OFF", steps=20000, n_scen=5, seed=0):
+    """Does the learned policy find the voltage-optimal P/Q split that E7b measures?
+
+    E7b says the optimum is ~35-40 deg at half rating and shifts to ~15-25 deg at full
+    rating, against a hub rating ratio of 38.7 deg. If the agent sits at the rating ratio
+    regardless of loading, it has not learned the allocation -- it is just scaling a fixed
+    power factor.
+    """
+    out = {}
+    for tag, peak in [("mild", CFG["peak_mild"]), ("aggr", CFG["peak_aggr"])]:
+        scens = make_scenarios(n_scen, peak, seed0=0)
+        env = build_env(CFG["hub_buses_multi"], mode="direct", w_deg=0.0,
+                        control_mode=control_mode, peak_range=(peak * 0.8, peak * 1.2),
+                        seed=seed)
+        print(f"\n  [E11/{tag}] training direct-action agent")
+        pol = train_on(env, steps, seed=seed, label=f"E11-{tag}")
+        ang = policy_pq_angles(env, pol, scens)
+        rows = []
+        for h in env.hours:
+            v = ang[h]
+            rows.append([h, len(v),
+                         f"{np.mean(v):.1f}" if v else "-",
+                         f"{np.std(v):.1f}" if v else "-"])
+        M.fmt_table(f"E11  policy P/Q angle by hour -- {tag}  (deg; 0=pure P, 90=pure Q)",
+                    ["h", "n", "mean_deg", "sd_deg"], rows)
+        allv = [x for v in ang.values() for x in v]
+        if allv:
+            print(f"    day mean {np.mean(allv):.1f} deg   |   hub rating ratio 38.7 deg")
+            print(f"    E7b voltage-optimal: ~35-40 deg at half rating, "
+                  f"~15-25 deg at full rating")
+        out[tag] = ang
+        del env, pol
+    return out
 
 
 def runtime_estimate(steps, n_trainings, sec_per_20k=240):
