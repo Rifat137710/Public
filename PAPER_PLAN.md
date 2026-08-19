@@ -294,6 +294,7 @@ the earlier reference run exactly.
 | **E4** | Aggressive stress | done | day-structured 169.39 vs paper-style 171.05; droop 165.83 |
 | **E1** | Reproduction of Tables I/II | done | direct action overvolts (**VphMax 1.151** mild) where residual does not |
 | **E11** | Policy P/Q angle | done | mean \|agent − optimal\| **23.6°** mild / **20.1°** aggr; day mean 29.2° / 41.5° vs rating ratio 38.7° |
+| **E13** | Learning curve to 100k | done | aggressive **plateaus**; mild **still improving** at 100k |
 | **E10** | Ablations | done | fleet-in-state does **not** beat voltage-only on IntViol; it uses 2.4× more battery |
 
 **E12 crash and retarget.** `paired_delta` differenced 15 RL rows (3 seeds × 5 scenarios)
@@ -351,6 +352,50 @@ commands the fleet was never going to deliver, which is exactly what the tiny de
 than the voltage constraint, leaving nothing for a voltage projection to do. `shed_q` is
 consistently the better of the two projections (aggressive paired gap to droop +3.36 vs
 +3.95 for `scale`), in the direction E7 predicts, but the effect is small.
+
+### E13 result — the 20k budget is converged at aggressive load, NOT at mild
+
+4 trainings to 100k steps, checkpoints every 20k, 2 seeds × 5 paired scenarios, 192.7 min.
+Guard passed: checkpointed training with interleaved evaluation reproduces `train_on` to 1e-9.
+
+| steps | mild IntViol | vs droop | RL wins | aggr IntViol | vs droop | RL wins |
+|---|---|---|---|---|---|---|
+| 20 000 | 45.05 ± 0.23 | +2.27 | 0/10 | 169.20 ± 0.77 | +3.36 | 0/10 |
+| 40 000 | 44.74 ± 0.23 | +1.97 | 0/10 | 168.21 ± 0.50 | +2.38 | 0/10 |
+| 60 000 | 44.09 ± 0.27 | +1.32 | 0/10 | 168.27 ± 0.38 | +2.44 | 0/10 |
+| 80 000 | 44.33 ± 0.39 | +1.55 | 0/10 | 168.25 ± 0.31 | +2.42 | 0/10 |
+| 100 000 | **43.56 ± 0.27** | **+0.79** | **2/10** | 168.41 ± 0.36 | +2.57 | 0/10 |
+
+**Aggressive: PLATEAU.** 169.20 → 168.41, change −0.79 against a combined 95% CI of 1.13.
+Flat from 40k onward, gap to droop unchanged at ~+2.4, droop wins every paired scenario at
+every checkpoint. The undertraining objection is answered here: droop's advantage under
+aggressive stress survives 5× the training budget.
+
+**Mild: STILL IMPROVING.** 45.05 → 43.56, change −1.48 against a CI of 0.49 — significant and
+not converged at 100k. The gap to droop narrows monotonically (+2.27 → +0.79) and RL takes
+**2/10** paired scenarios at 100k, the first wins anywhere in the study.
+
+**Consequences for the manuscript.**
+
+* **E2's mild claim must be requoted.** "Droop wins every paired scenario at mild load" is
+  true at 20k and false at 100k. Report the curve, quote mild at 100k (43.56, +0.79, 2/10),
+  and state plainly that the mild comparison is unresolved at the budgets tested.
+* **E2's aggressive claim is strengthened**, not weakened — the plateau rules out the
+  undertraining explanation.
+* **C4 (E11, the P/Q angle diagnosis) is now measured on a demonstrably undertrained agent at
+  mild** and needs re-running at 100k before it can carry weight. ~1.5 h, 2 trainings.
+* **C6 (E12) is reinforced at no extra cost.** Every one of the ten E13 rows reports
+  `VphMax 1.050` — the no-overvoltage finding now holds at 5× the training budget.
+* **E3 and E10 stay as reported.** E3's finding is the *shape* of the frontier, which a
+  uniform shift does not change; E10 compares two arms at an identical budget, so the
+  comparison is fair even if both are undertrained. State the budget as a limitation.
+
+**The learning curve strengthens C1 rather than threatening it.** Even the best-trained agent
+in the study moves the mild result by 1.48 p.u.·h, and the whole span between droop and RL at
+100k is 0.79. Against that, the fleet energy constraint costs 38.62 p.u.·h at mild
+(droop unconstrained 4.15 vs constrained 42.77) and 115.69 at aggressive. **The energy
+constraint outweighs the controller choice by roughly 45–50× at both load levels**, and that
+ratio is now established at a training budget five times the headline one.
 
 **Two production results that reversed the QUICK reading**, and supersede it:
 

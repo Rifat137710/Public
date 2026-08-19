@@ -1,0 +1,74 @@
+E13 started 2026-08-19 11:09:10  QUICK=False  TOTAL=100000  CKPTS=(20000, 40000, 60000, 80000, 100000)  N_SCEN=5  SEEDS=(0, 1)
+  ~4 trainings x 100000 steps  ->  approx 147 min of training
+  with rollout overhead: approx 3.1 h wall clock
+  refused as expected: checkpoints must be multiples of chunk=100; got [150]
+  refused as expected: checkpoints must be multiples of chunk=100; got [250]
+  refused as expected: last checkpoint 400 exceeds total_steps 200
+      [guard-ref] 250/1000  1s
+      [guard-ref] 500/1000  1s
+      [guard-ref] 750/1000  2s
+      [guard-ref] 1000/1000  3s
+
+  checkpointed + separate eval env : [44.51, 44.84]
+  train_on reference               : [44.51, 44.84]
+
+GUARD: PASS -- checkpointing does not perturb training
+
+  [E13/mild] training seed=0 to 100000 steps
+      [E13-mild-s0]  20000 steps    542s   IntViol   44.80   Thru   6393
+      [E13-mild-s0]  40000 steps   1112s   IntViol   44.94   Thru   5384
+      [E13-mild-s0]  60000 steps   1701s   IntViol   43.84   Thru   5834
+      [E13-mild-s0]  80000 steps   2300s   IntViol   44.24   Thru   5327
+      [E13-mild-s0] 100000 steps   2916s   IntViol   43.52   Thru   5296
+
+  [E13/mild] training seed=1 to 100000 steps
+      [E13-mild-s1]  20000 steps    544s   IntViol   45.29   Thru   5730
+      [E13-mild-s1]  40000 steps   1124s   IntViol   44.54   Thru   5495
+      [E13-mild-s1]  60000 steps   1698s   IntViol   44.34   Thru   6149
+      [E13-mild-s1]  80000 steps   2289s   IntViol   44.41   Thru   6013
+      [E13-mild-s1] 100000 steps   2887s   IntViol   43.60   Thru   5880
+
+  [mild] IntViol 20000 -> 100000 steps: 45.05 -> 43.56  (change -1.48, combined 95% CI 0.49)
+  VERDICT[mild]: STILL IMPROVING -- more training helps. Report the curve and requote the fixed-budget results at the plateau, not at 20k.
+  reference: droop 42.77   no-V2G baseline 45.61
+
+  [E13/aggr] training seed=0 to 100000 steps
+      [E13-aggr-s0]  20000 steps    540s   IntViol  168.10   Thru   2697
+      [E13-aggr-s0]  40000 steps   1117s   IntViol  167.54   Thru   2556
+      [E13-aggr-s0]  60000 steps   1687s   IntViol  168.78   Thru   3089
+      [E13-aggr-s0]  80000 steps   2275s   IntViol  168.58   Thru   3070
+      [E13-aggr-s0] 100000 steps   2879s   IntViol  168.08   Thru   2891
+
+  [E13/aggr] training seed=1 to 100000 steps
+      [E13-aggr-s1]  20000 steps    539s   IntViol  170.29   Thru   3615
+      [E13-aggr-s1]  40000 steps   1103s   IntViol  168.87   Thru   3040
+      [E13-aggr-s1]  60000 steps   1678s   IntViol  167.76   Thru   3341
+      [E13-aggr-s1]  80000 steps   2270s   IntViol  167.92   Thru   3264
+      [E13-aggr-s1] 100000 steps   2879s   IntViol  168.73   Thru   3462
+
+  [aggr] IntViol 20000 -> 100000 steps: 169.20 -> 168.41  (change -0.79, combined 95% CI 1.13)
+  VERDICT[aggr]: PLATEAU -- the change from 20000 to 100000 steps is inside the confidence interval, so the 20000-step budget is not the binding limitation.
+  reference: droop 165.83   no-V2G baseline 171.21
+
+E13  learning curve  (multi-hub, fleet-constrained, 2 seeds x 5 paired scenarios)
+   case/steps  IntViol  +-95%  vs droop  RL wins  ViolPh  VphMax  Thru(kWh)
+---------------------------------------------------------------------------
+   mild/20000    45.05   0.23     +2.27     0/10    17.0   1.050       6061
+   mild/40000    44.74   0.23     +1.97     0/10    16.4   1.050       5440
+   mild/60000    44.09   0.27     +1.32     0/10    16.8   1.050       5992
+   mild/80000    44.33   0.39     +1.55     0/10    16.9   1.050       5670
+  mild/100000    43.56   0.27     +0.79     2/10    16.8   1.050       5588
+   aggr/20000   169.20   0.77     +3.36     0/10    18.0   1.050       3156
+   aggr/40000   168.21   0.50     +2.38     0/10    18.0   1.050       2798
+   aggr/60000   168.27   0.38     +2.44     0/10    18.0   1.050       3215
+   aggr/80000   168.25   0.31     +2.42     0/10    18.0   1.050       3167
+  aggr/100000   168.41   0.36     +2.57     0/10    18.0   1.050       3176
+
+  The 20000-step rows should sit on top of E2's RL closed-loop numbers for the
+  same seeds -- same agent, same env, same scenarios, checkpoints on chunk
+  boundaries. A mismatch there means the curve is not measuring E2's agent.
+
+### E13 OK   192.7 min
+saved fig_learning_curve.png
+
+done -- send me e13_log.txt and fig_learning_curve.png
