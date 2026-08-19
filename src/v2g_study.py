@@ -690,6 +690,45 @@ def policy_pq_angles(env, policy, scens, ev_constrained=False, s_floor=25.0):
     return per_hour
 
 
+def _pq_report(env, ang, peak, n_scen):
+    """Per-hour rows and day-level stats from a policy_pq_angles result.
+
+    Extracted so E11 and E11b summarize identically by construction. The gap is computed
+    from the underlying floats rather than from the formatted strings the table prints, so
+    it no longer inherits the table's one-decimal rounding -- expect differences of ~0.05 deg
+    against the first E11 run.
+    """
+    from v2g_ref import angle_sweep          # local: v2g_ref imports this module
+    lam = lam_profile(peak)
+    s_max = float(np.hypot(CFG["P_rated"], CFG["Q_rated"]))
+    rows, gaps = [], []
+    for h in env.hours:
+        v = ang[h]
+        if not v:
+            rows.append([h, 0, "-", "-", "-", "-", "-"])
+            continue
+        a = np.array([x for x, _ in v])
+        s = np.array([y for _, y in v])
+        n_abs = int((a < 0).sum())                 # absorbing reactive, not supplying
+        a_w = float(np.average(a, weights=s))      # a 600 kVA hub must outweigh a 26 kVA one
+        s_mean = float(s.mean())
+        # what WAS optimal at the injection level the agent actually chose
+        opt = float(angle_sweep(env, lam[h], s_frac=min(1.0, s_mean / s_max))["best_deg"])
+        rows.append([h, len(v), f"{a_w:.1f}", f"{a.std():.1f}", n_abs,
+                     f"{s_mean:.0f}", f"{opt:.1f}"])
+        gaps.append(abs(a_w - opt))
+    allv = [x for v in ang.values() for x in v]
+    st = {}
+    if allv:
+        a = np.array([x for x, _ in allv])
+        s = np.array([y for _, y in allv])
+        st = dict(n=len(allv), n_poss=len(env.hours) * len(env.hubs) * n_scen,
+                  n_absorb=int((a < 0).sum()),
+                  day_ang=float(np.average(a, weights=s)),
+                  gap=float(np.mean(gaps)) if gaps else float("nan"))
+    return rows, st
+
+
 def E11_policy_pq(control_mode="OFF", steps=20000, n_scen=5, seed=0):
     """Does the learned policy find the voltage-optimal P/Q split that E7b measures?
 
@@ -698,7 +737,6 @@ def E11_policy_pq(control_mode="OFF", steps=20000, n_scen=5, seed=0):
     regardless of loading, it has not learned the allocation -- it is just scaling a fixed
     power factor.
     """
-    from v2g_ref import angle_sweep          # local: v2g_ref imports this module
     out = {}
     for tag, peak in [("mild", CFG["peak_mild"]), ("aggr", CFG["peak_aggr"])]:
         scens = make_scenarios(n_scen, peak, seed0=0)
@@ -708,48 +746,137 @@ def E11_policy_pq(control_mode="OFF", steps=20000, n_scen=5, seed=0):
         print(f"\n  [E11/{tag}] training direct-action agent")
         pol = train_on(env, steps, seed=seed, label=f"E11-{tag}")
         ang = policy_pq_angles(env, pol, scens)
-        lam = lam_profile(peak)
-        s_max = float(np.hypot(CFG["P_rated"], CFG["Q_rated"]))
-
-        rows = []
-        for h in env.hours:
-            v = ang[h]
-            if not v:
-                rows.append([h, 0, "-", "-", "-", "-", "-"])
-                continue
-            a = np.array([x for x, _ in v])
-            s = np.array([y for _, y in v])
-            n_abs = int((a < 0).sum())                 # absorbing reactive, not supplying
-            # S-weighted: a hub at 600 kVA should not count the same as one at 26 kVA
-            a_w = float(np.average(a, weights=s))
-            s_mean = float(s.mean())
-            # what WAS optimal at the injection level the agent actually chose
-            opt = angle_sweep(env, lam[h], s_frac=min(1.0, s_mean / s_max))
-            rows.append([h, len(v), f"{a_w:.1f}", f"{a.std():.1f}", n_abs,
-                         f"{s_mean:.0f}", f"{opt['best_deg']:.1f}"])
+        rows, st = _pq_report(env, ang, peak, n_scen)
         M.fmt_table(
             f"E11  policy P/Q angle by hour -- {tag}  (deg; 0=pure P, 90=pure Q, <0=absorbing)",
             ["h", "n", "angle_Swtd", "sd", "n_absorb", "S_mean kVA", "optimal_deg"], rows)
-
-        allv = [x for v in ang.values() for x in v]
-        if allv:
-            a = np.array([x for x, _ in allv]); s = np.array([y for _, y in allv])
-            print(f"    samples {len(allv)} of {len(env.hours) * len(env.hubs) * len(scens)} "
-                  f"possible   |   absorbing reactive in {int((a < 0).sum())}")
-            print(f"    day S-weighted mean {np.average(a, weights=s):.1f} deg   |   "
+        if st:
+            print(f"    samples {st['n']} of {st['n_poss']} possible   |   "
+                  f"absorbing reactive in {st['n_absorb']}")
+            print(f"    day S-weighted mean {st['day_ang']:.1f} deg   |   "
                   f"hub rating ratio 38.7 deg")
-            gaps = [abs(float(r[2]) - float(r[6])) for r in rows
-                    if r[1] and r[2] != "-" and r[6] != "-"]
-            if gaps:
-                print(f"    mean |agent - optimal| = {np.mean(gaps):.1f} deg over "
-                      f"{len(gaps)} hours")
-                print("    A small gap means the agent found the allocation. A gap that")
-                print("    tracks the rating ratio (38.7) means it is scaling a fixed")
-                print("    power factor rather than allocating.")
+            print(f"    mean |agent - optimal| = {st['gap']:.1f} deg")
+            print("    A small gap means the agent found the allocation. A gap that")
+            print("    tracks the rating ratio (38.7) means it is scaling a fixed")
+            print("    power factor rather than allocating.")
         else:
             print("    no usable samples -- every hub stayed below the reporting floor")
         out[tag] = ang
         del env, pol
+    return out
+
+
+# --------------------------------------------------------------------------- #
+# E11b -- does the P/Q allocation improve with training budget?
+# --------------------------------------------------------------------------- #
+def E11b_policy_pq_curve(control_mode="OFF", total_steps=100000, checkpoints=None,
+                         n_scen=5, seeds=(0, 1), chunk=5000):
+    """The angle gap as a function of training budget, not at one arbitrary point.
+
+    WHY THIS SUPERSEDES E11. E11 measured the allocation at 20k steps. E13 then showed the
+    mild agent is still improving at 100k -- IntViol falling 45.05 -> 43.56 with the gap to
+    droop narrowing from +2.27 to +0.79 -- so E11's mild number describes an agent we now
+    know is not converged, and the claim "the policy has not learned the allocation" cannot
+    rest on it. This re-measures on E13's checkpoint grid, so the allocation is reported as a
+    trajectory: if the gap shrinks with budget the original reading was a training artifact,
+    and if it holds flat the diagnosis stands at five times the budget.
+
+    Same two design points as E13, for the same reasons: checkpoints on chunk boundaries so
+    the RNG is consumed as train_on consumes it, and a separate env for evaluation so
+    stable-baselines3's cached observation is never invalidated mid-run. Both feeders address
+    the one global OpenDSS circuit, which is safe here only because the two envs are built
+    with identical topology -- the separation that matters is the Python-side fleet, clock and
+    RNG state, which is exactly what the E13 guard verified to 1e-9.
+    """
+    if checkpoints is None:
+        checkpoints = tuple(range(20000, total_steps + 1, 20000))
+    checkpoints = tuple(sorted(checkpoints))
+    bad = [c for c in checkpoints if c % chunk]
+    if bad:
+        raise ValueError(f"checkpoints must be multiples of chunk={chunk}; got {bad}")
+    if checkpoints[-1] > total_steps:
+        raise ValueError(f"last checkpoint {checkpoints[-1]} exceeds total_steps {total_steps}")
+
+    out, rows = {}, []
+    for tag, peak in [("mild", CFG["peak_mild"]), ("aggr", CFG["peak_aggr"])]:
+        scens = make_scenarios(n_scen, peak, seed0=0)
+        kw = dict(mode="direct", w_deg=0.0, control_mode=control_mode,
+                  peak_range=(peak * 0.8, peak * 1.2))
+        train_env = build_env(CFG["hub_buses_multi"], **kw)
+        eval_env = build_env(CFG["hub_buses_multi"], **kw)
+
+        per_ck = {c: [] for c in checkpoints}
+        last_rows = {}
+        for sd in seeds:
+            print(f"\n  [E11b/{tag}] training direct-action seed={sd} to "
+                  f"{checkpoints[-1]} steps")
+            m = make_sac(train_env, seed=sd)
+            t0, done = time.time(), 0
+            for ck in checkpoints:
+                while done < ck:
+                    n = min(chunk, ck - done)
+                    m.learn(total_timesteps=n, reset_num_timesteps=(done == 0),
+                            progress_bar=False)
+                    done += n
+                r, st = _pq_report(eval_env, policy_pq_angles(eval_env, m, scens),
+                                   peak, n_scen)
+                if st:
+                    per_ck[ck].append(st)
+                if ck == checkpoints[-1]:
+                    last_rows[sd] = r
+                g = st.get("gap", float("nan")) if st else float("nan")
+                d = st.get("day_ang", float("nan")) if st else float("nan")
+                print(f"      [E11b-{tag}-s{sd}] {done:6d} steps  {time.time()-t0:5.0f}s   "
+                      f"|gap| {g:5.1f} deg   day angle {d:5.1f} deg   "
+                      f"n {st.get('n', 0) if st else 0}", flush=True)
+            del m
+
+        for ck in checkpoints:
+            sts = per_ck[ck]
+            if not sts:
+                rows.append([f"{tag}/{ck}", "-", "-", "-", "-", "-"])
+                continue
+            g = np.array([x["gap"] for x in sts])
+            d = np.array([x["day_ang"] for x in sts])
+            ci = (1.96 * g.std(ddof=1) / np.sqrt(g.size)) if g.size > 1 else 0.0
+            rows.append([f"{tag}/{ck}", f"{g.mean():.1f}", f"{ci:.1f}",
+                         f"{d.mean():.1f}", f"{int(np.mean([x['n'] for x in sts]))}",
+                         f"{int(np.mean([x['n_absorb'] for x in sts]))}"])
+            out[f"{tag}/{ck}"] = sts
+
+        for sd, r in last_rows.items():
+            M.fmt_table(f"E11b  per-hour P/Q angle at {checkpoints[-1]} steps -- {tag}, "
+                        f"seed {sd}  (deg; 0=pure P, 90=pure Q, <0=absorbing)",
+                        ["h", "n", "angle_Swtd", "sd", "n_absorb", "S_mean kVA",
+                         "optimal_deg"], r)
+
+        if per_ck[checkpoints[0]] and per_ck[checkpoints[-1]]:
+            f = np.array([x["gap"] for x in per_ck[checkpoints[0]]])
+            l = np.array([x["gap"] for x in per_ck[checkpoints[-1]]])
+            band = 0.0
+            for v in (f, l):
+                if v.size > 1:
+                    band += 1.96 * v.std(ddof=1) / np.sqrt(v.size)
+            print(f"\n  [{tag}] |agent - optimal| {checkpoints[0]} -> {checkpoints[-1]} "
+                  f"steps: {f.mean():.1f} -> {l.mean():.1f} deg  "
+                  f"(change {l.mean() - f.mean():+.1f}, combined 95% CI {band:.1f})")
+            if abs(l.mean() - f.mean()) <= band:
+                print(f"  VERDICT[{tag}]: FLAT -- the allocation gap does not close with "
+                      f"budget, so E11's diagnosis stands at "
+                      f"{checkpoints[-1] // checkpoints[0]}x the training.")
+            elif l.mean() < f.mean():
+                print(f"  VERDICT[{tag}]: CLOSING -- the agent learns the allocation given "
+                      f"budget. E11's reading was a training artifact and must be requoted.")
+            else:
+                print(f"  VERDICT[{tag}]: WIDENING -- more training moves the agent further "
+                      f"from the voltage-optimal split, which needs saying explicitly.")
+        del train_env, eval_env
+
+    M.fmt_table(f"E11b  P/Q allocation vs training budget  ({len(seeds)} seeds x {n_scen} "
+                f"scenarios; hub rating ratio 38.7 deg)",
+                ["case/steps", "|gap| deg", "+-95%", "day_ang", "n_samp", "n_absorb"], rows)
+    print("\n  |gap| is the mean over hours of |agent angle - voltage-optimal angle|,")
+    print("  both S-weighted and both evaluated at the injection level the agent chose.")
     return out
 
 
