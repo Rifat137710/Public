@@ -1,180 +1,261 @@
-"""Figures for the ISGT Asia 2026 paper.
+"""Build the paper figures directly from the production result files.
 
-Numbers are transcribed from the production logs in ../results/ so the figures cannot
-silently drift from the tables:
+Every value plotted here is read from ../results/production/*.pkl, which are the
+pickles written by the notebooks during the run of 2026-08-19, or parsed from
+../results/e11b_log_20260819.txt for the per-hour angle tables (E11b stores only
+per-seed summaries in its pickle). Nothing is transcribed by hand, so the figures
+and the tables in the paper cannot drift apart.
 
-  run_log_20260819.txt   E0, E2, E3, E6, E8, E9, E5/E7, E1, E10, E11
-  e12_log_20260819.txt   E12
-  e13_log_20260819.txt   E13
+    python3 make_figs.py
 
-Everything is drawn at IEEE column width (3.5 in) or full width (7.16 in), 8 pt labels,
-so nothing has to be rescaled inside LaTeX -- rescaling is what makes conference figures
-illegible.
+Writes fig1..fig5 as PDF (for LaTeX) and PNG (for quick review).
 """
+
+import os
+import pickle
+import re
+
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+HERE = os.path.dirname(os.path.abspath(__file__))
+RES = os.path.join(HERE, "..", "results")
+PROD = os.path.join(RES, "production")
+
+COL, DBL = 3.5, 7.16          # IEEE single- and double-column widths, inches
+
 plt.rcParams.update({
-    "font.size": 8, "axes.labelsize": 8, "axes.titlesize": 8.5,
-    "xtick.labelsize": 7.5, "ytick.labelsize": 7.5, "legend.fontsize": 7,
-    "font.family": "serif", "font.serif": ["DejaVu Serif"],
-    "axes.grid": True, "grid.alpha": 0.25, "grid.linewidth": 0.5,
-    "savefig.dpi": 400, "savefig.bbox": "tight", "savefig.pad_inches": 0.02,
+    "font.size": 8,
+    "axes.titlesize": 8,
+    "axes.labelsize": 8,
+    "xtick.labelsize": 7,
+    "ytick.labelsize": 7,
+    "legend.fontsize": 7,
+    "lines.linewidth": 1.1,
+    "lines.markersize": 3.5,
+    "axes.grid": True,
+    "grid.alpha": 0.3,
+    "grid.linewidth": 0.4,
+    "figure.dpi": 150,
 })
-COL, FULL = 3.5, 7.16
+
+
+def load(name):
+    with open(os.path.join(PROD, name), "rb") as fh:
+        return pickle.load(fh)
+
+
+R = load("results.pkl")["results"]
+E13 = load("e13_results.pkl")["E13"]
+
+
+def mean_ci(rows, key="IntViol"):
+    v = np.array([r[key] for r in rows], dtype=float)
+    ci = 1.96 * v.std(ddof=1) / np.sqrt(v.size) if v.size > 1 else 0.0
+    return v.mean(), ci
+
+
+def save(fig, stem):
+    fig.savefig(os.path.join(HERE, stem + ".pdf"), bbox_inches="tight")
+    fig.savefig(os.path.join(HERE, stem + ".png"), bbox_inches="tight", dpi=200)
+    plt.close(fig)
+    print("wrote", stem)
+
 
 # --------------------------------------------------------------------------- #
-# Fig. 1 -- the decomposition. The paper's central claim in one picture.
+# Fig. 1  Where the violation goes: ceiling, energy limit, controller span
 # --------------------------------------------------------------------------- #
-# integrated two-sided violation, p.u.-h, multi-hub, day total
-MILD = dict(base=45.61, ceil=0.00, droop_u=4.15, droop=42.77, rl=43.56)
-AGGR = dict(base=171.21, ceil=17.99, droop_u=50.14, droop=165.83, rl=168.41)
-# throughput, kWh
-THRU = dict(mild=(9264, 1342), aggr=(27814, 1582))       # (unconstrained want, delivered)
+def fig1():
+    E2 = R["E2 multi-hub fleet-constrained"]
+    E8 = R["E8 optimized ceiling"]
+    E13m = mean_ci(E13["mild/100000"])[0]
+    E13a = mean_ci(E13["aggr/100000"])[0]
 
-fig, axes = plt.subplots(1, 2, figsize=(FULL, 2.5))
-labels = ["No\nV2G", "Physics\nceiling", "Droop\n(energy\nunlimited)",
-          "Droop\n(fleet)", "RL\n(fleet)"]
-keys = ["base", "ceil", "droop_u", "droop", "rl"]
-cols = ["0.55", "tab:green", "tab:olive", "tab:red", "tab:blue"]
+    def col(case, e8key):
+        d = E2[case]
+        return [
+            mean_ci(d["Baseline"])[0],
+            sum(v["IntViol"] for v in E8[e8key]["raw"].values()),
+            mean_ci(d["Droop (unconstr)"])[0],
+            mean_ci(d["Droop"])[0],
+        ]
 
-for ax, (D, name) in zip(axes, ((MILD, "(a) mild peak"), (AGGR, "(b) aggressive peak"))):
-    v = [D[k] for k in keys]
-    bars = ax.bar(range(5), v, color=cols, width=0.68, edgecolor="k", linewidth=0.4)
-    for i, (b, val) in enumerate(zip(bars, v)):
-        ax.text(b.get_x() + b.get_width() / 2, val + max(v) * 0.025, f"{val:.2f}",
-                ha="center", va="bottom", fontsize=7)
-    ax.set_xticks(range(5)); ax.set_xticklabels(labels, fontsize=6.2)
+    labels = ["No V2G", "Achievable\nceiling", "Droop,\nenergy\nunlimited",
+              "Droop,\nreal fleet", "Learned,\nreal fleet"]
+    mild = col("mild", "multi_mild") + [E13m]
+    aggr = col("aggr", "multi_aggr") + [E13a]
+
+    fig, axes = plt.subplots(1, 2, figsize=(DBL, 2.5))
+    for ax, vals, ttl in ((axes[0], mild, "Mild peak"),
+                          (axes[1], aggr, "Aggressive peak")):
+        x = np.arange(len(vals))
+        ax.bar(x, vals, width=0.62, color="0.55", edgecolor="black", linewidth=0.6)
+        ax.set_xticks(x)
+        ax.set_xticklabels(labels)
+        ax.set_ylim(0, max(vals) * 1.22)
+        for xi, v in zip(x, vals):
+            ax.text(xi, v + max(vals) * 0.025, f"{v:.2f}", ha="center", fontsize=7)
+        ax.set_title(ttl)
+        ax.set_ylabel("integrated violation (p.u.$\\cdot$h)")
+    fig.tight_layout()
+    save(fig, "fig1_decomposition")
+
+
+# --------------------------------------------------------------------------- #
+# Fig. 2  Hourly worst-phase voltage: untreated vs optimized five-hub dispatch
+# --------------------------------------------------------------------------- #
+def fig2():
+    E5 = R["E5+E7 ceiling and P/Q"]
+    E8 = R["E8 optimized ceiling"]
+
+    fig, axes = plt.subplots(1, 2, figsize=(COL, 1.85), sharey=False)
+    for ax, key, ttl in ((axes[0], "multi_mild", "Mild peak"),
+                         (axes[1], "multi_aggr", "Aggressive peak")):
+        ph5 = E5[key]["per_hour"]
+        raw = E8[key]["raw"]
+        hours = sorted(raw)
+        base = [ph5[h]["PQ"]["Vmin"][0] for h in hours]
+        opt = [raw[h]["Vmin"] for h in hours]
+        ax.plot(hours, base, "k--", label="no V2G")
+        ax.plot(hours, opt, "k-", label="optimized dispatch")
+        ax.axhline(0.95, color="0.45", ls=":", lw=0.9, label="0.95 p.u.")
+        ax.set_xlabel("hour of day")
+        ax.set_title(ttl)
+        ax.set_xticks(range(6, 24, 6))
+    axes[0].set_ylabel("worst-phase voltage (p.u.)")
+    h, l = axes[0].get_legend_handles_labels()
+    fig.legend(h, l, loc="lower center", ncol=3, bbox_to_anchor=(0.5, -0.13),
+               frameon=False, handlelength=1.5, columnspacing=1.0)
+    fig.tight_layout()
+    save(fig, "fig2_ceiling")
+
+
+# --------------------------------------------------------------------------- #
+# Fig. 3  Violation against training budget
+# --------------------------------------------------------------------------- #
+def fig3():
+    ckpts = [20000, 40000, 60000, 80000, 100000]
+    fig, axes = plt.subplots(1, 2, figsize=(COL, 1.85))
+    for ax, case, ttl in ((axes[0], "mild", "Mild peak"),
+                          (axes[1], "aggr", "Aggressive peak")):
+        m = [mean_ci(E13[f"{case}/{c}"]) for c in ckpts]
+        y = [a for a, _ in m]
+        e = [b for _, b in m]
+        dr = mean_ci(E13[f"{case}/droop"])[0]
+        bl = mean_ci(E13[f"{case}/baseline"])[0]
+        p1 = ax.errorbar(ckpts, y, yerr=e, fmt="ko-", capsize=2.5,
+                         label="learned policy")
+        p2 = ax.axhline(dr, color="0.35", ls="--", lw=1.0, label="droop")
+        p3 = ax.axhline(bl, color="0.55", ls=":", lw=1.0, label="no V2G")
+        lo = min(min(y) - max(e) * 2, dr)
+        hi = max(max(y) + max(e) * 2, bl)
+        pad = (hi - lo) * 0.30
+        ax.set_ylim(lo - pad * 0.3, hi + pad)
+        ax.set_xlabel("training steps (thousands)")
+        ax.set_ylabel("integrated violation (p.u.$\\cdot$h)")
+        ax.set_title(ttl)
+        ax.set_xticks(ckpts[::2])
+        ax.set_xticklabels([str(c // 1000) for c in ckpts[::2]])
+        ax.legend(handles=[p1, p2, p3], loc="upper right", framealpha=0.95,
+                  handlelength=1.4, borderpad=0.3, labelspacing=0.25)
+    fig.tight_layout()
+    save(fig, "fig3_learning")
+
+
+# --------------------------------------------------------------------------- #
+# Fig. 5  Violation against battery throughput as the wear weight is swept
+# --------------------------------------------------------------------------- #
+def fig4():
+    pts = R["E3 frontier mild"]
+    rl = [p for p in pts if p["w"] != "droop"]
+    dr = [p for p in pts if p["w"] == "droop"]
+    rl.sort(key=lambda p: p["w"])
+
+    # the low-weight points sit almost on top of one another, so the labels are
+    # placed on alternating sides to keep them readable
+    offs = {0.0: (-3, -11), 1.0: (-13, 3), 3.0: (-13, -4), 10.0: (-3, 6),
+            30.0: (5, -3), 100.0: (-3, 6), 300.0: (-3, 6)}
+
+    fig, ax = plt.subplots(figsize=(COL, 2.4))
+    ax.plot([p["Thru"] for p in rl], [p["IntViol"] for p in rl], "ko-",
+            label="learned policy, wear weight swept")
+    for p in rl:
+        ax.annotate(f'{p["w"]:g}', (p["Thru"], p["IntViol"]), fontsize=6.5,
+                    xytext=offs.get(p["w"], (4, 4)), textcoords="offset points")
+    if dr:
+        ax.plot([p["Thru"] for p in dr], [p["IntViol"] for p in dr], "s",
+                ms=6, color="0.35", label="droop")
+    ax.set_xlabel("battery throughput (kWh/day)")
     ax.set_ylabel("integrated violation (p.u.$\\cdot$h)")
-    ax.set_title(name)
-    ax.set_xlim(-0.6, 6.9)
-    ax.set_ylim(0, max(v) * 1.20)
-    # guide lines out to the annotation lane, then two vertical spans
-    for y in (D["droop_u"], D["droop"], D["rl"]):
-        ax.plot([-0.4, 6.35], [y, y], color="0.6", lw=0.5, ls=(0, (4, 3)), zorder=0)
-    # energy span
-    ax.annotate("", xy=(4.85, D["droop_u"]), xytext=(4.85, D["droop"]),
-                arrowprops=dict(arrowstyle="<->", color="k", lw=1.0))
-    ax.text(5.0, (D["droop_u"] + D["droop"]) / 2,
-            f"energy\n{D['droop']-D['droop_u']:.1f}",
-            fontsize=6.5, va="center", ha="left")
-    # control span -- deliberately drawn to the same scale, which is the point
-    lo_c, hi_c = sorted((D["droop"], D["rl"]))
-    ax.plot([6.15, 6.15], [lo_c, hi_c], color="k", lw=2.2, solid_capstyle="butt")
-    ax.annotate(f"control {abs(D['rl']-D['droop']):.1f}",
-                xy=(6.15, (lo_c + hi_c) / 2), xytext=(6.05, max(v) * 0.60),
-                fontsize=6.5, ha="right", va="center", rotation=90,
-                arrowprops=dict(arrowstyle="->", color="k", lw=0.7,
-                                shrinkA=2, shrinkB=2))
+    ax.set_xlim(1000, 7300)
+    ax.legend(loc="lower right")
+    fig.tight_layout()
+    save(fig, "fig5_frontier")
 
-fig.tight_layout()
-fig.savefig("fig1_decomposition.pdf"); fig.savefig("fig1_decomposition.png", dpi=200)
-print("fig1_decomposition.pdf")
 
 # --------------------------------------------------------------------------- #
-# Fig. 2 -- achievable ceiling per hour (E8 / E5), multi-hub
+# Fig. 4  Commanded injection angle against the voltage-optimal angle
 # --------------------------------------------------------------------------- #
-H = list(range(6, 24))
-# worst-phase voltage with no injection, and best reachable under optimized dispatch
-NOINJ_M = [.7756, .7565, .7409, .7301, .7194, .7126, .7075, .7050, .7009, .6960,
-           .6885, .6817, .6779, .6830, .6960, .7276, .7529, .7756]
-OPT_M = [1.05, 1.05, 1.05, .9521, .9524, .9504, .9507, .9524, .9535, .9519,
-         .9507, .9508, .9511, .9528, .9519, .9503, 1.05, 1.05]
-NOINJ_A = [.8194, .7565, .6960, .6605, .6316, .6170, .6060, .5989, .5883, .5749,
-           .5567, .5417, .5316, .5442, .5749, .6316, .6817, .8194]
-OPT_A = [.9518, .9529, .9469, .9146, .8876, .8662, .8458, .8323, .8158, .7969,
-         .7864, .7421, .7290, .7466, .7969, .9011, .9508, .9518]
+_HDR = re.compile(r"per-hour P/Q angle at (\d+) steps -- (\w+), seed (\d+)")
 
-fig, ax = plt.subplots(figsize=(COL, 2.15))
-ax.plot(H, OPT_M, "o-", ms=3, lw=1.2, color="tab:blue", label="reachable, mild")
-ax.plot(H, NOINJ_M, "--", lw=1.0, color="tab:blue", alpha=0.65, label="no V2G, mild")
-ax.plot(H, OPT_A, "s-", ms=3, lw=1.2, color="tab:red", label="reachable, aggressive")
-ax.plot(H, NOINJ_A, ":", lw=1.0, color="tab:red", alpha=0.75, label="no V2G, aggressive")
-ax.axhline(0.95, color="k", lw=0.9, ls="-.", label="ANSI lower limit")
-ax.set_xlabel("hour of day"); ax.set_ylabel("worst-phase voltage (p.u.)")
-ax.set_xlim(6, 23); ax.set_xticks(range(6, 24, 3))
-ax.legend(loc="lower left", ncol=1, framealpha=0.9)
-fig.tight_layout(); fig.savefig("fig2_ceiling.pdf"); fig.savefig("fig2_ceiling.png", dpi=200)
-print("fig2_ceiling.pdf")
 
-# --------------------------------------------------------------------------- #
-# Fig. 3 -- learning curve (E13)
-# --------------------------------------------------------------------------- #
-CK = [20000, 40000, 60000, 80000, 100000]
-M_MU = [45.05, 44.74, 44.09, 44.33, 43.56]; M_CI = [.23, .23, .27, .39, .27]
-A_MU = [169.20, 168.21, 168.27, 168.25, 168.41]; A_CI = [.77, .50, .38, .31, .36]
+def parse_e11b_tables(path):
+    """Return {(case, seed): {hour: (agent_angle, optimal_angle)}} at the last budget."""
+    out, cur = {}, None
+    with open(path) as fh:
+        for line in fh:
+            m = _HDR.search(line)
+            if m:
+                cur = {}
+                out[(m.group(2), int(m.group(3)))] = cur
+                continue
+            if cur is None:
+                continue
+            f = line.split()
+            if len(f) == 7 and f[0].isdigit():
+                if f[2] == "-":
+                    continue
+                cur[int(f[0])] = (float(f[2]), float(f[6]))
+            elif line.strip() and not line.lstrip().startswith(("h ", "---")):
+                if not line.strip()[0].isdigit():
+                    cur = None
+    return out
 
-fig, axes = plt.subplots(1, 2, figsize=(FULL, 2.1))
-for ax, (mu, ci, dr, bs, nm) in zip(
-        axes, ((M_MU, M_CI, 42.77, 45.61, "(a) mild peak"),
-               (A_MU, A_CI, 165.83, 171.21, "(b) aggressive peak"))):
-    ax.errorbar([c / 1000 for c in CK], mu, yerr=ci, fmt="o-", ms=3.5, lw=1.2,
-                capsize=2.5, color="tab:blue", label="learned policy")
-    ax.axhline(dr, color="tab:red", ls="--", lw=1.1, label=f"droop ({dr:.1f})")
-    ax.axhline(bs, color="0.45", ls=":", lw=1.1, label=f"no V2G ({bs:.1f})")
-    ax.set_xlabel("training steps (thousands)")
-    ax.set_ylabel("integrated violation (p.u.$\\cdot$h)")
-    lo = min(min(mu) - max(ci), dr); hi = max(max(mu) + max(ci), bs)
-    pad = (hi - lo) * 0.12
-    ax.set_ylim(lo - pad, hi + pad * 2.6)
-    ax.set_title(nm); ax.legend(loc="upper right", framealpha=0.95)
-fig.tight_layout(); fig.savefig("fig3_learning.pdf"); fig.savefig("fig3_learning.png", dpi=200)
-print("fig3_learning.pdf")
 
-# --------------------------------------------------------------------------- #
-# Fig. 4 -- degradation frontier (E3), mild
-# --------------------------------------------------------------------------- #
-W = [0, 1, 3, 10, 30, 100, 300]
-IV = [44.94, 45.18, 44.85, 46.01, 44.83, 45.08, 45.45]
-TH = [6188, 6048, 5948, 6401, 6315, 5008, 2449]
+def fig5():
+    tab = parse_e11b_tables(os.path.join(RES, "e11b_log_20260819.txt"))
+    fig, axes = plt.subplots(1, 2, figsize=(DBL, 2.5))
+    for ax, case, ttl, ylim in ((axes[0], "mild", "Mild peak", (-25, 95)),
+                                (axes[1], "aggr", "Aggressive peak", (-25, 95))):
+        seeds = [s for (c, s) in tab if c == case]
+        hours = sorted({h for s in seeds for h in tab[(case, s)]})
+        ag, op = [], []
+        for h in hours:
+            a = [tab[(case, s)][h][0] for s in seeds if h in tab[(case, s)]]
+            o = [tab[(case, s)][h][1] for s in seeds if h in tab[(case, s)]]
+            ag.append(np.mean(a))
+            op.append(np.mean(o))
+        ax.plot(hours, op, "ks--", label="voltage-optimal", markerfacecolor="white")
+        ax.plot(hours, ag, "ko-", label="commanded by policy")
+        ax.axhline(0, color="0.4", lw=0.8, label="pure active power")
+        ax.axhline(38.7, color="0.55", ls=":", lw=0.9, label="hub rating ratio")
+        ax.set_xlabel("hour of day")
+        ax.set_ylabel("injection angle (deg)")
+        ax.set_title(ttl)
+        ax.set_ylim(*ylim)
+        ax.set_xticks(range(6, 24, 2))
+    h, l = axes[0].get_legend_handles_labels()
+    fig.legend(h, l, loc="lower center", ncol=4, bbox_to_anchor=(0.5, -0.09),
+               frameon=False)
+    fig.tight_layout()
+    save(fig, "fig4_pq")
 
-fig, ax = plt.subplots(figsize=(COL, 2.1))
-ax.plot(TH, IV, "o", ms=5, color="tab:blue")
-OFF = {0: (4, -8), 1: (2, 5), 3: (-9, -8), 10: (-4, 6), 30: (5, -3),
-       100: (3, 5), 300: (3, 5)}
-for w, t, v in zip(W, TH, IV):
-    ax.annotate(f"{w:g}", (t, v), fontsize=6.5, xytext=OFF[w],
-                textcoords="offset points")
-ax.plot([TH[0], TH[-1]], [IV[0], IV[-1]], "-", lw=1.0, color="tab:blue", alpha=0.5)
-ax.plot(1342, 42.77, "s", ms=6, color="tab:red", label="droop")
-ax.axhspan(min(IV), max(IV), color="tab:blue", alpha=0.08)
-ax.text(3550, max(IV) - 0.07, "2.6% violation band", fontsize=6.5,
-        color="tab:blue")
-ax.set_xlabel("battery throughput (kWh/day)")
-ax.set_ylabel("integrated violation (p.u.$\\cdot$h)")
-ax.legend(loc="lower right")
-fig.tight_layout(); fig.savefig("fig4_frontier.pdf"); fig.savefig("fig4_frontier.png", dpi=200)
-print("fig4_frontier.pdf")
 
-# --------------------------------------------------------------------------- #
-# Fig. 5 -- P/Q allocation (E11 at 20k; refreshed from E11b when it lands)
-# --------------------------------------------------------------------------- #
-HRS = list(range(6, 24))
-AG_M = [-66.9, 50.4, 44.8, 44.3, 41.0, 45.7, 37.8, 35.1, 42.8, 43.9, 47.9, 51.8,
-        43.8, 36.4, 31.0, 16.5, 5.2, 5.7]
-OP_M = [65.0, 30.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 30.0, 35.0, 35.0, 35.0,
-        35.0, 35.0, 35.0, 30.0, 75.0, 90.0]
-AG_A = [12.3, 15.8, 24.1, 59.3, 65.1, 64.1, 61.1, 59.0, 55.5, 54.6, 53.0, 51.1,
-        50.3, 50.6, 50.6, 51.0, 43.5, -9.9]
-OP_A = [30.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0, 35.0,
-        40.0, 40.0, 35.0, 35.0, 35.0, 35.0]
-
-fig, axes = plt.subplots(1, 2, figsize=(FULL, 2.1))
-for ax, (ag, op, nm) in zip(axes, ((AG_M, OP_M, "(a) mild peak"),
-                                   (AG_A, OP_A, "(b) aggressive peak"))):
-    ax.plot(HRS, ag, "o-", ms=3, lw=1.2, color="tab:blue", label="policy (S-weighted)")
-    ax.plot(HRS, op, "s--", ms=3, lw=1.2, color="tab:green", label="voltage-optimal")
-    ax.axhline(38.7, color="tab:red", ls=":", lw=1.1, label="hub rating ratio")
-    ax.axhline(0, color="k", lw=0.7)
-    ax.set_xlabel("hour of day"); ax.set_ylabel("injection angle (deg)")
-    ax.set_xlim(6, 23); ax.set_xticks(range(6, 24, 3))
-    lo = min(min(ag), min(op)); hi = max(max(ag), max(op))
-    ax.set_ylim(lo - (hi - lo) * 0.10, hi + (hi - lo) * 0.12)
-    ax.set_title(nm)
-h, l = axes[0].get_legend_handles_labels()
-fig.legend(h, l, loc="lower center", ncol=3, frameon=False,
-           bbox_to_anchor=(0.5, -0.06), handlelength=1.6, columnspacing=1.6)
-fig.tight_layout(); fig.savefig("fig5_pq.pdf"); fig.savefig("fig5_pq.png", dpi=200)
-print("fig5_pq.pdf")
+if __name__ == "__main__":
+    fig1()
+    fig2()
+    fig3()
+    fig4()
+    fig5()

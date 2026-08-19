@@ -1,0 +1,159 @@
+E11b started 2026-08-19 17:18:46  QUICK=False  TOTAL=100000  CKPTS=(20000, 40000, 60000, 80000, 100000)  N_SCEN=5  SEEDS=(0, 1)
+  ~4 trainings x 100000 steps  ->  approx 147 min of training
+  with rollout overhead: approx 3.1 h wall clock
+  refused as expected: checkpoints must be multiples of chunk=100; got [150]
+  refused as expected: checkpoints must be multiples of chunk=100; got [250]
+  refused as expected: last checkpoint 400 exceeds total_steps 200
+      [guard-ref] 250/1000  1s
+      [guard-ref] 500/1000  1s
+      [guard-ref] 750/1000  2s
+      [guard-ref] 1000/1000  3s
+
+  checkpointed + separate eval env : [47.62, 47.91]
+  train_on reference               : [47.62, 47.91]
+
+GUARD: PASS -- checkpointing does not perturb training
+
+  [E11b/mild] training direct-action seed=0 to 100000 steps
+      [E11b-mild-s0]  20000 steps    551s   |gap|  23.6 deg   day angle  29.2 deg   n 284
+      [E11b-mild-s0]  40000 steps   1134s   |gap|  12.3 deg   day angle  28.3 deg   n 260
+      [E11b-mild-s0]  60000 steps   1732s   |gap|  23.0 deg   day angle  14.3 deg   n 316
+      [E11b-mild-s0]  80000 steps   2341s   |gap|  17.2 deg   day angle  18.3 deg   n 294
+      [E11b-mild-s0] 100000 steps   2967s   |gap|  11.3 deg   day angle  27.3 deg   n 254
+
+  [E11b/mild] training direct-action seed=1 to 100000 steps
+      [E11b-mild-s1]  20000 steps    546s   |gap|  29.4 deg   day angle   6.3 deg   n 338
+      [E11b-mild-s1]  40000 steps   1128s   |gap|  27.9 deg   day angle  10.1 deg   n 327
+      [E11b-mild-s1]  60000 steps   1715s   |gap|  25.5 deg   day angle  15.0 deg   n 289
+      [E11b-mild-s1]  80000 steps   2319s   |gap|  26.5 deg   day angle  12.7 deg   n 301
+      [E11b-mild-s1] 100000 steps   2932s   |gap|  30.2 deg   day angle  10.4 deg   n 303
+
+E11b  per-hour P/Q angle at 100000 steps -- mild, seed 0  (deg; 0=pure P, 90=pure Q, <0=absorbing)
+   h   n  angle_Swtd    sd  n_absorb  S_mean kVA  optimal_deg
+-------------------------------------------------------------
+   6   6        19.6  36.8         1         200         45.0
+   7   8        26.5  52.1         3         211         35.0
+   8  17        18.5  43.9         6         446         30.0
+   9  12        32.9  25.0         2         498         30.0
+  10  15        23.3  39.7         4         498         30.0
+  11  15        33.9  26.2         2         515         30.0
+  12  14        28.6  35.3         2         511         30.0
+  13  15        22.0  35.6         4         490         30.0
+  14  16        28.4  35.9         4         502         30.0
+  15  15        22.4  33.9         5         536         30.0
+  16  18        38.2  16.1         1         505         30.0
+  17  19        33.7  21.4         2         526         30.0
+  18  17        31.5  25.1         3         544         30.0
+  19  17        30.1  29.9         2         524         30.0
+  20  18        27.8  36.5         3         529         30.0
+  21  12        15.5  40.8         3         421         30.0
+  22   9        18.5  56.2         3         427         60.0
+  23  11        15.7  51.0         4         480         70.0
+
+E11b  per-hour P/Q angle at 100000 steps -- mild, seed 1  (deg; 0=pure P, 90=pure Q, <0=absorbing)
+   h   n  angle_Swtd    sd  n_absorb  S_mean kVA  optimal_deg
+-------------------------------------------------------------
+   6   0           -     -         -           -            -
+   7   7       -16.7   5.3         7         328         45.0
+   8  10        -1.9  14.7         6         472         45.0
+   9  11         7.3  24.3         5         504         30.0
+  10  14        23.8  30.9         5         502         30.0
+  11  15        25.8  25.1         3         517         30.0
+  12  15        21.4  21.7         5         520         30.0
+  13  15        12.6  28.4         5         457         30.0
+  14  16        -5.9  14.9        11         439         30.0
+  15  25         1.1  33.2        13         460         30.0
+  16  25         7.2  34.1         9         449         35.0
+  17  25         9.3  36.0        10         438         35.0
+  18  25         8.9  38.0         8         355         35.0
+  19  24         7.4  38.4         5         300         35.0
+  20  25         8.2  39.1         5         345         35.0
+  21  21        16.9  33.9         6         403         30.0
+  22  15        16.1  35.0         5         601         75.0
+  23  15        14.6  36.2         5         619         90.0
+
+  [mild] |agent - optimal| 20000 -> 100000 steps: 26.5 -> 20.8 deg  (change -5.7, combined 95% CI 24.2)
+  VERDICT[mild]: FLAT -- the allocation gap does not close with budget, so E11's diagnosis stands at 5x the training.
+
+  [E11b/aggr] training direct-action seed=0 to 100000 steps
+      [E11b-aggr-s0]  20000 steps    550s   |gap|  20.1 deg   day angle  41.5 deg   n 210
+      [E11b-aggr-s0]  40000 steps   1131s   |gap|  44.7 deg   day angle  -9.0 deg   n 382
+      [E11b-aggr-s0]  60000 steps   1722s   |gap|  43.5 deg   day angle  -9.6 deg   n 362
+      [E11b-aggr-s0]  80000 steps   2331s   |gap|  43.2 deg   day angle -10.7 deg   n 280
+      [E11b-aggr-s0] 100000 steps   2945s   |gap|  36.9 deg   day angle  -6.1 deg   n 251
+
+  [E11b/aggr] training direct-action seed=1 to 100000 steps
+      [E11b-aggr-s1]  20000 steps    552s   |gap|  45.0 deg   day angle -10.3 deg   n 283
+      [E11b-aggr-s1]  40000 steps   1130s   |gap|  30.1 deg   day angle   5.9 deg   n 303
+      [E11b-aggr-s1]  60000 steps   1716s   |gap|  32.9 deg   day angle   2.1 deg   n 284
+      [E11b-aggr-s1]  80000 steps   2324s   |gap|  34.1 deg   day angle   0.9 deg   n 331
+      [E11b-aggr-s1] 100000 steps   2930s   |gap|  26.1 deg   day angle   8.5 deg   n 374
+
+E11b  per-hour P/Q angle at 100000 steps -- aggr, seed 0  (deg; 0=pure P, 90=pure Q, <0=absorbing)
+   h   n  angle_Swtd    sd  n_absorb  S_mean kVA  optimal_deg
+-------------------------------------------------------------
+   6  11        12.2  45.7         5          91         35.0
+   7  18       -11.9  30.9        10         202         35.0
+   8  19         3.8  19.3         9         314         35.0
+   9  16         0.1  17.6         6         393         35.0
+  10  16         0.2  27.6         9         442         35.0
+  11  15        -6.0  34.1        10         500         35.0
+  12  15       -12.3  38.4        10         541         35.0
+  13  15       -13.5  44.2        10         515         35.0
+  14  15       -17.8  46.9        10         542         35.0
+  15  15       -18.7  49.5        10         537         35.0
+  16  10         0.6  39.8         5         604         20.0
+  17  10        -0.6  40.3         5         610         20.0
+  18  12        -2.4  43.8         6         579         25.0
+  19  10        -1.3  44.3         5         567         30.0
+  20  11        -0.9  48.8         5         507         35.0
+  21  10        -4.9  55.9         5         468         35.0
+  22  15        -9.6  46.5        10         393         35.0
+  23  18        -1.6  53.9         8         354         30.0
+
+E11b  per-hour P/Q angle at 100000 steps -- aggr, seed 1  (deg; 0=pure P, 90=pure Q, <0=absorbing)
+   h   n  angle_Swtd    sd  n_absorb  S_mean kVA  optimal_deg
+-------------------------------------------------------------
+   6  14        28.9  29.4         5         181         35.0
+   7  14         9.9  26.2         9         241         35.0
+   8  20        15.2  41.7         8         319         35.0
+   9  20        16.3  36.7        10         385         35.0
+  10  21        15.5  36.8         9         413         35.0
+  11  21        12.6  33.0         9         459         35.0
+  12  23        15.5  37.6        11         443         35.0
+  13  21         8.1  46.5        10         454         35.0
+  14  23        -2.5  40.2        12         521         35.0
+  15  24        -3.1  38.7        14         500         35.0
+  16  24        -0.1  34.9        12         493         35.0
+  17  25        -2.6  34.5        13         486         35.0
+  18  23        -0.3  37.9        11         487         35.0
+  19  22        -1.4  42.6        13         476         35.0
+  20  22         0.2  47.4        12         479         35.0
+  21  20         1.4  49.4        11         487         35.0
+  22  20        38.9  32.7         3         410         35.0
+  23  17        49.2  37.1         2         419         30.0
+
+  [aggr] |agent - optimal| 20000 -> 100000 steps: 32.5 -> 31.5 deg  (change -1.0, combined 95% CI 35.1)
+  VERDICT[aggr]: FLAT -- the allocation gap does not close with budget, so E11's diagnosis stands at 5x the training.
+
+E11b  P/Q allocation vs training budget  (2 seeds x 5 scenarios; hub rating ratio 38.7 deg)
+   case/steps  |gap| deg  +-95%  day_ang  n_samp  n_absorb
+----------------------------------------------------------
+   mild/20000       26.5    5.7     17.7     311       102
+   mild/40000       20.1   15.3     19.2     293       102
+   mild/60000       24.3    2.4     14.6     302       106
+   mild/80000       21.9    9.1     15.5     297        97
+  mild/100000       20.8   18.5     18.8     278        83
+   aggr/20000       32.5   24.4     15.6     246       101
+   aggr/40000       37.4   14.4     -1.6     342       174
+   aggr/60000       38.2   10.3     -3.8     323       188
+   aggr/80000       38.7    8.9     -4.9     305       170
+  aggr/100000       31.5   10.6      1.2     312       156
+
+  |gap| is the mean over hours of |agent angle - voltage-optimal angle|,
+  both S-weighted and both evaluated at the injection level the agent chose.
+
+### E11b OK   196.2 min
+saved fig_pq_curve.png
+
+done -- send me e11b_log.txt and fig_pq_curve.png
