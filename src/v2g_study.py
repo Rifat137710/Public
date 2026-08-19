@@ -501,29 +501,61 @@ def rollout_policy_safe(env, policy, scen, mode=None, ev_constrained=True):
         env.safety_filter = saved
 
 
-def E12_safety_projection(control_mode="OFF", steps=20000, n_scen=5, seeds=(0, 1, 2)):
-    """One training per seed, three evaluations -- raw, ray projection, reactive-first.
+def E12_safety_projection(control_mode="OFF", steps=20000, n_scen=5, seeds=(0, 1, 2),
+                          residual_ref=False):
+    """Does the overvoltage need a projection layer, or does the action space already fix it?
 
-    The question: our agent loses to droop on IntViol while also breaking the 1.05 limit
-    that droop respects. Once the overvoltage is projected away, does the gap close?
-    Either answer is reportable, and both pre-empt the obvious reviewer objection.
+    RETARGETED AFTER THE FIRST PRODUCTION RUN. This was written to project the overvoltage
+    out of the residual-mode agent, but that run showed the residual agent never breaks the
+    bound under the fleet constraint: E2 reports VphMax 1.050 and ViolHi 0.0 at both load
+    levels. Projecting there is a no-op and answers nothing.
+
+    The overvoltage lives in the paper's DIRECT action (Eq. 7), where the same fleet-
+    constrained multi-hub case reaches VphMax 1.151 mild / 1.077 aggressive (E1). So the
+    comparison that carries information is:
+
+        direct raw            -- the paper's formulation, which violates the upper bound
+        direct + projection   -- the standard fix from the safe-RL Volt-VAR literature
+        residual              -- our droop prior, no projection layer at all
+
+    If residual matches projected-direct on IntHi, the droop prior is doing the safety
+    layer's job inside the action space, at no inference cost and with nothing to tune.
+
+    residual_ref=False by default because E2 ALREADY TRAINED THAT ARM. Its "RL closed-loop"
+    row uses the same env (residual, w_deg 0, peak_range +-20%), the same scenarios
+    (make_scenarios(n_scen, peak, seed0=0)), the same seeds and the same step count, and
+    train_on seeds only from `seed` -- `label` is print-only. Retraining it here would
+    reproduce E2 bit for bit and double this experiment's runtime, so read the reference
+    off E2 instead. Set True only to re-derive it inside one table.
     """
     out, rows = {}, []
+    arms = ((None, "direct raw"), ("scale", "direct + proj (scale)"),
+            ("shed_q", "direct + proj (shed Q)"))
     for tag, peak in [("mild", CFG["peak_mild"]), ("aggr", CFG["peak_aggr"])]:
         scens = make_scenarios(n_scen, peak, seed0=0)
-        env = build_env(CFG["hub_buses_multi"], mode="residual", w_deg=0.0,
-                        control_mode=control_mode, peak_range=(peak * 0.8, peak * 1.2))
+        pr = (peak * 0.8, peak * 1.2)
+        env = build_env(CFG["hub_buses_multi"], mode="direct", w_deg=0.0,
+                        control_mode=control_mode, peak_range=pr)
+        env_res = (build_env(CFG["hub_buses_multi"], mode="residual", w_deg=0.0,
+                             control_mode=control_mode, peak_range=pr)
+                   if residual_ref else None)
         store = {"Droop": [rollout_static(env, s, "droop", True)[0] for s in scens]}
-        for mode, name in ((None, "RL raw"), ("scale", "RL + proj (scale)"),
-                           ("shed_q", "RL + proj (shed Q)")):
+        for _, name in arms:
             store[name] = []
+        if residual_ref:
+            store["residual (no proj)"] = []
         for sd in seeds:
-            print(f"\n  [E12/{tag}] training seed={sd}")
-            pol = train_on(env, steps, seed=sd, label=f"E12-{tag}-s{sd}")
-            for mode, name in ((None, "RL raw"), ("scale", "RL + proj (scale)"),
-                               ("shed_q", "RL + proj (shed Q)")):
+            print(f"\n  [E12/{tag}] training direct-action seed={sd}")
+            pol = train_on(env, steps, seed=sd, label=f"E12-{tag}-dir-s{sd}")
+            for mode, name in arms:
                 store[name] += [rollout_policy_safe(env, pol, s, mode)[0] for s in scens]
             del pol
+            if residual_ref:
+                print(f"\n  [E12/{tag}] training residual reference seed={sd}")
+                pol = train_on(env_res, steps, seed=sd, label=f"E12-{tag}-res-s{sd}")
+                store["residual (no proj)"] += [rollout_policy(env_res, pol, s)[0]
+                                                for s in scens]
+                del pol
         for name, rs in store.items():
             a = M.aggregate(rs)
             rows.append([f"{tag}/{name}", f"{a['IntViol']['mean']:.2f}",
@@ -531,17 +563,24 @@ def E12_safety_projection(control_mode="OFF", steps=20000, n_scen=5, seeds=(0, 1
                          f"{a['IntHi']['mean']:.2f}", f"{a['ViolPh']['mean']:.1f}",
                          f"{a['VphMax']['mean']:.3f}", f"{a['Thru']['mean']:.0f}"])
             out[f"{tag}/{name}"] = rs
-        for name in ("RL raw", "RL + proj (scale)", "RL + proj (shed Q)"):
+        # Droop has no seed, so it holds n_scen rows against each arm's len(seeds)*n_scen.
+        # paired_delta tiles the shorter list to restore the scenario pairing.
+        for name in [n for n in store if n != "Droop"]:
             d = M.paired_delta(store[name], store["Droop"], "IntViol")
             print(f"    paired {name} - Droop  IntViol: {d['mean']:+.2f} +- {d['ci95']:.2f} "
                   f"({name} better in {d['a_better']}/{d['n']})")
-        del env
+        del env, env_res
     M.fmt_table(f"E12  safety projection  (multi-hub, fleet-constrained, {len(seeds)} seeds "
                 f"x {n_scen} paired scenarios)",
                 ["case", "IntViol", "+-95%", "IntLo", "IntHi", "ViolPh", "VphMax",
                  "Thru(kWh)"], rows)
-    print("\n  IntHi is the overvoltage half. If projection drives IntHi to ~0 and IntViol")
-    print("  still trails droop, the gap is real allocation, not a bound violation.")
+    print("\n  IntHi is the overvoltage half, and it is the column that decides this.")
+    print("  'direct raw' should show IntHi > 0; both projections should drive it to ~0.")
+    if not residual_ref:
+        print("  Residual reference: read E2's 'RL closed-loop' row -- same env, scenarios,")
+        print("  seeds and steps, so it is the identical training, already paid for.")
+        print("  If it sits at IntHi ~0 with no projection, the droop prior in the action")
+        print("  space is already doing the safety layer's job.")
     return out
 
 

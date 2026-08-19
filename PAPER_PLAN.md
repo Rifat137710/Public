@@ -275,6 +275,56 @@ Expanded mild weight sweep `(0,1,3,10,30,100,300)`; ablations (SOC-in-state on/o
 degradation term on/off); the RL-side P/Q study; then the full run at `QUICK = False`
 (~26 trainings × 20k steps, roughly 2 hours on CPU) with ≥5 seeds.
 
+## 8a. Pipeline status — production run of 2026-08-18/19
+
+`V2G_RUN_ALL.ipynb`, 5.80 h wall clock, 48 trainings at 20k steps, 3 seeds × 5 paired
+scenarios (CRN). **12 of 13 experiments completed.** Every deterministic result reproduced
+the earlier reference run exactly.
+
+| | Experiment | Status | Headline number |
+|---|---|---|---|
+| **E0** | ControlMode calibration | done | `OFF` → 0.903 / 0.800 vs paper 0.907 / 0.807; `STATIC` off by 0.076 |
+| **E5/E7** | Achievable ceiling, P/Q at matched S | done | P buys **1.25–1.49×** the uplift of Q per unit battery drain |
+| **E8** | Optimized per-hub dispatch | done | multi-mild **18/18** hours clearable, IntViol **0.00**; multi-aggr 4/18, **17.99** |
+| **E9** | Droop fixed-point convergence | done | `damp=0.3` converges in all 4 configs; `damp=0.6` limit-cycles in all 4 |
+| **E6** | Open- vs closed-loop droop | done | constrained: 42.77 vs 44.08 mild — implementation only matters unconstrained |
+| **E2** | Multi-hub, fleet-constrained | done | droop 42.77 vs RL 45.45; paired **+2.03 ± 0.16**, RL wins **0/5** |
+| **E12** | Safety projection | **failed → re-run** | crashed in `paired_delta`; retargeted, see below |
+| **E3** | Degradation frontier | done | mild: **−60% throughput for +1.1% violation**; aggressive flat |
+| **E4** | Aggressive stress | done | day-structured 169.39 vs paper-style 171.05; droop 165.83 |
+| **E1** | Reproduction of Tables I/II | done | direct action overvolts (**VphMax 1.151** mild) where residual does not |
+| **E11** | Policy P/Q angle | done | mean \|agent − optimal\| **23.6°** mild / **20.1°** aggr; day mean 29.2° / 41.5° vs rating ratio 38.7° |
+| **E10** | Ablations | done | fleet-in-state does **not** beat voltage-only on IntViol; it uses 2.4× more battery |
+
+**E12 crash and retarget.** `paired_delta` differenced 15 RL rows (3 seeds × 5 scenarios)
+against 5 droop rows — droop is deterministic and is rolled out once — raising a broadcast
+error. It can only raise when `len(seeds) > 1`, so the single-seed smoke test could not see
+it. `paired_delta` now tiles the shorter list to restore scenario pairing and rejects ragged
+input; the re-run notebook asserts on the exact failing shape before training.
+
+The experiment itself was also retargeted. It was written to project overvoltage out of the
+residual agent, but E2 shows that agent never breaks the bound under the fleet constraint
+(`VphMax 1.050`, `ViolHi 0.0`, both load levels), so projecting there is a no-op. The
+overvoltage lives in the paper's **direct** action — E1 gives `VphMax 1.151` mild and
+`1.077` aggressive on the same feeder under the same constraint. E12 now compares direct
+raw against both projections, with E2's residual row as the reference (not retrained: same
+env, scenarios, seeds and steps, and `train_on` seeds only from `seed`).
+`V2G_E12_rerun.ipynb`, 6 trainings, ~50 min.
+
+**Two production results that reversed the QUICK reading**, and supersede it:
+
+* **E3 mild is a much better result than QUICK showed.** Across a 300× sweep of the
+  degradation weight, IntViol stays inside `[44.83, 46.01]` — a 2.6% band — while throughput
+  falls from 6188 to 2449 kWh. Cutting battery wear ~60% costs +1.1% violation. The
+  intermediate points are non-monotone (one seed per weight), so report the endpoints and
+  the band, not the zigzag.
+* **E10 flipped sign.** QUICK had fleet-in-state ahead at mild (44.90 vs 47.83). At
+  production, voltage-only is marginally ahead (44.91 ± 0.29 vs 45.41 ± 0.36, CIs overlap) —
+  a null on IntViol. The real finding is the throughput column: fleet-in-state spends
+  6068 kWh against voltage-only's 2497 for no violation benefit, and at aggressive load
+  voltage-only breaks the upper bound (1.056 / 1.061) where fleet-in-state holds 1.050. So
+  the fleet state buys bound compliance and costs battery, rather than reducing violation.
+
 ## 9. Publication status of the reproduction target
 
 As of 2026-08-17, no published version of arXiv:2603.07237 was found — no DOI, no journal

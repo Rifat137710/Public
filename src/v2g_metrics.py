@@ -143,9 +143,24 @@ def aggregate(rows, keys=None):
 
 
 def paired_delta(rows_a, rows_b, key):
-    """Paired difference a-b on identical scenarios (CRN). Returns mean, ci95, n_wins."""
+    """Paired difference a-b on identical scenarios (CRN). Returns mean, ci95, n_wins.
+
+    A DETERMINISTIC ARM IS EVALUATED ONCE, A SEEDED ARM ONCE PER SEED. Droop has no seed,
+    so it is rolled out on n_scen scenarios; an RL arm trained over k seeds accumulates
+    k * n_scen rows in seed-major order (all scenarios of seed 0, then seed 1, ...). Tiling
+    the shorter list restores the pairing: scenario j of every seed is differenced against
+    the same droop row j. Without this the subtraction raises a broadcast error -- and it
+    only raises it when k > 1, so a single-seed smoke test cannot see the bug.
+    """
     a = np.array([r[key] for r in rows_a], dtype=float)
     b = np.array([r[key] for r in rows_b], dtype=float)
+    if a.size != b.size:
+        big, small = (a, b) if a.size > b.size else (b, a)
+        if small.size == 0 or big.size % small.size:
+            raise ValueError(f"paired_delta: cannot pair {a.size} against {b.size} rows on "
+                             f"'{key}' -- lengths are not a whole multiple")
+        rep = np.tile(small, big.size // small.size)
+        a, b = (a, rep) if a.size > b.size else (rep, b)
     d = a - b
     n = d.size
     sd = float(d.std(ddof=1)) if n > 1 else 0.0
