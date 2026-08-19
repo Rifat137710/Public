@@ -170,11 +170,21 @@ def rollout_zero(env, scen, ev_constrained=True):
 # --------------------------------------------------------------------------- #
 # Training
 # --------------------------------------------------------------------------- #
+def make_sac(env, seed=0):
+    """The single definition of the agent's hyperparameters.
+
+    E13 needs to build the same agent train_on builds, otherwise its learning curve measures
+    a different agent than the fixed-budget experiments and cannot speak for them. Keeping
+    one constructor makes that structural rather than a thing to remember.
+    """
+    return SAC("MlpPolicy", env, learning_rate=3e-4, batch_size=256, gamma=0.99,
+               buffer_size=200_000, learning_starts=1000, tau=0.005,
+               policy_kwargs=dict(net_arch=[256, 256]), device="cpu",
+               seed=seed, verbose=0)
+
+
 def train_on(env, steps, seed=0, chunk=5000, label=""):
-    m = SAC("MlpPolicy", env, learning_rate=3e-4, batch_size=256, gamma=0.99,
-            buffer_size=200_000, learning_starts=1000, tau=0.005,
-            policy_kwargs=dict(net_arch=[256, 256]), device="cpu",
-            seed=seed, verbose=0)
+    m = make_sac(env, seed)
     t0, done = time.time(), 0
     while done < steps:
         n = min(chunk, steps - done)
@@ -751,3 +761,114 @@ def runtime_estimate(steps, n_trainings, sec_per_20k=440, overhead=1.25):
     mins = n_trainings * steps / 20000 * sec_per_20k / 60
     print(f"  ~{n_trainings} trainings x {steps} steps  ->  approx {mins:.0f} min of training")
     print(f"  with rollout overhead: approx {mins * overhead / 60:.1f} h wall clock")
+
+
+# --------------------------------------------------------------------------- #
+# E13 -- learning curve: is the 20k-step budget converged?
+# --------------------------------------------------------------------------- #
+def E13_learning_curve(control_mode="OFF", total_steps=100000, checkpoints=None,
+                       n_scen=5, seeds=(0, 1), chunk=5000):
+    """IntViol vs training budget, so the fixed-budget results can be defended.
+
+    WHY THIS EXISTS. Every negative result in this study is trained for 20k steps -- about
+    1100 episodes of 18 hours, ~19k gradient updates for a 10-dimensional action space. The
+    obvious reviewer objection is that the agent is simply undertrained, and that one
+    objection would invalidate E2, E4, E10, E11 and E12 at a stroke. A curve that plateaus
+    settles it with evidence instead of assertion; a curve that does not plateau is something
+    we need to know before submission rather than after.
+
+    TWO DESIGN POINTS THAT MAKE THE CURVE TRUSTWORTHY.
+
+    Checkpoints must fall on chunk boundaries. train_on calls m.learn in `chunk`-sized pieces,
+    so stopping to evaluate on the same boundaries consumes the model RNG in the same order.
+    The 20k checkpoint then reproduces the corresponding E2 seeds exactly, which is a direct
+    check that the curve measures the same agent the headline table reports rather than
+    something subtly different.
+
+    Evaluation runs on a SEPARATE env instance. rollout_policy resets the env to place a
+    scenario, and stable-baselines3 caches the last observation of the training env between
+    learn() calls; resetting the training env mid-run would leave that cache pointing at a
+    state the agent never sees again. A second env built with identical arguments avoids the
+    interaction entirely, and costs nothing -- rollout_policy fully specifies the scenario
+    through reset options, so the two envs are interchangeable for evaluation.
+    """
+    if checkpoints is None:
+        checkpoints = tuple(range(20000, total_steps + 1, 20000))
+    checkpoints = tuple(sorted(checkpoints))
+    bad = [c for c in checkpoints if c % chunk]
+    if bad:
+        raise ValueError(f"checkpoints must be multiples of chunk={chunk}; got {bad}")
+    if checkpoints[-1] > total_steps:
+        raise ValueError(f"last checkpoint {checkpoints[-1]} exceeds total_steps {total_steps}")
+
+    out, rows = {}, []
+    for tag, peak in [("mild", CFG["peak_mild"]), ("aggr", CFG["peak_aggr"])]:
+        scens = make_scenarios(n_scen, peak, seed0=0)
+        pr = (peak * 0.8, peak * 1.2)
+        kw = dict(mode="residual", w_deg=0.0, control_mode=control_mode, peak_range=pr)
+        train_env = build_env(CFG["hub_buses_multi"], **kw)
+        eval_env = build_env(CFG["hub_buses_multi"], **kw)
+
+        droop = [rollout_static(eval_env, s, "droop", True)[0] for s in scens]
+        base = [rollout_static(eval_env, s, "baseline")[0] for s in scens]
+        d_iv = M.aggregate(droop)["IntViol"]["mean"]
+        b_iv = M.aggregate(base)["IntViol"]["mean"]
+
+        per_ck = {c: [] for c in checkpoints}
+        for sd in seeds:
+            print(f"\n  [E13/{tag}] training seed={sd} to {checkpoints[-1]} steps")
+            m = make_sac(train_env, seed=sd)
+            t0, done = time.time(), 0
+            for ck in checkpoints:
+                while done < ck:
+                    n = min(chunk, ck - done)
+                    m.learn(total_timesteps=n, reset_num_timesteps=(done == 0),
+                            progress_bar=False)
+                    done += n
+                rs = [rollout_policy(eval_env, m, s, True)[0] for s in scens]
+                per_ck[ck] += rs
+                a = M.aggregate(rs)
+                print(f"      [E13-{tag}-s{sd}] {done:6d} steps  {time.time()-t0:5.0f}s   "
+                      f"IntViol {a['IntViol']['mean']:7.2f}   Thru {a['Thru']['mean']:6.0f}",
+                      flush=True)
+            del m
+
+        for ck in checkpoints:
+            rs = per_ck[ck]
+            a = M.aggregate(rs)
+            d = M.paired_delta(rs, droop, "IntViol")
+            rows.append([f"{tag}/{ck}", f"{a['IntViol']['mean']:.2f}",
+                         f"{a['IntViol']['ci95']:.2f}", f"{d['mean']:+.2f}",
+                         f"{d['a_better']}/{d['n']}", f"{a['ViolPh']['mean']:.1f}",
+                         f"{a['VphMax']['mean']:.3f}", f"{a['Thru']['mean']:.0f}"])
+            out[f"{tag}/{ck}"] = rs
+        out[f"{tag}/droop"] = droop
+        out[f"{tag}/baseline"] = base
+
+        first, last = M.aggregate(per_ck[checkpoints[0]]), M.aggregate(per_ck[checkpoints[-1]])
+        f_iv, l_iv = first["IntViol"]["mean"], last["IntViol"]["mean"]
+        band = first["IntViol"]["ci95"] + last["IntViol"]["ci95"]
+        print(f"\n  [{tag}] IntViol {checkpoints[0]} -> {checkpoints[-1]} steps: "
+              f"{f_iv:.2f} -> {l_iv:.2f}  (change {l_iv - f_iv:+.2f}, combined 95% CI "
+              f"{band:.2f})")
+        if abs(l_iv - f_iv) <= band:
+            print(f"  VERDICT[{tag}]: PLATEAU -- the change from {checkpoints[0]} to "
+                  f"{checkpoints[-1]} steps is inside the confidence interval, so the "
+                  f"{checkpoints[0]}-step budget is not the binding limitation.")
+        elif l_iv < f_iv:
+            print(f"  VERDICT[{tag}]: STILL IMPROVING -- more training helps. Report the "
+                  f"curve and requote the fixed-budget results at the plateau, not at 20k.")
+        else:
+            print(f"  VERDICT[{tag}]: DEGRADING -- longer training makes it worse, which is "
+                  f"its own finding and needs saying explicitly.")
+        print(f"  reference: droop {d_iv:.2f}   no-V2G baseline {b_iv:.2f}")
+        del train_env, eval_env
+
+    M.fmt_table(f"E13  learning curve  (multi-hub, fleet-constrained, {len(seeds)} seeds "
+                f"x {n_scen} paired scenarios)",
+                ["case/steps", "IntViol", "+-95%", "vs droop", "RL wins", "ViolPh", "VphMax",
+                 "Thru(kWh)"], rows)
+    print("\n  The 20000-step rows should sit on top of E2's RL closed-loop numbers for the")
+    print("  same seeds -- same agent, same env, same scenarios, checkpoints on chunk")
+    print("  boundaries. A mismatch there means the curve is not measuring E2's agent.")
+    return out
