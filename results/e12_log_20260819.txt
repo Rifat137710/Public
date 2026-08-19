@@ -1,0 +1,80 @@
+E12 RE-RUN started 2026-08-19 08:29:57  QUICK=False  STEPS=20000  N_SCEN=5  SEEDS=(0, 1, 2)
+  ~6 trainings x 20000 steps  ->  approx 44 min of training
+  with rollout overhead: approx 0.9 h wall clock
+GUARD: PASS -- paired_delta tiles a deterministic arm and rejects ragged input
+
+  [E12/mild] training direct-action seed=0
+      [E12-mild-dir-s0] 5000/20000  113s
+      [E12-mild-dir-s0] 10000/20000  251s
+      [E12-mild-dir-s0] 15000/20000  388s
+      [E12-mild-dir-s0] 20000/20000  527s
+
+  [E12/mild] training direct-action seed=1
+      [E12-mild-dir-s1] 5000/20000  108s
+      [E12-mild-dir-s1] 10000/20000  245s
+      [E12-mild-dir-s1] 15000/20000  386s
+      [E12-mild-dir-s1] 20000/20000  525s
+
+  [E12/mild] training direct-action seed=2
+      [E12-mild-dir-s2] 5000/20000  108s
+      [E12-mild-dir-s2] 10000/20000  242s
+      [E12-mild-dir-s2] 15000/20000  377s
+      [E12-mild-dir-s2] 20000/20000  518s
+    paired direct raw - Droop  IntViol: +2.79 +- 0.46 (direct raw better in 0/15)
+    paired direct + proj (scale) - Droop  IntViol: +2.78 +- 0.46 (direct + proj (scale) better in 0/15)
+    paired direct + proj (shed Q) - Droop  IntViol: +2.77 +- 0.47 (direct + proj (shed Q) better in 0/15)
+
+  [E12/aggr] training direct-action seed=0
+      [E12-aggr-dir-s0] 5000/20000  115s
+      [E12-aggr-dir-s0] 10000/20000  252s
+      [E12-aggr-dir-s0] 15000/20000  390s
+      [E12-aggr-dir-s0] 20000/20000  527s
+
+  [E12/aggr] training direct-action seed=1
+      [E12-aggr-dir-s1] 5000/20000  113s
+      [E12-aggr-dir-s1] 10000/20000  251s
+      [E12-aggr-dir-s1] 15000/20000  386s
+      [E12-aggr-dir-s1] 20000/20000  523s
+
+  [E12/aggr] training direct-action seed=2
+      [E12-aggr-dir-s2] 5000/20000  108s
+      [E12-aggr-dir-s2] 10000/20000  243s
+      [E12-aggr-dir-s2] 15000/20000  380s
+      [E12-aggr-dir-s2] 20000/20000  519s
+    paired direct raw - Droop  IntViol: +3.98 +- 0.44 (direct raw better in 0/15)
+    paired direct + proj (scale) - Droop  IntViol: +3.95 +- 0.43 (direct + proj (scale) better in 0/15)
+    paired direct + proj (shed Q) - Droop  IntViol: +3.36 +- 0.50 (direct + proj (shed Q) better in 0/15)
+
+E12  safety projection  (multi-hub, fleet-constrained, 3 seeds x 5 paired scenarios)
+                         case  IntViol  +-95%   IntLo  IntHi  ViolPh  VphMax  Thru(kWh)
+---------------------------------------------------------------------------------------
+                   mild/Droop    42.77   0.32   42.77   0.00    16.0   1.050       1342
+              mild/direct raw    45.56   0.42   45.56   0.00    16.7   1.050       4160
+   mild/direct + proj (scale)    45.56   0.42   45.56   0.00    16.7   1.050       4159
+  mild/direct + proj (shed Q)    45.55   0.43   45.55   0.00    16.7   1.050       4161
+                   aggr/Droop   165.83   0.60  165.83   0.00    18.0   1.050       1582
+              aggr/direct raw   169.82   0.35  169.82   0.00    18.0   1.050       2262
+   aggr/direct + proj (scale)   169.78   0.34  169.78   0.00    18.0   1.050       2261
+  aggr/direct + proj (shed Q)   169.19   0.46  169.19   0.00    17.9   1.050       2223
+
+  IntHi is the overvoltage half, and it is the column that decides this.
+  'direct raw' should show IntHi > 0; both projections should drive it to ~0.
+  Residual reference: read E2's 'RL closed-loop' row -- same env, scenarios,
+  seeds and steps, so it is the identical training, already paid for.
+  If it sits at IntHi ~0 with no projection, the droop prior in the action
+  space is already doing the safety layer's job.
+
+### E12 OK   52.6 min
+
+done -- send me e12_log.txt
+E2 reference (residual action, no projection, same seeds/scenarios/steps)
+case                     IntViol   IntHi  VphMax    Thru
+mild/Droop                 42.77    0.00   1.050    1342
+mild/RL residual           45.45    0.00   1.050    5842
+aggr/Droop                165.83    0.00   1.050    1582
+aggr/RL residual          169.60    0.00   1.050    3227
+
+E1 reference (direct action, fleet-constrained) -- where the overvoltage is
+case                     IntViol  ViolHi  VphMax    Thru
+mild/RL direct             50.59     1.0   1.151    1924
+aggr/RL direct            171.29     1.0   1.077    1924

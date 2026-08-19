@@ -443,11 +443,22 @@ def make_safety_filter(mode="scale", tol=1e-3, iters=18):
     """Project commanded setpoints onto the OVERVOLTAGE-feasible set (all phases <= v_max).
 
     A projection layer of this kind is standard practice in learning-based Volt-VAR control
-    (SAVER; model-augmented safe Volt-VAR; safety-constrained MARL) and our own runs show
-    the unprojected agent needs one: it exceeds 1.05 in every configuration, reaching 1.234
-    where droop stays at 1.050. Because IntViol is two-sided, part of the RL penalty IS that
-    overvoltage -- so without this layer we cannot separate "allocates worse" from "breaks
-    the upper bound and is charged for it".
+    (SAVER; model-augmented safe Volt-VAR; safety-constrained MARL), so the reviewer question
+    "why is there no safety layer" has to be answered. Because IntViol is two-sided, part of
+    any RL penalty could be overvoltage rather than poor allocation, and only measuring the
+    projection separates the two.
+
+    MEASURED RESULT: in this study the projection is a NO-OP wherever the agent is trained on
+    the day with the fleet in the loop. E12 gives IntHi 0.00 and VphMax 1.050 for the
+    unprojected direct-action agent at both load levels, matching E2's residual agent. The
+    feasibility test below reads the COMMANDED setpoints, before EVFleet.apply clips them to
+    the available SOC and connected vehicles, so the filter can fire on a command the fleet
+    was never going to deliver -- which is exactly what the small throughput deltas show
+    (aggressive: 2262 kWh raw vs 2223 shed_q, IntViol 169.82 vs 169.19). The reading is that
+    the fleet ENERGY constraint binds harder than the voltage constraint, so there is nothing
+    left for a voltage projection to do. Overvoltage in this study tracks the TRAINING REGIME,
+    not the action mode: paper-style training (i.i.d. lambda, no fleet in the loop) exceeds
+    1.05 in every configuration tested, reaching 1.229.
 
     modes
       scale   : reduce P and Q together along the commanded ray. The plainest projection.

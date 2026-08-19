@@ -289,7 +289,7 @@ the earlier reference run exactly.
 | **E9** | Droop fixed-point convergence | done | `damp=0.3` converges in all 4 configs; `damp=0.6` limit-cycles in all 4 |
 | **E6** | Open- vs closed-loop droop | done | constrained: 42.77 vs 44.08 mild — implementation only matters unconstrained |
 | **E2** | Multi-hub, fleet-constrained | done | droop 42.77 vs RL 45.45; paired **+2.03 ± 0.16**, RL wins **0/5** |
-| **E12** | Safety projection | **failed → re-run** | crashed in `paired_delta`; retargeted, see below |
+| **E12** | Safety projection | done (re-run) | projection is a measured **no-op**: `IntHi 0.00`, `VphMax 1.050` unprojected |
 | **E3** | Degradation frontier | done | mild: **−60% throughput for +1.1% violation**; aggressive flat |
 | **E4** | Aggressive stress | done | day-structured 169.39 vs paper-style 171.05; droop 165.83 |
 | **E1** | Reproduction of Tables I/II | done | direct action overvolts (**VphMax 1.151** mild) where residual does not |
@@ -310,6 +310,47 @@ overvoltage lives in the paper's **direct** action — E1 gives `VphMax 1.151` m
 raw against both projections, with E2's residual row as the reference (not retrained: same
 env, scenarios, seeds and steps, and `train_on` seeds only from `seed`).
 `V2G_E12_rerun.ipynb`, 6 trainings, ~50 min.
+
+### E12 result — the projection is a no-op, and overvoltage tracks the training regime
+
+Re-run completed in 52.6 min, 6 trainings, 3 seeds × 5 paired scenarios.
+
+| case | IntViol | ±95% | IntHi | VphMax | Thru |
+|---|---|---|---|---|---|
+| mild / Droop | 42.77 | 0.32 | 0.00 | 1.050 | 1342 |
+| mild / direct raw | 45.56 | 0.42 | **0.00** | **1.050** | 4160 |
+| mild / direct + proj (scale) | 45.56 | 0.42 | 0.00 | 1.050 | 4159 |
+| mild / direct + proj (shed Q) | 45.55 | 0.43 | 0.00 | 1.050 | 4161 |
+| aggr / Droop | 165.83 | 0.60 | 0.00 | 1.050 | 1582 |
+| aggr / direct raw | 169.82 | 0.35 | **0.00** | **1.050** | 2262 |
+| aggr / direct + proj (scale) | 169.78 | 0.34 | 0.00 | 1.050 | 2261 |
+| aggr / direct + proj (shed Q) | 169.19 | 0.46 | 0.00 | 1.050 | 2223 |
+
+**The retarget premise was wrong, and this is the correction.** §8a above attributed E1's
+overvoltage to the *direct action*. E12 falsifies that: the same direct action, trained
+day-structured with the fleet in the loop, holds 1.050. E1's direct rows were trained
+**paper-style** — i.i.d. `λ ∈ [0.1, 4.0]`, no fleet in the loop — and the action mode was
+read off a confound.
+
+What the whole study actually shows, across 54 trainings:
+
+| training regime | VphMax | evidence |
+|---|---|---|
+| day-structured, fleet in loop | **1.050**, `ViolHi 0` | E2 (residual), E12 (direct), E3 (all 10 weights), E4, E10 fleet-in-state — both load levels, 3 seeds |
+| day-structured, fleet out of **state** | 1.056 / 1.061 at aggressive | E10 voltage-only (mild stays 1.050) |
+| paper-style (i.i.d. λ, no fleet in loop) | 1.072 – **1.229** | E1 (4 rows), E4 paper-style |
+
+So the upper-bound violation is a property of the **training distribution**, not the action
+parameterization — and day-structured, fleet-in-loop training removes it without any
+projection layer, nothing to tune, no inference cost.
+
+**Why the projection cannot help here.** `feas()` tests the *commanded* setpoints, before
+`EVFleet.apply` clips them to available SOC and connected vehicles. It therefore fires on
+commands the fleet was never going to deliver, which is exactly what the tiny deltas show
+(aggressive: 2262 → 2223 kWh, 169.82 → 169.19). The fleet **energy** constraint binds harder
+than the voltage constraint, leaving nothing for a voltage projection to do. `shed_q` is
+consistently the better of the two projections (aggressive paired gap to droop +3.36 vs
++3.95 for `scale`), in the direction E7 predicts, but the effect is small.
 
 **Two production results that reversed the QUICK reading**, and supersede it:
 
