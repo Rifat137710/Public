@@ -16,13 +16,32 @@ submission rules require A4 while the distributed IEEEtran template ships US-let
 ## Before you submit — three things only you can do
 
 1. **Author block.** `main.tex` lines 22–33 are still the template placeholders.
-2. **Funding footnote.** The template's `\thanks{}` was removed; add one if any grant must
-   be acknowledged, or leave it out.
+2. **Funding footnote.** The template's `\thanks{}` was removed and the Acknowledgment
+   section was dropped to fit six pages. IEEE puts sponsor credit in the first-page footnote
+   anyway — add a `\thanks{}` to the title if a grant must be acknowledged.
 3. **Reference [12] and [1].** Every other reference was verified against a primary source
    this session. `iea2025` is an annual series (safe but check the edition you mean), and
    `v2gaging2024` (Dubarry, Devie, McKenzie, *J. Power Sources* 358:39–49, 2017) was
    substituted for an unverifiable 2024 review — its authors could not be confirmed, and
    guessing them was not acceptable.
+
+## Revision pass against the ISGT sample papers
+
+Nine sample papers (four ISGT Europe 2024, four arXiv preprints, plus the reference study)
+were read for house style. Changes made as a result:
+
+- **Abstract cut** from ~290 to ~205 words, ending on the headline ratio. The samples run
+  150-200 words and close on a number.
+- **Roadmap paragraph added** at the end of Section I. All nine samples have one.
+- **Section II-B added** — a table identifying the regulator setting from the reference
+  study's own no-V2G baseline. This was previously one hedged sentence.
+- **Corrected a mischaracterization.** The reference study's Table I/II statistics are minima
+  of *hourly mean bus voltages*, not worst-phase values, and its violation hours count hours
+  with mean voltage below 0.95. The draft had called them "worst-bus". Our reproduction claim
+  is now stated precisely: minima match to within 0.004-0.007 p.u., the feeder mean runs
+  0.012-0.023 p.u. low, so the configuration is identified from the minimum.
+- **Conclusion retitled** "Conclusion and Future Work" with concrete next steps, matching the
+  sample convention.
 
 ## Pending result
 

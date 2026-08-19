@@ -35,27 +35,22 @@ email address or ORCID}
 \maketitle
 
 \begin{abstract}
-Vehicle-to-grid dispatch is widely proposed as a voltage support resource on weak
+Vehicle-to-grid (V2G) dispatch is widely proposed as a voltage support resource on weak
 distribution feeders, and a growing literature compares learned controllers against local
-droop for the task. This paper argues that the comparison is being made before the more
-basic question has been answered: how much voltage support the connected fleet can supply
-at all. On a five-hub IEEE 34-bus feeder we compute a per-hour achievable ceiling by
-optimizing per-hub active and reactive injection directly on the AC power flow, and we use
-it to separate the shortfall attributable to control from the shortfall attributable to
-stored energy. Coordinated uneven dispatch across five hubs clears every hour of the day at
-a mild peak, against seven of eighteen hours for a single hub of the same total rating. Once
-a realistic availability and state-of-charge model is applied, however, the fleet delivers
-only fourteen percent of the energy the unconstrained controller requests at the mild peak
-and under six percent at the aggressive peak, and the day-integrated voltage violation rises
-from 4.15 to 42.77 per-unit-hours. Against that, the entire span between a tuned droop law
-and a soft actor-critic policy trained for one hundred thousand steps is 0.79 per-unit-hours.
-Energy adequacy outweighs controller choice by roughly a factor of forty-five to fifty at
-both load levels. We also report that active power buys between 1.25 and 1.49 times the
-voltage rise of reactive power per unit of battery energy drawn, that a degradation-aware
-objective removes about sixty percent of daily battery throughput for a 1.1 percent violation
-penalty, and that a safety projection layer is measurably inert here because the energy
-constraint binds first. The practical implication is that fleet sizing and availability, not
-controller sophistication, should govern where effort is spent.
+droop for the task. This paper argues that the comparison is being made before a more basic
+question has been answered: how much voltage support the connected fleet can supply at all.
+On a five-hub IEEE 34-bus feeder we compute a per-hour achievable ceiling by optimizing
+per-hub active and reactive injection directly on the AC power flow, and use it to separate
+the shortfall owed to control from the shortfall owed to stored energy. Coordinated uneven
+dispatch across five hubs clears every violating hour at a mild peak, against seven of
+eighteen hours for a single hub of equal rating. Once realistic availability and
+state-of-charge limits are applied, however, the fleet delivers only 14.5 percent of the
+energy the unconstrained controller requests, and the day-integrated violation rises from
+4.15 to 42.77 per-unit-hours. Against that, the entire span between a tuned droop law and a
+soft actor-critic policy trained for 100,000 steps is 0.79 per-unit-hours. Energy adequacy
+outweighs controller choice by a factor of 45 to 50 at both load levels, which suggests that
+fleet sizing and availability, not controller sophistication, should govern where effort is
+spent.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -121,23 +116,61 @@ projection, state augmentation, and droop fixed-point convergence---that we beli
 useful to report (Sections~\ref{sec:degradation} and \ref{sec:nulls}).
 \end{itemize}
 
+The remainder of this paper is organized as follows. Section~\ref{sec:design} describes the
+feeder, the fleet and battery model, the evaluation metrics, and the controllers, and
+reproduces the reference study's baseline. Section~\ref{sec:ceiling} computes the achievable
+ceiling and the energy--control decomposition. Section~\ref{sec:controllers} reports
+controller performance under fleet constraints, including a training-budget sweep.
+Section~\ref{sec:degradation} presents the degradation-aware frontier, Section~\ref{sec:nulls}
+three negative results, and Section~\ref{sec:conc} concludes.
+
 \section{Study Design}
+\label{sec:design}
 
 \subsection{Feeder and Hubs}
 
 All experiments use the IEEE 34-bus test feeder \cite{kersting1991}, a 24.9~kV rural circuit
 whose length makes it a standard stress case for voltage support studies, solved in OpenDSS
-\cite{dugan2011} through its direct Python interface. The feeder's voltage regulators are
-disabled, following the reference implementation we extend \cite{wang2026v2g}; we confirmed
-this choice by reproducing their reported no-V2G worst-bus voltages of 0.907~p.u. and
-0.807~p.u. at the two load levels, obtaining 0.903 and 0.800 with regulators off against
-0.983 and 0.831 with them active. The single-hub configuration places one 500~kW/400~kVAr
-hub at the feeder end; the multi-hub configuration distributes five such hubs along the
-circuit.
+\cite{dugan2011} through its direct Python interface. The single-hub configuration places one
+500~kW/400~kVAr hub at bus 890; the multi-hub configuration distributes five such hubs at
+buses 890, 844, 832, 830 and 860, matching the reference study \cite{wang2026v2g}.
 
 A daily load shape drives hours 06:00 through 23:00, scaled by a peak multiplier. We report
-two operating points throughout: a \emph{mild} peak, where the worst phase falls to
-0.903~p.u., and an \emph{aggressive} peak, where it falls to 0.800~p.u.
+two operating points throughout: a \emph{mild} peak ($\lambda_{\max}=1.5$) and an
+\emph{aggressive} peak ($\lambda_{\max}=3.0$), following \cite{wang2026v2g}.
+
+\subsection{Reproducing the Reference Baseline}
+\label{sec:repro}
+
+The reference study does not state whether the IEEE 34-bus regulators are active, and the
+answer changes every number that follows. Its reported no-V2G statistics are the fingerprint
+that settles it. Those statistics are computed from \emph{hourly mean bus voltages}, so we
+match that convention here only; everywhere else in this paper we evaluate per phase, for the
+reason given in Section~\ref{sec:metrics}.
+
+\begin{table}[t]
+\caption{Identifying the regulator setting from the no-V2G baseline}
+\label{tab:repro}
+\centering
+\begin{tabular}{lcccc}
+\toprule
+ & \multicolumn{2}{c}{Mild} & \multicolumn{2}{c}{Aggressive} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}
+Setting & Mean & Min & Mean & Min \\
+\midrule
+Reported \cite{wang2026v2g}   & 0.963 & 0.907 & 0.883 & 0.807 \\
+Regulators off (ours)          & 0.951 & \textbf{0.903} & 0.860 & \textbf{0.800} \\
+Regulators active (ours)       & 1.012 & 0.983 & 0.911 & 0.831 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:repro} identifies the setting unambiguously. With regulators disabled our
+minimum voltages fall within 0.004 and 0.007~p.u. of the reported values; with them active
+the mild minimum is off by 0.076~p.u., far outside any plausible modelling difference. Our
+feeder mean runs 0.012 to 0.023~p.u. below theirs, which we attribute to load allocation
+details not specified in the reference, so we identify the configuration from the minimum
+rather than the mean. All subsequent results use disabled regulators.
 
 \subsection{Fleet and Battery Model}
 
@@ -154,6 +187,7 @@ coordination from availability constraints'' \cite{wang2026v2g}. We report both,
 difference between them turns out to be the main result.
 
 \subsection{Metrics}
+\label{sec:metrics}
 
 ANSI C84.1 \cite{ansi} is a per-phase standard, so we evaluate per-phase rather than on
 bus-average voltages, which mask single-phase excursions on this unbalanced feeder. Our
@@ -208,12 +242,11 @@ constraint is imposed. Non-converged solutions are masked rather than read, sinc
 hours the high-injection end of the search lies past the nose of the power-voltage curve,
 where OpenDSS leaves stale values in its arrays.
 
-Searching per hub rather than uniformly is essential and not merely a refinement. With five
-hubs held at equal output, lifting the feeder end to 0.95~p.u. drives the near buses past
-1.05~p.u., so hours that an uneven dispatch clears comfortably are scored unclearable. Under
-uniform injection the five-hub case scored \emph{worse} than the single-hub case, which is
-physically impossible; per-hub search removed the artifact and moved the mild multi-hub
-result from five clearable hours to eighteen.
+Searching per hub rather than uniformly is essential. With five hubs at equal output, lifting
+the feeder end to 0.95~p.u. drives the near buses past 1.05~p.u., so hours an uneven dispatch
+clears comfortably are scored unclearable: the five-hub case then scores \emph{worse} than the
+single-hub case, which is physically impossible. Per-hub search removed the artifact and moved
+the mild multi-hub result from five clearable hours to eighteen.
 
 Table~\ref{tab:ceiling} gives the result. A single hub, even at full rating, clears seven of
 eighteen hours at the mild peak and two at the aggressive peak. Five hubs of the same
@@ -345,10 +378,9 @@ monotonically from $+2.27$ to $+0.79$, and the policy takes two of ten paired sc
 only scenarios it wins anywhere in this study. We report the mild comparison as unresolved at
 the budgets tested rather than claiming a droop victory there.
 
-It is worth being explicit about what this does and does not change. The controller gap
-narrowed by 1.48~p.u.$\cdot$h over a fivefold training increase. The energy shortfall at the
-same operating point is 38.62. Additional training moves the learned policy within a band
-that remains negligible against the constraint that actually governs the outcome.
+The gap narrowed by 1.48~p.u.$\cdot$h over a fivefold training increase, against an energy
+shortfall of 38.62 at the same operating point: more training moves the policy within a band
+that stays negligible against the constraint governing the outcome.
 
 \begin{figure*}[t]
 \centerline{\includegraphics[width=\textwidth]{fig3_learning.pdf}}
@@ -458,7 +490,8 @@ reported baseline flips with the parity of the iteration count. Damping of 0.3 w
 residual test converges in all four configurations we tested. We recommend reporting a
 convergence diagnostic alongside any droop baseline computed this way.
 
-\section{Conclusion}
+\section{Conclusion and Future Work}
+\label{sec:conc}
 
 We computed an achievable ceiling for multi-hub V2G voltage support on the IEEE 34-bus feeder
 and used it to separate what is lost to control from what is lost to stored energy. Uneven
@@ -483,13 +516,11 @@ participation. And a safety projection layer, standard elsewhere, is measurably 
 because the energy constraint binds first.
 
 The study covers one feeder and one learning algorithm, and the mild-peak controller
-comparison remains unresolved at the training budgets we could afford. Extending the
-adequacy analysis across feeders, and to fleet sizing rather than controller selection, is
-the natural continuation.
-
-\section*{Acknowledgment}
-
-The authors thank the maintainers of OpenDSS and Stable-Baselines3.
+comparison remains unresolved at the training budgets we could afford. Two extensions follow
+directly. The ratio we report depends on feeder impedance and hub siting, so it should be
+recomputed on a larger feeder. More usefully, the ceiling computation is cheap enough to
+invert: instead of scoring a controller against it, it can serve as a planning screen that
+returns the fleet size and availability needed to make a target violation level reachable.
 
 \begin{thebibliography}{00}
 
