@@ -64,8 +64,9 @@ def main():
     num = {k: str(i + 1) for i, k in enumerate(keys)}
 
     title = " ".join(re.search(r"\\title\{(.*?)\}", src, re.S).group(1).split())
-    authors = re.search(r"\\IEEEauthorblockN\{(.*?)\}\n", src, re.S).group(1)
-    affil = re.search(r"\\IEEEauthorblockA\{(.*?)\}\n\}", src, re.S).group(1)
+    # the template gives every author their own name+affiliation pair
+    blocks = re.findall(r"\\IEEEauthorblockN\{(.*?)\}\s*\n\s*"
+                        r"\\IEEEauthorblockA\{(.*?)\}\s*\n", src, re.S)
 
     body = src[src.index(r"\begin{abstract}"):src.index(r"\begin{thebibliography}")]
 
@@ -153,11 +154,13 @@ def main():
     body = re.sub(r"\\eqref\{[^}]*\}", "(1)", body)   # the paper has one numbered equation
     body = re.sub(r"\\label\{[^}]*\}", "", body)
 
-    authors = clean_inline(" ".join(authors.split())).strip()
-    affil = "\n".join(clean_inline(ln).strip()
-                      for ln in affil.replace(r"\\", "\n").splitlines()
-                      if ln.strip())
-    out = [clean_inline(title), "", authors, affil, ""]
+    byline = []
+    for name, aff in blocks:
+        byline.append(clean_inline(" ".join(name.split())).strip())
+        byline += [clean_inline(ln).strip()
+                   for ln in aff.replace(r"\\", "\n").splitlines() if ln.strip()]
+        byline.append("")
+    out = [clean_inline(title), ""] + byline
     for para in re.split(r"\n\s*\n", body):
         para = para.strip()
         if not para:

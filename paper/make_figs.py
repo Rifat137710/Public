@@ -10,11 +10,9 @@ and the tables in the paper cannot drift apart.
 
 Writes fig1..fig5 as PDF (for LaTeX) and PNG (for quick review).
 
-Colour roles are consistent across figures: BLUE is the reference or optimum
-(droop, voltage-optimal angle, optimized dispatch), ORANGE is the learned policy,
-and grey is reserved for limits and the untreated feeder. The two series hues are
-slots 1 and 2 of a categorical palette validated for colour-vision deficiency;
-line style carries the same distinction, so the figures also read in greyscale.
+Each load level carries its own colour pair (see PAIR below) so the mild and
+aggressive panels of a figure are never mistaken for one another. Grey is reserved
+for limits and the untreated feeder.
 """
 
 import os
@@ -32,9 +30,14 @@ PROD = os.path.join(RES, "production")
 
 COL, DBL = 3.5, 7.16          # IEEE single- and double-column widths, inches
 
-REF = "#2a78d6"               # reference / optimum
-POL = "#eb6834"               # learned policy
-LIM = "#6b6b6b"               # limits, untreated feeder
+# Each load level gets its own pair so the two panels of a figure are never
+# confused. Within a panel, the darker/cooler hue is the reference or optimum and
+# the warmer hue is the learned policy; line style repeats the distinction so the
+# figures also read in greyscale. The two pairs are validated separately because
+# they never appear side by side.
+PAIR = {"mild": ("#2a78d6", "#eb6834"),     # blue  / orange
+        "aggr": ("#008300", "#4a3aa7")}     # green / violet
+LIM = "#6b6b6b"                             # limits, untreated feeder
 
 plt.rcParams.update({
     "font.size": 8,
@@ -97,11 +100,12 @@ def fig1():
     mild = col("mild", "multi_mild") + [E13m]
     aggr = col("aggr", "multi_aggr") + [E13a]
 
-    fig, axes = plt.subplots(1, 2, figsize=(DBL, 2.5))
-    for ax, vals, ttl in ((axes[0], mild, "Mild peak"),
-                          (axes[1], aggr, "Aggressive peak")):
+    fig, axes = plt.subplots(1, 2, figsize=(DBL, 2.35))
+    for ax, vals, ttl, case in ((axes[0], mild, "Mild peak", "mild"),
+                                (axes[1], aggr, "Aggressive peak", "aggr")):
         x = np.arange(len(vals))
-        ax.bar(x, vals, width=0.62, color=REF, edgecolor="white", linewidth=0.8)
+        ax.bar(x, vals, width=0.62, color=PAIR[case][0], edgecolor="white",
+               linewidth=0.8)
         ax.set_xticks(x)
         ax.set_xticklabels(labels)
         ax.set_ylim(0, max(vals) * 1.22)
@@ -120,44 +124,48 @@ def fig2():
     E5 = R["E5+E7 ceiling and P/Q"]
     E8 = R["E8 optimized ceiling"]
 
-    fig, axes = plt.subplots(1, 2, figsize=(COL, 1.85), sharey=False)
-    for ax, key, ttl in ((axes[0], "multi_mild", "Mild peak"),
-                         (axes[1], "multi_aggr", "Aggressive peak")):
+    fig, axes = plt.subplots(2, 1, figsize=(COL, 2.45), sharex=True)
+    for ax, key, ttl, case in ((axes[0], "multi_mild", "Mild peak", "mild"),
+                               (axes[1], "multi_aggr", "Aggressive peak", "aggr")):
+        cool, warm = PAIR[case]
         ph5 = E5[key]["per_hour"]
         raw = E8[key]["raw"]
         hours = sorted(raw)
         base = [ph5[h]["PQ"]["Vmin"][0] for h in hours]
         opt = [raw[h]["Vmin"] for h in hours]
-        ax.plot(hours, base, ls="--", color=POL, label="no V2G")
-        ax.plot(hours, opt, ls="-", color=REF, label="optimized dispatch")
-        ax.axhline(0.95, color=LIM, ls=":", lw=1.0, label="0.95 p.u.")
-        ax.set_xlabel("hour of day")
-        ax.set_title(ttl)
-        ax.set_xticks(range(6, 24, 6))
-    axes[0].set_ylabel("worst-phase voltage (p.u.)")
-    h, l = axes[0].get_legend_handles_labels()
-    fig.legend(h, l, loc="lower center", ncol=3, bbox_to_anchor=(0.5, -0.13),
-               frameon=False, handlelength=1.5, columnspacing=1.0)
-    fig.tight_layout()
+        ax.plot(hours, base, ls="--", color=warm, label="no V2G")
+        ax.plot(hours, opt, ls="-", color=cool, label="optimized dispatch")
+        ax.axhline(0.95, color=LIM, ls=":", lw=1.0, label="0.95 p.u. limit")
+        ax.set_title(ttl, pad=3)
+        ax.set_xticks(range(6, 24, 2))
+        lo, hi = min(base + opt), max(base + opt)
+        ax.set_ylim(lo - 0.42 * (hi - lo), hi + 0.08 * (hi - lo))
+        ax.legend(loc="lower left", ncol=3, fontsize=6, framealpha=0.9,
+                  handlelength=1.3, borderpad=0.25, columnspacing=0.9,
+                  handletextpad=0.4)
+    axes[1].set_xlabel("hour of day")
+    fig.supylabel("worst-phase voltage (p.u.)", fontsize=8, x=0.005)
+    fig.tight_layout(h_pad=0.8)
     save(fig, "fig2_ceiling")
 
 
 # --------------------------------------------------------------------------- #
-# Fig. 3  Violation against training budget
+# Fig. 4  Violation against training budget
 # --------------------------------------------------------------------------- #
 def fig3():
     ckpts = [20000, 40000, 60000, 80000, 100000]
-    fig, axes = plt.subplots(1, 2, figsize=(COL, 1.85))
+    fig, axes = plt.subplots(1, 2, figsize=(COL, 2.25))
     for ax, case, ttl in ((axes[0], "mild", "Mild peak"),
                           (axes[1], "aggr", "Aggressive peak")):
+        cool, warm = PAIR[case]
         m = [mean_ci(E13[f"{case}/{c}"]) for c in ckpts]
         y = [a for a, _ in m]
         e = [b for _, b in m]
         dr = mean_ci(E13[f"{case}/droop"])[0]
         bl = mean_ci(E13[f"{case}/baseline"])[0]
-        p1 = ax.errorbar(ckpts, y, yerr=e, fmt="o-", color=POL, capsize=2.0,
+        p1 = ax.errorbar(ckpts, y, yerr=e, fmt="o-", color=warm, capsize=2.0,
                          label="learned")
-        p2 = ax.axhline(dr, color=REF, ls="--", lw=1.2, label="droop")
+        p2 = ax.axhline(dr, color=cool, ls="--", lw=1.2, label="droop")
         p3 = ax.axhline(bl, color=LIM, ls=":", lw=1.2, label="no V2G")
         lo = min(min(y) - max(e) * 2, dr)
         hi = max(max(y) + max(e) * 2, bl)
@@ -168,15 +176,15 @@ def fig3():
         ax.set_title(ttl)
         ax.set_xticks(ckpts[::2])
         ax.set_xticklabels([str(c // 1000) for c in ckpts[::2]])
-        ax.legend(handles=[p1, p2, p3], loc="upper right", fontsize=5.5,
+        ax.legend(handles=[p1, p2, p3], loc="upper right", fontsize=6,
                   framealpha=0.9, handlelength=1.0, borderpad=0.18,
                   labelspacing=0.15, handletextpad=0.4, borderaxespad=0.25)
     fig.tight_layout()
-    save(fig, "fig3_learning")
+    save(fig, "fig4_learning")
 
 
 # --------------------------------------------------------------------------- #
-# Fig. 4  Commanded injection angle against the voltage-optimal angle
+# Fig. 3  Commanded injection angle against the voltage-optimal angle
 # --------------------------------------------------------------------------- #
 _HDR = re.compile(r"per-hour P/Q angle at (\d+) steps -- (\w+), seed (\d+)")
 
@@ -206,9 +214,10 @@ def parse_e11b_tables(path):
 
 def fig4():
     tab = parse_e11b_tables(os.path.join(RES, "e11b_log_20260819.txt"))
-    fig, axes = plt.subplots(1, 2, figsize=(DBL, 2.5))
+    fig, axes = plt.subplots(1, 2, figsize=(DBL, 2.45))
     for ax, case, ttl in ((axes[0], "mild", "Mild peak"),
                           (axes[1], "aggr", "Aggressive peak")):
+        cool, warm = PAIR[case]
         seeds = [s for (c, s) in tab if c == case]
         hours = sorted({h for s in seeds for h in tab[(case, s)]})
         ag, op = [], []
@@ -217,21 +226,20 @@ def fig4():
             o = [tab[(case, s)][h][1] for s in seeds if h in tab[(case, s)]]
             ag.append(np.mean(a))
             op.append(np.mean(o))
-        ax.plot(hours, op, ls="--", marker="s", color=REF, markerfacecolor="white",
+        ax.plot(hours, op, ls="--", marker="s", color=cool, markerfacecolor="white",
                 label="voltage-optimal")
-        ax.plot(hours, ag, ls="-", marker="o", color=POL, label="commanded by policy")
+        ax.plot(hours, ag, ls="-", marker="o", color=warm, label="commanded by policy")
         ax.axhline(0, color=LIM, lw=1.0, label="pure active power")
         ax.axhline(38.7, color=LIM, ls=":", lw=1.0, label="hub rating ratio")
         ax.set_xlabel("hour of day")
         ax.set_ylabel("injection angle (deg)")
         ax.set_title(ttl)
-        ax.set_ylim(-25, 95)
+        ax.set_ylim(-25, 108)
         ax.set_xticks(range(6, 24, 2))
-    h, l = axes[0].get_legend_handles_labels()
-    fig.legend(h, l, loc="lower center", ncol=4, bbox_to_anchor=(0.5, -0.09),
-               frameon=False)
+        ax.legend(loc="upper left", ncol=2, fontsize=6.5, framealpha=0.9,
+                  handlelength=1.4, borderpad=0.3, columnspacing=1.0)
     fig.tight_layout()
-    save(fig, "fig4_pq")
+    save(fig, "fig3_pq")
 
 
 # --------------------------------------------------------------------------- #
@@ -248,15 +256,16 @@ def fig5():
     offs = {0.0: (-3, -11), 1.0: (-13, 3), 3.0: (-13, -4), 10.0: (-3, 6),
             30.0: (5, -3), 100.0: (-3, 6), 300.0: (-3, 6)}
 
-    fig, ax = plt.subplots(figsize=(COL, 2.4))
-    ax.plot([p["Thru"] for p in rl], [p["IntViol"] for p in rl], "o-", color=POL,
+    cool, warm = PAIR["mild"]
+    fig, ax = plt.subplots(figsize=(COL, 2.25))
+    ax.plot([p["Thru"] for p in rl], [p["IntViol"] for p in rl], "o-", color=warm,
             label="learned policy, wear weight swept")
     for p in rl:
         ax.annotate(f'{p["w"]:g}', (p["Thru"], p["IntViol"]), fontsize=6.5,
                     xytext=offs.get(p["w"], (4, 4)), textcoords="offset points")
     if dr:
         ax.plot([p["Thru"] for p in dr], [p["IntViol"] for p in dr], "s",
-                ms=6, color=REF, label="droop")
+                ms=6, color=cool, label="droop")
     ax.set_xlabel("battery throughput (kWh/day)")
     ax.set_ylabel("integrated violation (p.u.$\\cdot$h)")
     ax.set_xlim(1000, 7300)

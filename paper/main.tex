@@ -14,16 +14,38 @@
 \usepackage{multirow}
 \usepackage{url}
 
+% IEEEtran flushes the bottom of every column by stretching the space around
+% floats and headings, which opens visible gaps when a float lands next to a
+% subsection head. Ragged bottom keeps that space at its natural size.
+\raggedbottom
+
+% This paper carries nine floats over four pages. The stock IEEEtran fractions
+% defer floats aggressively once two are queued, which pushes figures several
+% pages past their discussion; these values let a column hold its share.
+\renewcommand{\topfraction}{0.92}
+\renewcommand{\bottomfraction}{0.75}
+\renewcommand{\textfraction}{0.08}
+\renewcommand{\floatpagefraction}{0.75}
+\setcounter{topnumber}{3}
+\setcounter{bottomnumber}{2}
+\setcounter{totalnumber}{4}
+
 \begin{document}
 
 \title{Voltage Support Capability of Multi-Hub Vehicle-to-Grid Operation Under Fleet
 Energy Constraints}
 
-\author{\IEEEauthorblockN{Md. Rifat Rahman, \textit{Shaikh Anowarul Fattah,
-Senior Member, IEEE}}
-\IEEEauthorblockA{Department of Electrical \& Electronic Engineering \\
-Bangladesh University of Engineering \& Technology, Dhaka, Bangladesh \\
-Email: 2006137@eee.buet.ac.bd}
+\author{\IEEEauthorblockN{1\textsuperscript{st} Md. Rifat Rahman}
+\IEEEauthorblockA{\textit{Dept. of Electrical and Electronic Engineering} \\
+\textit{Bangladesh University of Engineering and Technology}\\
+Dhaka, Bangladesh \\
+2006137@eee.buet.ac.bd}
+\and
+\IEEEauthorblockN{2\textsuperscript{nd} Shaikh Anowarul Fattah, \textit{Senior Member, IEEE}}
+\IEEEauthorblockA{\textit{Dept. of Electrical and Electronic Engineering} \\
+\textit{Bangladesh University of Engineering and Technology}\\
+Dhaka, Bangladesh \\
+EMAIL TO BE ADDED}
 }
 
 \maketitle
@@ -40,8 +62,13 @@ controller. On the IEEE 34-bus feeder, coordinated dispatch across five hubs cle
 violating hour at a mild peak, while a single hub of the same rating clears fewer than
 half. Under realistic availability and state-of-charge limits, however, the fleet supplies
 less than 15 percent of the energy the controller requests. Energy adequacy outweighs
-controller choice by more than a factor of 40 at both load levels. Fleet sizing and
-availability therefore deserve more attention than controller sophistication.
+controller choice by more than a factor of 40 at both load levels. Training the policy
+five times longer does not change this, and its commanded setpoints show why: it scales a
+nearly fixed power factor instead of allocating between active and reactive power as
+loading changes. A degradation-aware objective then removes about 60 percent of battery
+throughput for roughly a 1 percent rise in violation, because the marginal stored
+kilowatt-hour is nearly worthless once the fleet binds. Fleet
+sizing and availability therefore deserve more attention than controller sophistication.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -59,15 +86,18 @@ They sit near the load end of the feeder, where support is most effective, and t
 is borne by the fleet owner. Recent work applies reinforcement learning (RL) to coordinate
 several V2G hubs for voltage regulation on the IEEE 34-bus feeder \cite{wang2026v2g}.
 
-A wider body of work applies RL to inverter dispatch for the same purpose. Safe off-policy
-methods \cite{wang2020safe}, multi-agent consensus formulations \cite{gao2021consensus},
-and graph-based architectures with explicit safety layers \cite{yan2024magrl} have all been
-reported. Related studies manage EV charging to hold voltage in low-voltage networks
-\cite{nazir2024} and examine battery-to-grid injection from charging and swapping stations
-\cite{guldorum2024}. EV stock continues to grow \cite{iea2025}, and with it the capacity
-notionally available for such services. Across this literature the controller is treated as
-the binding constraint, so that a better policy is expected to extract more support from
-the same hardware.
+A wider body of work applies RL to inverter dispatch for the same purpose. Recent
+contributions include graph-based architectures with explicit safety layers
+\cite{yan2024magrl}, active management of EV charging to hold voltage in low-voltage
+networks \cite{nazir2024}, battery-to-grid injection from charging and swapping stations
+\cite{guldorum2024}, impact analysis of optimal bidirectional charging under
+spatial-temporal constraints \cite{lee2025}, and coordination of local EV flexibility with
+social impact considered alongside network limits \cite{chen2025}. EV stock continues to
+grow \cite{iea2025}, and with it the capacity notionally available for such services. These
+build on earlier RL formulations for volt/var control, both safe off-policy
+\cite{wang2020safe} and multi-agent consensus \cite{gao2021consensus}. Across this
+literature the controller is treated as the binding constraint, so that a better policy is
+expected to extract more support from the same hardware.
 
 That assumption has not been tested. None of these studies computes what the fleet could
 deliver under an ideal controller, so a reported improvement cannot be placed on a scale. A
@@ -81,6 +111,21 @@ the AC power flow and limiting only inverter rating. No energy constraint is app
 the result is an upper bound set by the power electronics alone. Comparing it against droop
 and learned controllers, run with and without a realistic fleet model, splits the total
 shortfall into an energy part and a control part.
+
+Two design choices make that split trustworthy. Voltages are evaluated per phase rather
+than as bus averages, because the standard that defines the limits is itself per phase and
+a three-phase average hides single-phase excursions on an unbalanced feeder. Controllers
+are then compared on common random numbers, so every controller sees the same availability
+draw, the same initial state of charge and the same load realization, and the differences
+between them are paired rather than compared as independent means. Without pairing, the
+controller gap reported here would sit inside the scenario-to-scenario noise.
+
+The practical stake is where a utility or fleet operator should spend effort. If the
+controller binds, the return comes from better control software, which is cheap to deploy
+across an existing installation. If stored energy binds, the return comes from more
+vehicles, longer dwell times or contractual availability, none of which a control upgrade
+can supply. These lead to different investments, and the two cases are distinguishable
+before any controller is built.
 
 The contributions of this paper are as follows:
 \begin{itemize}
@@ -104,6 +149,28 @@ Section~\ref{sec:nulls} three further observations, and Section~\ref{sec:conc} c
 
 \subsection{Feeder and Charging Hubs}
 
+\begin{table}[t]
+\caption{Simulation and Training Parameters}
+\label{tab:params}
+\centering
+\begin{tabular}{ll}
+\toprule
+Parameter & Value \\
+\midrule
+Test feeder & IEEE 34-bus, 24.9~kV \\
+Hub rating (each) & 500~kW / 400~kVAr \\
+Peak multiplier, mild / aggressive & 1.5 / 3.0 \\
+Fleet availability & 45--85\% \\
+Arrival / minimum state of charge & 70\% / 20\% \\
+Droop deadband & $\pm0.02$~p.u. \\
+Actor and critic hidden layers & $2\times256$ \\
+Learning rate / batch size & $3\times10^{-4}$ / 256 \\
+Training budget & 20{,}000 and 100{,}000 steps \\
+Seeds $\times$ scenarios & $3\times5$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 All experiments use the IEEE 34-bus test feeder, a 24.9~kV rural circuit whose length makes
 it a standard stress case for voltage studies, solved in OpenDSS through its Python
 interface. The single-hub configuration places one 500~kW/400~kVAr hub at bus 890. The
@@ -111,6 +178,7 @@ multi-hub configuration distributes five hubs of the same rating at buses 890, 8
 and 860, following \cite{wang2026v2g}. A daily load shape drives hours 06:00 through 23:00,
 scaled by a peak multiplier. Two operating points are used throughout: a mild peak
 ($\lambda_{\max}=1.5$) and an aggressive peak ($\lambda_{\max}=3.0$).
+Table~\ref{tab:params} collects the feeder, fleet and training settings used throughout.
 
 \subsection{Baseline}
 \label{sec:repro}
@@ -146,6 +214,12 @@ identified from the minimum rather than the mean. All later results use disabled
 
 \subsection{Fleet and Battery Model}
 
+\begin{figure*}[t]
+\centerline{\includegraphics[width=\textwidth]{fig1_decomposition.pdf}}
+\caption{Day-integrated voltage violation on the five-hub feeder.}
+\label{fig:decomp}
+\end{figure*}
+
 Each hub serves a fleet whose availability varies through the day between 45 and 85 percent
 and is drawn independently per scenario. Vehicles arrive at 70 percent state of charge and
 are not discharged below 20 percent. State of charge is drawn down by apparent power, so
@@ -154,9 +228,8 @@ formulation and matters for Section~\ref{sec:pq}.
 
 The distinction between an unconstrained and a constrained fleet runs through the whole
 study. The reference work evaluates multi-hub coordination while ``assuming sufficient EV
-capacity at each hub, allowing the analysis to isolate the benefits of multi-hub
-coordination from availability constraints'' \cite{wang2026v2g}. We report both cases,
-because the difference between them turns out to be the principal result.
+capacity at each hub'' \cite{wang2026v2g}. We report both cases, because the difference
+between them turns out to be the principal result.
 
 \subsection{Evaluation Metrics}
 \label{sec:metrics}
@@ -191,11 +264,6 @@ finite battery over time is representable. The state comprises bus voltages, loa
 hour of day, and per-hub state of charge and availability. The action sets per-hub active and
 reactive power as a residual on the droop prior.
 
-\begin{figure*}[t]
-\centerline{\includegraphics[width=\textwidth]{fig1_decomposition.pdf}}
-\caption{Day-integrated voltage violation on the five-hub feeder.}
-\label{fig:decomp}
-\end{figure*}
 
 \section{Voltage Support Capability}
 \label{sec:ceiling}
@@ -203,18 +271,16 @@ reactive power as a residual on the droop prior.
 \subsection{Upper Bound on Voltage Support}
 
 For each hour we search for the per-hub injection $(P_i, Q_i)$ that minimizes \eqref{eq:iv}
-subject to $\sqrt{P_i^2+Q_i^2} \le S_i^{\mathrm{rated}}$. The search is a coordinate descent
-over a polar grid with refinement, and a full AC power flow is evaluated at every candidate.
-No energy constraint is imposed. Non-converged solutions are masked rather than read, because
-at deep-sag hours the high-injection end of the search lies past the nose of the
-power-voltage curve.
+subject to $\sqrt{P_i^2+Q_i^2} \le S_i^{\mathrm{rated}}$, by coordinate descent over a refined
+polar grid with a full AC power flow at every candidate and no energy constraint imposed.
+Non-converged solutions are masked rather than read, because at deep-sag hours the
+high-injection end of the search lies past the nose of the power-voltage curve.
 
 Searching per hub rather than uniformly is necessary. With five hubs at equal output, raising
-the feeder end to 0.95~p.u. drives the near buses above 1.05~p.u., so hours that an uneven
-dispatch clears comfortably are scored as unclearable. Under uniform dispatch the five-hub
-case then scores worse than the single-hub case, which is not physically possible. Per-hub
-search removes the artefact and moves the mild multi-hub result from five clearable hours to
-eighteen.
+the feeder end to 0.95~p.u. drives the near buses above 1.05~p.u., so hours an uneven dispatch
+clears comfortably are scored unclearable, and the five-hub case then scores worse than the
+single-hub case, which is not physically possible. Per-hub search removes the artefact and
+moves the mild multi-hub result from five clearable hours to eighteen.
 
 Table~\ref{tab:ceiling} reports the outcome. A single hub at full rating clears seven of the
 eighteen loaded hours at the mild peak and two at the aggressive peak. Five hubs of the same
@@ -244,13 +310,9 @@ Five hubs, aggressive  & 4  & 28.33  & 18.00 \\
 \end{tabular}
 \end{table}
 
-\begin{figure}[t]
-\centerline{\includegraphics[width=\columnwidth]{fig2_ceiling.pdf}}
-\caption{Worst-phase voltage by hour, with and without optimized five-hub dispatch.}
-\label{fig:ceiling}
-\end{figure}
 
 \subsection{Energy and Control Contributions}
+
 
 Fig.~\ref{fig:decomp} places the controllers against this bound and is the central result of
 the paper. Reading the mild panel, the untreated feeder accumulates 45.61~p.u.$\cdot$h of
@@ -266,6 +328,12 @@ outweighs controller choice by a factor of 49 and 45.
 
 \subsection{Active and Reactive Trade-off}
 \label{sec:pq}
+
+\begin{figure}[t]
+\centerline{\includegraphics[width=\columnwidth]{fig2_ceiling.pdf}}
+\caption{Worst-phase voltage by hour, with and without optimized five-hub dispatch.}
+\label{fig:ceiling}
+\end{figure}
 
 Because state of charge is drawn down by apparent power, the common assumption that reactive
 power is free does not hold. Sweeping the injection angle at fixed apparent power and fixed
@@ -283,6 +351,12 @@ and pays full battery energy for it.
 \label{sec:controllers}
 
 \subsection{Multi-Hub Operation}
+
+\begin{figure*}[t]
+\centerline{\includegraphics[width=\textwidth]{fig3_pq.pdf}}
+\caption{Commanded injection angle against the voltage-optimal angle, by hour.}
+\label{fig:pq}
+\end{figure*}
 
 Table~\ref{tab:controllers} reports the five-hub feeder with the fleet model active, over
 three seeds and five paired scenarios. Droop reaches 42.77~p.u.$\cdot$h at the mild peak and
@@ -319,11 +393,11 @@ up in Section~\ref{sec:nulls}.
 \subsection{Training Analysis}
 
 A negative result about a learned controller invites the objection that it was not trained
-long enough. The objection is reasonable, since 20,000 steps is about 1100 episodes and 19,000
-gradient updates for a ten-dimensional action space. We therefore trained to 100,000 steps and
-evaluated at 20,000-step checkpoints on identical scenarios. Checkpoints fall on the same chunk
-boundaries the fixed-budget runs use, so the 20,000-step row measures the same agent reported
-in Table~\ref{tab:controllers}.
+long enough, and at 20,000 steps, about 1100 episodes for a ten-dimensional action space, the
+objection is reasonable. We therefore trained to 100,000 steps and evaluated at 20,000-step
+checkpoints on identical scenarios, placing checkpoints on the chunk boundaries the
+fixed-budget runs use so the 20,000-step row measures the agent of
+Table~\ref{tab:controllers}.
 
 The outcome differs by load level, as Fig.~\ref{fig:learning} shows. At the aggressive peak the
 curve is flat from 40,000 steps onward. Violation moves from 169.20 to 168.41 across a fivefold
@@ -335,17 +409,18 @@ At the mild peak the curve is still improving at 100,000 steps. Violation falls 
 43.56, a change of $-1.48$ against a confidence interval of 0.49. The gap to droop narrows
 monotonically from $+2.27$ to $+0.79$, and the policy takes two of ten paired scenarios, the
 only scenarios it wins anywhere in this study. We therefore report the mild comparison as
-unresolved at the budgets tested rather than as a droop victory. It is worth setting that
-improvement against the previous section: the gap narrowed by 1.48~p.u.$\cdot$h over a fivefold
-increase in training, against an energy shortfall of 38.62 at the same operating point.
+unresolved at the budgets tested rather than as a droop victory. Set against the previous
+section, however, the gap narrowed by 1.48~p.u.$\cdot$h over a fivefold increase in training,
+against an energy shortfall of 38.62 at the same operating point.
 
 \begin{figure}[t]
-\centerline{\includegraphics[width=\columnwidth]{fig3_learning.pdf}}
+\centerline{\includegraphics[width=\columnwidth]{fig4_learning.pdf}}
 \caption{Violation against training budget.}
 \label{fig:learning}
 \end{figure}
 
 \subsection{Allocation Analysis}
+
 
 A scoreboard alone does not explain the outcome, so we examined the active and reactive split
 the policy commands, hour by hour, weighted by apparent power and compared against the
@@ -367,14 +442,15 @@ the condition being corrected, not merely conservative ones. The pattern is cons
 controller that scales a roughly fixed power factor instead of allocating between active and
 reactive power in response to loading.
 
-\begin{figure*}[t]
-\centerline{\includegraphics[width=\textwidth]{fig4_pq.pdf}}
-\caption{Commanded injection angle against the voltage-optimal angle, by hour.}
-\label{fig:pq}
-\end{figure*}
 
 \section{Degradation-Aware Dispatch}
 \label{sec:degradation}
+
+\begin{figure}[t]
+\centerline{\includegraphics[width=\columnwidth]{fig5_frontier.pdf}}
+\caption{Violation against battery throughput as the wear weight is swept from 0 to 300.}
+\label{fig:frontier}
+\end{figure}
 
 Battery wear is the standing objection to V2G participation, and the economic case is
 sensitive to it \cite{v2gaging2024}. The reference formulation carries no battery term in its
@@ -386,14 +462,13 @@ violation stays within a 2.6 percent band, between 44.83 and 46.01 per-unit-hour
 throughput falls from 6188 to 2449~kWh. Comparing the endpoints, roughly 60 percent of battery
 throughput can be removed for a 1.1 percent increase in violation.
 
-This follows from the energy-limited regime identified earlier. When the binding constraint is
-that the fleet cannot supply what the feeder needs, the marginal voltage value of the last
-kilowatt-hour discharged is very low, so a wear penalty removes it at almost no cost. The
-practical reading is favourable. On feeders in this regime, aggressive degradation-aware
-dispatch costs little in voltage performance, which improves the participation case for fleet
-owners.
+This follows from the energy-limited regime identified earlier. When the fleet cannot supply
+what the feeder needs, the marginal voltage value of the last kilowatt-hour discharged is very
+low, so a wear penalty removes it at almost no cost. On feeders in this regime, aggressive
+degradation-aware dispatch therefore costs little in voltage performance, which improves the
+participation case for fleet owners.
 
-The intermediate points should not be over-interpreted. Each weight was trained with a single
+The intermediate points should not be over-interpreted: each weight was trained with a single
 seed and the sequence is not monotone, so the defensible claims are the endpoint comparison and
 the width of the band, not the shape in between.
 
@@ -406,25 +481,19 @@ design choice that is common in the literature.
 \subsection{Safety Projection}
 
 Projecting commanded setpoints onto the voltage-feasible set is standard practice in
-learning-based volt/var control \cite{wang2020safe,yan2024magrl}, so its absence would be a
-reasonable objection. We implemented and measured two projections: a proportional reduction
-along the commanded ray, and a reactive-first variant motivated by Section~\ref{sec:pq}.
+learning-based volt/var control \cite{wang2020safe,yan2024magrl}, so we implemented and
+measured two: a proportional reduction along the commanded ray, and a reactive-first variant
+motivated by Section~\ref{sec:pq}.
 
 Both are inert. The unprojected policy already reports zero overvoltage and a maximum phase
 voltage of exactly 1.050~p.u. at both load levels, and projection changes the violation metric
 by less than the confidence interval. The feasibility test acts on commanded setpoints, but the
-state-of-charge limit clips those commands first. The energy constraint binds before the voltage
-constraint does, leaving nothing for a voltage projection to remove. Where overvoltage does
-appear in our runs, it tracks the training regime rather than the controller: policies trained
-on independently sampled load multipliers without a fleet in the loop reach 1.229~p.u., whereas
-day-structured training with the fleet in the loop holds 1.050 across every configuration and
-checkpoint tested.
+state-of-charge limit clips those commands first, so the energy constraint binds before the
+voltage constraint and leaves nothing to remove. Where overvoltage does
+appear, it tracks the training regime rather than the controller: policies trained on
+independently sampled load multipliers without a fleet in the loop reach 1.229~p.u., whereas
+day-structured training with the fleet in the loop holds 1.050 everywhere we tested.
 
-\begin{figure}[t]
-\centerline{\includegraphics[width=\columnwidth]{fig5_frontier.pdf}}
-\caption{Violation against battery throughput as the wear weight is swept from 0 to 300.}
-\label{fig:frontier}
-\end{figure}
 
 \subsection{Fleet State}
 
@@ -438,14 +507,13 @@ breaches the upper limit at the aggressive peak where the augmented agent does n
 \subsection{Droop Convergence}
 
 The last observation is methodological and affects any study using a closed-loop droop
-baseline. Droop response and feeder voltage are mutually dependent, and the fixed point is
-commonly computed with a fixed iteration count. On the five-hub feeder, at a damping factor of
-0.6, the iteration does not settle but enters a period-two limit cycle, with total active power
-alternating between 1298 and 630~kW at the mild-peak evening hour. A fixed iteration count then
-returns whichever branch the last iteration reached, and the reported baseline flips with the
-parity of the count. Damping of 0.3 with a residual test converges in all four configurations
-tested. A convergence diagnostic should therefore accompany any droop baseline computed this
-way.
+baseline, whose fixed point is commonly computed with a fixed iteration count. On the five-hub
+feeder, at a damping factor of 0.6, the iteration does not settle but enters a period-two limit
+cycle, with total active power alternating between 1298 and 630~kW at the mild-peak evening
+hour. A fixed iteration count then returns whichever branch the last iteration reached, and the
+reported baseline flips with the parity of the count. Damping of 0.3 with a residual test
+converges in all four configurations tested, so a convergence diagnostic should accompany any
+droop baseline computed this way.
 
 \section{Conclusion}
 \label{sec:conc}
@@ -458,11 +526,11 @@ state-of-charge limits are applied, however, the fleet supplies well under a fif
 the controller requests, and the resulting shortfall exceeds the entire span between a tuned
 droop law and a converged learned policy by a factor of roughly 45 to 50.
 
-This is not an argument against learned control in distribution systems. It is an argument that
+This is not an argument against learned control in distribution systems, but an argument that
 the operating regime should be established before the controller is designed, because in the
 energy-limited regime a better policy has very little left to win. Both the upper bound and an
-energy adequacy ratio can be computed from feeder and fleet data before any controller exists,
-and we suggest they be reported as standard context alongside controller comparisons.
+energy adequacy ratio follow from feeder and fleet data before any controller exists, and we
+suggest reporting them as standard context alongside controller comparisons.
 
 Two further results point the same way. A degradation-aware objective removes 60 percent of
 battery throughput for a 1.1 percent violation penalty, because the marginal kilowatt-hour is
@@ -470,25 +538,17 @@ nearly worthless in this regime. A safety projection layer, standard elsewhere, 
 inert here because the energy constraint binds first.
 
 The study covers one feeder and one learning algorithm, and the mild-peak comparison remains
-unresolved at the budgets we could afford. Two extensions follow. The ratio reported here
-depends on feeder impedance and hub siting, so it should be recomputed on a larger feeder. More
-usefully, the bound is inexpensive enough to invert: rather than scoring a controller against
-it, it can serve as a planning screen returning the fleet size and availability needed to make a
-target violation level reachable.
+unresolved at the budgets we could afford. The ratio reported here depends on feeder impedance
+and hub siting, so it should be recomputed on a larger network. More usefully, the bound is
+inexpensive enough to invert: rather than scoring a controller against it, it can serve as a
+planning screen returning the fleet size and availability needed to make a target violation
+level reachable.
 
 \begin{thebibliography}{00}
 
 \bibitem{wang2026v2g} J. Wang, R. A. Jacob, H. D. Kaushik, and J. Zhang, ``Reinforcement
 learning for vehicle-to-grid voltage regulation: Single-hub to multi-hub coordination with
 battery-aware constraints,'' 2026, arXiv:2603.07237.
-
-\bibitem{wang2020safe} W. Wang, N. Yu, Y. Gao, and J. Shi, ``Safe off-policy deep
-reinforcement learning algorithm for volt-var control in power distribution systems,''
-\emph{IEEE Trans. Smart Grid}, vol. 11, no. 4, pp. 3008--3018, Jul. 2020.
-
-\bibitem{gao2021consensus} Y. Gao, W. Wang, and N. Yu, ``Consensus multi-agent reinforcement
-learning for volt-var control in power distribution networks,'' \emph{IEEE Trans. Smart
-Grid}, vol. 12, no. 4, pp. 3594--3604, Jul. 2021.
 
 \bibitem{yan2024magrl} R. Yan, Q. Xing, and Y. Xu, ``Multi-agent safe graph reinforcement
 learning for PV inverters-based real-time decentralized volt/var control in zoned
@@ -505,8 +565,22 @@ Contreras, ``Charging stations vs. battery swapping stations considering battery
 injections,'' in \emph{Proc. IEEE PES Innov. Smart Grid Technol. Europe (ISGT EUROPE)},
 Dubrovnik, Croatia, 2024, doi: 10.1109/ISGTEUROPE62998.2024.10863744.
 
+\bibitem{lee2025} X.-L. Lee, A. N. Toosi, and P. Pudney, ``Impact analysis of optimal EV
+bi-directional charging with spatial-temporal constraints,'' 2025, arXiv:2507.12877.
+
+\bibitem{chen2025} S. Chen \emph{et al.}, ``Optimal coordination of local flexibility from
+electric vehicles with social impact consideration,'' 2025, arXiv:2508.16814.
+
 \bibitem{iea2025} International Energy Agency, \emph{Global EV Outlook 2025}. Paris, France:
 IEA, 2025.
+
+\bibitem{wang2020safe} W. Wang, N. Yu, Y. Gao, and J. Shi, ``Safe off-policy deep
+reinforcement learning algorithm for volt-var control in power distribution systems,''
+\emph{IEEE Trans. Smart Grid}, vol. 11, no. 4, pp. 3008--3018, Jul. 2020.
+
+\bibitem{gao2021consensus} Y. Gao, W. Wang, and N. Yu, ``Consensus multi-agent reinforcement
+learning for volt-var control in power distribution networks,'' \emph{IEEE Trans. Smart
+Grid}, vol. 12, no. 4, pp. 3594--3604, Jul. 2021.
 
 \bibitem{ansi} \emph{American National Standard for Electric Power Systems and Equipment---
 Voltage Ratings (60 Hz)}, ANSI C84.1-2020, 2020.
