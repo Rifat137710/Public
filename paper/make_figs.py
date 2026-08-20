@@ -9,6 +9,12 @@ and the tables in the paper cannot drift apart.
     python3 make_figs.py
 
 Writes fig1..fig5 as PDF (for LaTeX) and PNG (for quick review).
+
+Colour roles are consistent across figures: BLUE is the reference or optimum
+(droop, voltage-optimal angle, optimized dispatch), ORANGE is the learned policy,
+and grey is reserved for limits and the untreated feeder. The two series hues are
+slots 1 and 2 of a categorical palette validated for colour-vision deficiency;
+line style carries the same distinction, so the figures also read in greyscale.
 """
 
 import os
@@ -26,6 +32,10 @@ PROD = os.path.join(RES, "production")
 
 COL, DBL = 3.5, 7.16          # IEEE single- and double-column widths, inches
 
+REF = "#2a78d6"               # reference / optimum
+POL = "#eb6834"               # learned policy
+LIM = "#6b6b6b"               # limits, untreated feeder
+
 plt.rcParams.update({
     "font.size": 8,
     "axes.titlesize": 8,
@@ -33,7 +43,7 @@ plt.rcParams.update({
     "xtick.labelsize": 7,
     "ytick.labelsize": 7,
     "legend.fontsize": 7,
-    "lines.linewidth": 1.1,
+    "lines.linewidth": 1.3,
     "lines.markersize": 3.5,
     "axes.grid": True,
     "grid.alpha": 0.3,
@@ -65,7 +75,7 @@ def save(fig, stem):
 
 
 # --------------------------------------------------------------------------- #
-# Fig. 1  Where the violation goes: ceiling, energy limit, controller span
+# Fig. 1  Violation split into its energy and control parts
 # --------------------------------------------------------------------------- #
 def fig1():
     E2 = R["E2 multi-hub fleet-constrained"]
@@ -82,7 +92,7 @@ def fig1():
             mean_ci(d["Droop"])[0],
         ]
 
-    labels = ["No V2G", "Achievable\nceiling", "Droop,\nenergy\nunlimited",
+    labels = ["No V2G", "Upper\nbound", "Droop,\nenergy\nunlimited",
               "Droop,\nreal fleet", "Learned,\nreal fleet"]
     mild = col("mild", "multi_mild") + [E13m]
     aggr = col("aggr", "multi_aggr") + [E13a]
@@ -91,7 +101,7 @@ def fig1():
     for ax, vals, ttl in ((axes[0], mild, "Mild peak"),
                           (axes[1], aggr, "Aggressive peak")):
         x = np.arange(len(vals))
-        ax.bar(x, vals, width=0.62, color="0.55", edgecolor="black", linewidth=0.6)
+        ax.bar(x, vals, width=0.62, color=REF, edgecolor="white", linewidth=0.8)
         ax.set_xticks(x)
         ax.set_xticklabels(labels)
         ax.set_ylim(0, max(vals) * 1.22)
@@ -118,9 +128,9 @@ def fig2():
         hours = sorted(raw)
         base = [ph5[h]["PQ"]["Vmin"][0] for h in hours]
         opt = [raw[h]["Vmin"] for h in hours]
-        ax.plot(hours, base, "k--", label="no V2G")
-        ax.plot(hours, opt, "k-", label="optimized dispatch")
-        ax.axhline(0.95, color="0.45", ls=":", lw=0.9, label="0.95 p.u.")
+        ax.plot(hours, base, ls="--", color=POL, label="no V2G")
+        ax.plot(hours, opt, ls="-", color=REF, label="optimized dispatch")
+        ax.axhline(0.95, color=LIM, ls=":", lw=1.0, label="0.95 p.u.")
         ax.set_xlabel("hour of day")
         ax.set_title(ttl)
         ax.set_xticks(range(6, 24, 6))
@@ -145,10 +155,10 @@ def fig3():
         e = [b for _, b in m]
         dr = mean_ci(E13[f"{case}/droop"])[0]
         bl = mean_ci(E13[f"{case}/baseline"])[0]
-        p1 = ax.errorbar(ckpts, y, yerr=e, fmt="ko-", capsize=2.5,
-                         label="learned policy")
-        p2 = ax.axhline(dr, color="0.35", ls="--", lw=1.0, label="droop")
-        p3 = ax.axhline(bl, color="0.55", ls=":", lw=1.0, label="no V2G")
+        p1 = ax.errorbar(ckpts, y, yerr=e, fmt="o-", color=POL, capsize=2.0,
+                         label="learned")
+        p2 = ax.axhline(dr, color=REF, ls="--", lw=1.2, label="droop")
+        p3 = ax.axhline(bl, color=LIM, ls=":", lw=1.2, label="no V2G")
         lo = min(min(y) - max(e) * 2, dr)
         hi = max(max(y) + max(e) * 2, bl)
         pad = (hi - lo) * 0.30
@@ -158,41 +168,11 @@ def fig3():
         ax.set_title(ttl)
         ax.set_xticks(ckpts[::2])
         ax.set_xticklabels([str(c // 1000) for c in ckpts[::2]])
-        ax.legend(handles=[p1, p2, p3], loc="upper right", framealpha=0.95,
-                  handlelength=1.4, borderpad=0.3, labelspacing=0.25)
+        ax.legend(handles=[p1, p2, p3], loc="upper right", fontsize=5.5,
+                  framealpha=0.9, handlelength=1.0, borderpad=0.18,
+                  labelspacing=0.15, handletextpad=0.4, borderaxespad=0.25)
     fig.tight_layout()
     save(fig, "fig3_learning")
-
-
-# --------------------------------------------------------------------------- #
-# Fig. 5  Violation against battery throughput as the wear weight is swept
-# --------------------------------------------------------------------------- #
-def fig4():
-    pts = R["E3 frontier mild"]
-    rl = [p for p in pts if p["w"] != "droop"]
-    dr = [p for p in pts if p["w"] == "droop"]
-    rl.sort(key=lambda p: p["w"])
-
-    # the low-weight points sit almost on top of one another, so the labels are
-    # placed on alternating sides to keep them readable
-    offs = {0.0: (-3, -11), 1.0: (-13, 3), 3.0: (-13, -4), 10.0: (-3, 6),
-            30.0: (5, -3), 100.0: (-3, 6), 300.0: (-3, 6)}
-
-    fig, ax = plt.subplots(figsize=(COL, 2.4))
-    ax.plot([p["Thru"] for p in rl], [p["IntViol"] for p in rl], "ko-",
-            label="learned policy, wear weight swept")
-    for p in rl:
-        ax.annotate(f'{p["w"]:g}', (p["Thru"], p["IntViol"]), fontsize=6.5,
-                    xytext=offs.get(p["w"], (4, 4)), textcoords="offset points")
-    if dr:
-        ax.plot([p["Thru"] for p in dr], [p["IntViol"] for p in dr], "s",
-                ms=6, color="0.35", label="droop")
-    ax.set_xlabel("battery throughput (kWh/day)")
-    ax.set_ylabel("integrated violation (p.u.$\\cdot$h)")
-    ax.set_xlim(1000, 7300)
-    ax.legend(loc="lower right")
-    fig.tight_layout()
-    save(fig, "fig5_frontier")
 
 
 # --------------------------------------------------------------------------- #
@@ -224,11 +204,11 @@ def parse_e11b_tables(path):
     return out
 
 
-def fig5():
+def fig4():
     tab = parse_e11b_tables(os.path.join(RES, "e11b_log_20260819.txt"))
     fig, axes = plt.subplots(1, 2, figsize=(DBL, 2.5))
-    for ax, case, ttl, ylim in ((axes[0], "mild", "Mild peak", (-25, 95)),
-                                (axes[1], "aggr", "Aggressive peak", (-25, 95))):
+    for ax, case, ttl in ((axes[0], "mild", "Mild peak"),
+                          (axes[1], "aggr", "Aggressive peak")):
         seeds = [s for (c, s) in tab if c == case]
         hours = sorted({h for s in seeds for h in tab[(case, s)]})
         ag, op = [], []
@@ -237,20 +217,52 @@ def fig5():
             o = [tab[(case, s)][h][1] for s in seeds if h in tab[(case, s)]]
             ag.append(np.mean(a))
             op.append(np.mean(o))
-        ax.plot(hours, op, "ks--", label="voltage-optimal", markerfacecolor="white")
-        ax.plot(hours, ag, "ko-", label="commanded by policy")
-        ax.axhline(0, color="0.4", lw=0.8, label="pure active power")
-        ax.axhline(38.7, color="0.55", ls=":", lw=0.9, label="hub rating ratio")
+        ax.plot(hours, op, ls="--", marker="s", color=REF, markerfacecolor="white",
+                label="voltage-optimal")
+        ax.plot(hours, ag, ls="-", marker="o", color=POL, label="commanded by policy")
+        ax.axhline(0, color=LIM, lw=1.0, label="pure active power")
+        ax.axhline(38.7, color=LIM, ls=":", lw=1.0, label="hub rating ratio")
         ax.set_xlabel("hour of day")
         ax.set_ylabel("injection angle (deg)")
         ax.set_title(ttl)
-        ax.set_ylim(*ylim)
+        ax.set_ylim(-25, 95)
         ax.set_xticks(range(6, 24, 2))
     h, l = axes[0].get_legend_handles_labels()
     fig.legend(h, l, loc="lower center", ncol=4, bbox_to_anchor=(0.5, -0.09),
                frameon=False)
     fig.tight_layout()
     save(fig, "fig4_pq")
+
+
+# --------------------------------------------------------------------------- #
+# Fig. 5  Violation against battery throughput as the wear weight is swept
+# --------------------------------------------------------------------------- #
+def fig5():
+    pts = R["E3 frontier mild"]
+    rl = [p for p in pts if p["w"] != "droop"]
+    dr = [p for p in pts if p["w"] == "droop"]
+    rl.sort(key=lambda p: p["w"])
+
+    # the low-weight points sit almost on top of one another, so the labels are
+    # placed on alternating sides to keep them readable
+    offs = {0.0: (-3, -11), 1.0: (-13, 3), 3.0: (-13, -4), 10.0: (-3, 6),
+            30.0: (5, -3), 100.0: (-3, 6), 300.0: (-3, 6)}
+
+    fig, ax = plt.subplots(figsize=(COL, 2.4))
+    ax.plot([p["Thru"] for p in rl], [p["IntViol"] for p in rl], "o-", color=POL,
+            label="learned policy, wear weight swept")
+    for p in rl:
+        ax.annotate(f'{p["w"]:g}', (p["Thru"], p["IntViol"]), fontsize=6.5,
+                    xytext=offs.get(p["w"], (4, 4)), textcoords="offset points")
+    if dr:
+        ax.plot([p["Thru"] for p in dr], [p["IntViol"] for p in dr], "s",
+                ms=6, color=REF, label="droop")
+    ax.set_xlabel("battery throughput (kWh/day)")
+    ax.set_ylabel("integrated violation (p.u.$\\cdot$h)")
+    ax.set_xlim(1000, 7300)
+    ax.legend(loc="lower right")
+    fig.tight_layout()
+    save(fig, "fig5_frontier")
 
 
 if __name__ == "__main__":
