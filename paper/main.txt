@@ -1,16 +1,10 @@
 Voltage Support Capability of Multi-Hub Vehicle-to-Grid Operation Under Fleet Energy Constraints
 
-1st Md. Rifat Rahman
-Dept. of Electrical and Electronic Engineering
-Bangladesh University of Engineering and Technology
+Md. Rifat Rahman; Shaikh Anowarul Fattah, Senior Member, IEEE
+Dept. of Electrical & Electronic Engineering
+Bangladesh University of Engineering & Technology
 Dhaka, Bangladesh
-2006137@eee.buet.ac.bd
-
-2nd Shaikh Anowarul Fattah, Senior Member, IEEE
-Dept. of Electrical and Electronic Engineering
-Bangladesh University of Engineering and Technology
-Dhaka, Bangladesh
-EMAIL TO BE ADDED
+Email: 2006137@eee.buet.ac.bd
 
 ABSTRACT
 --------
@@ -28,10 +22,9 @@ than half. Under realistic availability and state-of-charge limits, however, the
 supplies less than 15 percent of the energy the controller requests. Energy adequacy
 outweighs controller choice by more than a factor of 40 at both load levels. Training
 the policy five times longer does not change this, and its commanded setpoints show why:
-it scales a nearly fixed power factor instead of allocating between active and reactive
+it scales a nearly fixed power factor rather than allocating between active and reactive
 power as loading changes. A degradation-aware objective then removes about 60 percent of
-battery throughput for roughly a 1 percent rise in violation, because the marginal
-stored kilowatt-hour is nearly worthless once the fleet binds. Fleet sizing and
+battery throughput for roughly a 1 percent rise in violation. Fleet sizing and
 availability therefore deserve more attention than controller sophistication.
 
 INDEX TERMS
@@ -44,54 +37,41 @@ I. INTRODUCTION
 ---------------
 
 Long rural distribution feeders were not built for the voltage profiles they must now
-hold. Peak demand pulls the far end of the circuit below acceptable limits, and the
-usual remedies, such as reconductoring and additional regulators, are slow and
-expensive. Bidirectional inverters installed with electric vehicle (EV) fleets offer
-another option. They sit near the load end of the feeder, where support is most
-effective, and their cost is borne by the fleet owner. Recent work applies reinforcement
-learning (RL) to coordinate several V2G hubs for voltage regulation on the IEEE 34-bus
-feeder [1].
+hold. Peak demand pulls the far end of the circuit below acceptable limits, and
+reconductoring or additional regulators are slow and expensive. The bidirectional
+inverters arriving with electric vehicle (EV) fleets offer another option, since they
+sit near the load end where support is most effective and are paid for by the fleet
+owner. Recent work coordinates several such vehicle-to-grid (V2G) hubs for voltage
+regulation on the IEEE 34-bus feeder using reinforcement learning (RL) [1].
 
-A wider body of work applies RL to inverter dispatch for the same purpose. Recent
-contributions include graph-based architectures with explicit safety layers [2], active
-management of EV charging to hold voltage in low-voltage networks [3], battery-to-grid
-injection from charging and swapping stations [4], impact analysis of optimal
-bidirectional charging under spatial-temporal constraints [5], and coordination of local
-EV flexibility with social impact considered alongside network limits [6]. EV stock
-continues to grow [7], and with it the capacity notionally available for such services.
-These build on earlier RL formulations for volt/var control, both safe off-policy [8]
-and multi-agent consensus [9]. Across this literature the controller is treated as the
-binding constraint, so that a better policy is expected to extract more support from the
-same hardware.
+Interest in this direction follows from transport electrification itself. Road transport
+remains a large source of emissions and EV stock continues to grow [2], so inverter
+capacity is appearing on distribution networks faster than those networks are being
+reinforced. Managed charging is the usual first response, and active control of
+residential charging holds voltage within limits while raising hosting capacity [3].
+Bidirectional operation extends this from curtailment to injection, although what can be
+delivered is bounded by where and when vehicles are plugged in [4] and by the charging
+needs of individual drivers [5].
+
+For the dispatch problem itself the literature has largely converged on learned control.
+Graph-based architectures with explicit feasibility layers [6] are a recent example, and
+studies of grid-connected storage at charging and swapping stations reach similar
+conclusions about the value of injection [7]. Both build on earlier volt/var
+formulations using safe off-policy learning [8] and multi-agent consensus [9]. Common to
+this body of work is the assumption that the controller binds, so that a better policy
+extracts more support from the same hardware.
 
 That assumption has not been tested. None of these studies computes what the fleet could
 deliver under an ideal controller, so a reported improvement cannot be placed on a
-scale. A policy that halves the violation of a droop baseline may have captured most of
-the available benefit, or very little of it, and the published numbers do not separate
-the two cases.
+scale: a policy that halves the violation of a droop baseline may have captured most of
+the available benefit, or very little of it.
 
 This paper computes the missing reference point. For each hour we solve for the per-hub
-active and reactive injection that minimizes a two-sided voltage violation metric, using
-the AC power flow and limiting only inverter rating. No energy constraint is applied, so
-the result is an upper bound set by the power electronics alone. Comparing it against
-droop and learned controllers, run with and without a realistic fleet model, splits the
-total shortfall into an energy part and a control part.
-
-Two design choices make that split trustworthy. Voltages are evaluated per phase rather
-than as bus averages, because the standard that defines the limits is itself per phase
-and a three-phase average hides single-phase excursions on an unbalanced feeder.
-Controllers are then compared on common random numbers, so every controller sees the
-same availability draw, the same initial state of charge and the same load realization,
-and the differences between them are paired rather than compared as independent means.
-Without pairing, the controller gap reported here would sit inside the scenario-to-
-scenario noise.
-
-The practical stake is where a utility or fleet operator should spend effort. If the
-controller binds, the return comes from better control software, which is cheap to
-deploy across an existing installation. If stored energy binds, the return comes from
-more vehicles, longer dwell times or contractual availability, none of which a control
-upgrade can supply. These lead to different investments, and the two cases are
-distinguishable before any controller is built.
+active and reactive injection that minimizes a two-sided voltage violation metric on the
+AC power flow, limiting only inverter rating. No energy constraint is applied, so the
+result is an upper bound set by the power electronics alone. Comparing it against droop
+and learned controllers, run with and without a realistic fleet model, splits the
+shortfall into an energy part and a control part.
 
 The contributions of this paper are as follows:
 
@@ -167,8 +147,9 @@ C. Fleet and Battery Model
 Fig. 1. Day-integrated voltage violation on the five-hub feeder.
 
 Each hub serves a fleet whose availability varies through the day between 45 and 85
-percent and is drawn independently per scenario. Vehicles arrive at 70 percent state of
-charge and are not discharged below 20 percent. State of charge is drawn down by
+percent and is drawn independently per scenario, reflecting the plug-in patterns that
+bound what bidirectional operation can deliver [4]. Vehicles arrive at 70 percent state
+of charge and are not discharged below 20 percent. State of charge is drawn down by
 apparent power, so reactive support costs the same stored energy as active support. This
 follows the reference formulation and matters for Section III-C.
 
@@ -215,8 +196,9 @@ A. Upper Bound on Voltage Support
 For each hour we search for the per-hub injection (P_i, Q_i) that minimizes (1) subject
 to P_i^2+Q_i^2 <= S_rated, by coordinate descent over a refined polar grid with a full
 AC power flow at every candidate and no energy constraint imposed. Non-converged
-solutions are masked rather than read, because at deep-sag hours the high-injection end
-of the search lies past the nose of the power-voltage curve.
+solutions are masked rather than read: at deep-sag hours the high-injection end of the
+search lies past the nose of the power-voltage curve, where the solver leaves stale
+values in its arrays and a naive read reports a spurious improvement.
 
 Searching per hub rather than uniformly is necessary. With five hubs at equal output,
 raising the feeder end to 0.95 p.u. drives the near buses above 1.05 p.u., so hours an
@@ -231,7 +213,9 @@ individual rating, dispatched unevenly, clear all eighteen and four respectively
 shows the hourly picture. The reachable envelope sits on or above the 0.95 p.u. limit
 for the entire mild day, and falls short of it for eleven hours of the aggressive day
 regardless of dispatch. Those eleven hours are a siting and rating problem, not a
-control problem, and no policy can clear them. At equal total inverter rating, spreading
+control problem, and no policy can clear them. This is the same conclusion reached from
+the hosting-capacity side, where feeder-end undervoltage is relieved by capacity and
+placement rather than by scheduling alone [3]. At equal total inverter rating, spreading
 capacity across five hubs and dispatching it unevenly reduces violation by 100 percent
 at the mild peak and by 36.5 percent at the aggressive peak, relative to uniform
 dispatch.
@@ -359,8 +343,9 @@ V. DEGRADATION-AWARE DISPATCH
 Fig. 5. Violation against battery throughput as the wear weight is swept from 0 to 300.
 
 Battery wear is the standing objection to V2G participation, and the economic case is
-sensitive to it [14]. The reference formulation carries no battery term in its reward.
-We added an amp-hour throughput cost, expressed on the same scale as the voltage
+sensitive to it [14]; it is also what tilts station-level comparisons between charging
+and battery swapping [7]. The reference formulation carries no battery term in its
+reward. We added an amp-hour throughput cost, expressed on the same scale as the voltage
 penalty, and swept its weight across three orders of magnitude.
 
 The resulting frontier is flat, as Fig. 5 shows. Across a 300-fold sweep the violation
@@ -387,9 +372,10 @@ addresses a design choice that is common in the literature.
 A. Safety Projection
 
 Projecting commanded setpoints onto the voltage-feasible set is standard practice in
-learning-based volt/var control [8, 2], so we implemented and measured two: a
-proportional reduction along the commanded ray, and a reactive-first variant motivated
-by Section III-C.
+learning-based volt/var control [8, 6], and its absence would be a reasonable objection.
+We implemented and measured two variants: a proportional reduction of the commanded
+setpoint along its own ray, and a reactive-first rule that gives up reactive power
+before active power, motivated by Section III-C.
 
 Both are inert. The unprojected policy already reports zero overvoltage and a maximum
 phase voltage of exactly 1.050 p.u. at both load levels, and projection changes the
@@ -450,7 +436,8 @@ remains unresolved at the budgets we could afford. The ratio reported here depen
 feeder impedance and hub siting, so it should be recomputed on a larger network. More
 usefully, the bound is inexpensive enough to invert: rather than scoring a controller
 against it, it can serve as a planning screen returning the fleet size and availability
-needed to make a target violation level reachable.
+needed to make a target violation level reachable, which is the input that fleet-side
+coordination schemes [5] currently have to assume.
 
 REFERENCES
 ----------
@@ -459,27 +446,27 @@ REFERENCES
     vehicle-to-grid voltage regulation: Single-hub to multi-hub coordination with
     battery-aware constraints," 2026, arXiv:2603.07237.
 
-[2] R. Yan, Q. Xing, and Y. Xu, "Multi-agent safe graph reinforcement learning for PV
-    inverters-based real-time decentralized volt/var control in zoned distribution
-    networks," IEEE Trans. Smart Grid, vol. 15, no. 1, pp. 299-311, Jan. 2024.
+[2] International Energy Agency, Global EV Outlook 2025. Paris, France: IEA, 2025.
 
 [3] H. A. Nazir, M. Z. Iftikhar, S. N. Khan, N. Arshad, and M. Y. Jamal, "Improving grid
     resiliency with active management of electric vehicles charging in low voltage
     distribution network," in Proc. IEEE PES Innov. Smart Grid Technol. Europe (ISGT
     EUROPE), Dubrovnik, Croatia, 2024, doi: 10.1109/ISGTEUROPE62998.2024.10863724.
 
-[4] H. C. Guldorum, P. Diaz-Cachinero, G. Munoz-Delgado, and J. Contreras, "Charging
+[4] X.-L. Lee, A. N. Toosi, and P. Pudney, "Impact analysis of optimal EV bi-directional
+    charging with spatial-temporal constraints," 2025, arXiv:2507.12877.
+
+[5] S. Chen et al., "Optimal coordination of local flexibility from electric vehicles
+    with social impact consideration," 2025, arXiv:2508.16814.
+
+[6] R. Yan, Q. Xing, and Y. Xu, "Multi-agent safe graph reinforcement learning for PV
+    inverters-based real-time decentralized volt/var control in zoned distribution
+    networks," IEEE Trans. Smart Grid, vol. 15, no. 1, pp. 299-311, Jan. 2024.
+
+[7] H. C. Guldorum, P. Diaz-Cachinero, G. Munoz-Delgado, and J. Contreras, "Charging
     stations vs. battery swapping stations considering battery-to-grid injections," in
     Proc. IEEE PES Innov. Smart Grid Technol. Europe (ISGT EUROPE), Dubrovnik, Croatia,
     2024, doi: 10.1109/ISGTEUROPE62998.2024.10863744.
-
-[5] X.-L. Lee, A. N. Toosi, and P. Pudney, "Impact analysis of optimal EV bi-directional
-    charging with spatial-temporal constraints," 2025, arXiv:2507.12877.
-
-[6] S. Chen et al., "Optimal coordination of local flexibility from electric vehicles
-    with social impact consideration," 2025, arXiv:2508.16814.
-
-[7] International Energy Agency, Global EV Outlook 2025. Paris, France: IEA, 2025.
 
 [8] W. Wang, N. Yu, Y. Gao, and J. Shi, "Safe off-policy deep reinforcement learning
     algorithm for volt-var control in power distribution systems," IEEE Trans. Smart
